@@ -1,0 +1,7 @@
+rest:
+  address: "localhost"
+  port: "8081"
+execution:
+  parallelism: "4"
+  target: "local"
+  attached: "true"
