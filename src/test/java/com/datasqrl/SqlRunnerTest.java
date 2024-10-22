@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SqlRunnerTest {
 
   private File sqlFile;
+  private File sqlUdfFile;
   private File planFile;
   private File configDir;
   private String udfPath;
@@ -23,11 +24,12 @@ class SqlRunnerTest {
   @BeforeEach
   void setUp() throws URISyntaxException {
     sqlFile = new File(Resources.getResource("sql/test_sql.sql").toURI());
+    sqlUdfFile = new File(Resources.getResource("sql/test_udf_sql.sql").toURI());
     planFile = new File(Resources.getResource("plans/test_plan.json").toURI());
     configDir = new File(Resources.getResource("config").toURI());
 
     // Set UDF path to the 'udfs' directory in resources
-//    udfPath = new File(classLoader.getResource("udfs").toURI()).getAbsolutePath();
+    udfPath = new File(Resources.getResource("udfs").toURI()).getAbsolutePath();
   }
 
   @Test
@@ -51,6 +53,22 @@ class SqlRunnerTest {
     String[] args = {
         "--configfile", configDir.getAbsolutePath(),
         "--planfile", planFile.getAbsolutePath(),
+        "--block"
+    };
+
+    CommandLine cmd = new CommandLine(new SqlRunner());
+    int exitCode = cmd.execute(args);
+
+    // Assert failure exit code (1 for failure due to invalid argument combination)
+    assertEquals(0, exitCode);
+  }
+
+  @Test
+  void testUdf() {
+    String[] args = {
+        "--configfile", configDir.getAbsolutePath(),
+        "-s", sqlUdfFile.getAbsolutePath(),
+        "--udfpath", udfPath,
         "--block"
     };
 

@@ -1,5 +1,4 @@
--- Set parallelism and other configuration settings
-SET 'execution.parallelism' = '4';
+CREATE FUNCTION IF NOT EXISTS MYSCALARFUNCTION AS 'com.myudf.MyScalarFunction' LANGUAGE JAVA;
 
 -- Create a source table using the datagen connector to simulate streaming data
 CREATE TABLE orders (
@@ -52,12 +51,12 @@ CREATE TABLE blackhole_myorders (
 EXECUTE STATEMENT SET BEGIN
 -- Insert all orders into blackhole_orders
 INSERT INTO blackhole_orders
-SELECT order_id, customer_id, order_amount, order_status, order_time
+SELECT order_id, MYSCALARFUNCTION(customer_id, customer_id), order_amount, order_status, order_time
 FROM orders;
 
 -- Insert filtered MyOrders into blackhole_myorders
 INSERT INTO blackhole_myorders
-SELECT order_id, customer_id, order_amount, order_time
+SELECT order_id, MYSCALARFUNCTION(customer_id, customer_id), order_amount, order_time
 FROM MyOrders;
 
 END;

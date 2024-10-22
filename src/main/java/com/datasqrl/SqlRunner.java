@@ -22,11 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
@@ -136,14 +139,13 @@ class SqlExecutor {
   public SqlExecutor(Configuration configuration, String udfPath) {
     StreamExecutionEnvironment sEnv;
     try {
-      sEnv = new StreamExecutionEnvironment(configuration);
+      sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
     } catch (Exception e) {
       throw e;
     }
 
     EnvironmentSettings tEnvConfig = EnvironmentSettings.newInstance()
         .withConfiguration(configuration)
-//        .withClassLoader(udfClassLoader)
         .build();
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
@@ -151,9 +153,9 @@ class SqlExecutor {
     // Apply configuration settings
     tableEnv.getConfig().addConfiguration(configuration);
 
-//    if (udfPath != null) {
-//      setupUdfPath(udfPath);
-//    }
+    if (udfPath != null) {
+      setupUdfPath(udfPath);
+    }
   }
 
   /**
@@ -176,7 +178,8 @@ class SqlExecutor {
 //        .parse(statements.get(statements.size()-1)).get(0);
 //
 //    CompiledPlan plan = tEnv1.compilePlan(parse.getOperations());
-//    plan.writeToFile("/Users/henneberger/flink-jar-runner/src/test/resources/sql/compiled-plan.json");
+//    plan.writeToFile("/Users/henneberger/flink-jar-runner/src/test/resources/sql/compiled-plan-udf.json");
+
     return tableResult;
   }
 
@@ -198,6 +201,7 @@ class SqlExecutor {
         tableEnv.getConfig().getConfiguration().setString(key, value);
         log.info("Set configuration: {} = {}", key, value);
       } else {
+        System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
         tableResult = tableEnv.executeSql(statement);
       }
