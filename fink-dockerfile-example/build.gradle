@@ -1,0 +1,45 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group 'com.example'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = '11'
+
+ext {
+    flinkVersion = "1.19.1"
+    jdbcVersion = "3.2.0-1.19"
+    kafkaVersion = "3.2.0-1.19"
+    sqrlVersion = "0.5.6"
+    icebergVersion = "1.6.0"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url "https://packages.confluent.io/maven/"
+    }
+}
+
+dependencies {
+    implementation "org.apache.flink:flink-connector-kafka:$kafkaVersion"
+    implementation "org.apache.flink:flink-connector-jdbc:$jdbcVersion"
+    implementation "org.apache.flink:flink-avro-confluent-registry:$flinkVersion"
+
+    implementation "com.datasqrl:sqrl-lib-common:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-json:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-secure:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-time:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-text:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-flexible-json:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-flexible-csv:$sqrlVersion"
+    implementation "com.datasqrl:sqrl-jdbc-1.19:$sqrlVersion"
+}
+
+task copyDependencies(type: Copy) {
+    from configurations.runtimeClasspath
+    into 'build/dependencies'
+}
