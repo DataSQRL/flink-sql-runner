@@ -17,10 +17,16 @@
 
 package com.datasqrl;
 
+import java.io.IOException;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.PlanReference;
@@ -94,11 +100,12 @@ public class SqlRunner implements Callable<Integer> {
     } else if (planFile != null) {
       // Compiled plan JSON file
       String planJson = FileUtils.readFileUtf8(planFile);
+      planJson = replaceScriptWithEnv(planJson);
+
       tableResult = sqlExecutor.executeCompiledPlan(planJson);
     } else {
       log.error("Invalid input. Please provide one of the following combinations:");
       log.error("- A single SQL file (--sqlfile)");
-      log.error("- Schema SQL file (--schemafile) and workload SQL file (--workloadfile)");
       log.error("- A plan JSON file (--planfile)");
       return 1;
     }
@@ -108,6 +115,24 @@ public class SqlRunner implements Callable<Integer> {
     }
 
     return 0;
+  }
+
+  @SneakyThrows
+  private String replaceScriptWithEnv(String script) {
+    ObjectMapper objectMapper = getObjectMapper();
+    Map map = objectMapper.readValue(script, Map.class);
+    return objectMapper.writeValueAsString(map);
+  }
+
+
+  public static ObjectMapper getObjectMapper() {
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    // Register the custom deserializer module
+    SimpleModule module = new SimpleModule();
+    module.addDeserializer(String.class, new JsonEnvVarDeserializer());
+    objectMapper.registerModule(module);
+    return objectMapper;
   }
 
   /**
@@ -203,13 +228,31 @@ class SqlExecutor {
       } else {
         System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
-        tableResult = tableEnv.executeSql(statement);
+        tableResult = tableEnv.executeSql(replaceWithEnv(statement));
       }
     } catch (Exception e) {
       log.error("Failed to execute statement: {}", statement, e);
       throw e;
     }
     return tableResult;
+  }
+
+  public String replaceWithEnv(String command) {
+    Map<String, String> envVariables = System.getenv();
+    Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}");
+
+    String substitutedStr = command;
+    StringBuffer result = new StringBuffer();
+    // First pass to replace environment variables
+    Matcher matcher = pattern.matcher(substitutedStr);
+    while (matcher.find()) {
+      String key = matcher.group(1);
+      String envValue = envVariables.getOrDefault(key, "");
+      matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
+    }
+    matcher.appendTail(result);
+
+    return result.toString();
   }
 
   /**
@@ -331,5 +374,40 @@ class SqlUtils {
     }
     formatted.append(LINE_DELIMITER);
     return formatted.toString();
+  }
+}
+
+class JsonEnvVarDeserializer extends JsonDeserializer<String> {
+
+  private Map<String, String> env;
+
+  public JsonEnvVarDeserializer() {
+    env = System.getenv();
+  }
+
+  public JsonEnvVarDeserializer(Map<String, String> env) {
+    this.env = env;
+  }
+
+  @Override
+  public String deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    String value = p.getText();
+    return replaceWithEnv(this.env, value);
+  }
+
+  public String replaceWithEnv(Map<String, String> env, String value) {
+    Pattern pattern = Pattern.compile("\\$\\{(.+?)\\}");
+    Matcher matcher = pattern.matcher(value);
+    StringBuffer result = new StringBuffer();
+    while (matcher.find()) {
+      String key = matcher.group(1);
+      String envVarValue = env.get(key);
+      if (envVarValue != null) {
+        matcher.appendReplacement(result, Matcher.quoteReplacement(envVarValue));
+      }
+    }
+    matcher.appendTail(result);
+
+    return result.toString();
   }
 }
