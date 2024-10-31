@@ -5,10 +5,12 @@
   <groupId>com.datasqrl</groupId>
   <artifactId>flink-jar-runner</artifactId>
   <version>1.0.0-SNAPSHOT</version>
+  <inceptionYear>2024</inceptionYear>
 
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
     <git-code-format-maven-plugin.version>5.3</git-code-format-maven-plugin.version>
+    <license-maven-plugin.version>4.6</license-maven-plugin.version>
 
     <maven.deploy.skip>true</maven.deploy.skip>
     <maven.compiler.source>11</maven.compiler.source>
@@ -198,6 +200,39 @@
           <createBackupFile>false</createBackupFile>
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license-maven-plugin.version}</version>
+        <configuration>
+          <properties>
+            <owner>The Authors</owner>
+            <email>contact@datasqrl.com</email>
+          </properties>
+          <licenseSets>
+            <licenseSet>
+              <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
+            </licenseSet>
+          </licenseSets>
+          <strictCheck>true</strictCheck>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin-git</artifactId>
+            <version>${license-maven-plugin.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -234,6 +269,19 @@
                 <id>format</id>
                 <goals>
                   <goal>sort</goal>
+                </goals>
+                <phase>initialize</phase>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>format</goal>
                 </goals>
                 <phase>initialize</phase>
               </execution>
