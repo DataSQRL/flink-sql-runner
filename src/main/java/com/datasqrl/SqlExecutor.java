@@ -74,15 +74,6 @@ class SqlExecutor {
     for (String statement : statements) {
       tableResult = executeStatement(statement);
     }
-    //
-    //    TableEnvironmentImpl tEnv1 = (TableEnvironmentImpl) tableEnv;
-    //
-    //    StatementSetOperation parse = (StatementSetOperation)tEnv1.getParser()
-    //        .parse(statements.get(statements.size()-1)).get(0);
-    //
-    //    CompiledPlan plan = tEnv1.compilePlan(parse.getOperations());
-    //
-    // plan.writeToFile("/Users/henneberger/flink-jar-runner/src/test/resources/sql/compiled-plan-udf.json");
 
     return tableResult;
   }
