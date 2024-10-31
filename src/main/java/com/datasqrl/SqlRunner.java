@@ -16,7 +16,8 @@
 package com.datasqrl;
 
 import java.io.File;
-import java.util.*;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.Si
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
-import picocli.CommandLine.*;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /** Main class for executing SQL scripts using picocli. */
 @Command(
@@ -65,7 +67,7 @@ public class SqlRunner implements Callable<Integer> {
   private String udfPath;
 
   public static void main(String[] args) {
-    int exitCode = new CommandLine(new SqlRunner()).execute(args);
+    var exitCode = new CommandLine(new SqlRunner()).execute(args);
     System.exit(exitCode);
   }
 
@@ -77,22 +79,27 @@ public class SqlRunner implements Callable<Integer> {
     }
 
     // Load configuration if configFile is provided
-    Configuration configuration = new Configuration();
+    var configuration = new Configuration();
     if (configFile != null) {
       configuration = loadConfigurationFromYaml(configFile);
     }
 
+    log.info("Environment variables");
+    TreeMap<String, String> envVariables = new TreeMap<>(System.getenv());
+    envVariables.forEach((name, value) -> log.info("{}: {}", name, value));
+
     // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath);
+    var sqlExecutor = new SqlExecutor(configuration, udfPath, envVariables);
     TableResult tableResult;
     // Input validation and execution logic
     if (sqlFile != null) {
       // Single SQL file mode
-      String script = FileUtils.readFileUtf8(sqlFile);
+      var script = FileUtils.readFileUtf8(sqlFile);
+      EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
       tableResult = sqlExecutor.executeScript(script);
     } else if (planFile != null) {
       // Compiled plan JSON file
-      String planJson = FileUtils.readFileUtf8(planFile);
+      var planJson = FileUtils.readFileUtf8(planFile);
       planJson = replaceScriptWithEnv(planJson);
 
       tableResult = sqlExecutor.executeCompiledPlan(planJson);
@@ -118,10 +125,10 @@ public class SqlRunner implements Callable<Integer> {
   }
 
   public static ObjectMapper getObjectMapper() {
-    ObjectMapper objectMapper = new ObjectMapper();
+    var objectMapper = new ObjectMapper();
 
     // Register the custom deserializer module
-    SimpleModule module = new SimpleModule();
+    var module = new SimpleModule();
     module.addDeserializer(String.class, new JsonEnvVarDeserializer());
     objectMapper.registerModule(module);
     return objectMapper;
@@ -136,8 +143,7 @@ public class SqlRunner implements Callable<Integer> {
    */
   private Configuration loadConfigurationFromYaml(File configFile) throws Exception {
     log.info("Loading configuration from {}", configFile.getAbsolutePath());
-    Configuration configuration =
-        GlobalConfiguration.loadConfiguration(configFile.getAbsolutePath());
+    var configuration = GlobalConfiguration.loadConfiguration(configFile.getAbsolutePath());
     return configuration;
   }
 }

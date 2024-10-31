@@ -17,8 +17,10 @@ package com.datasqrl;
 
 import java.util.ArrayList;
 import java.util.List;
+import lombok.experimental.UtilityClass;
 
 /** Utility class for parsing SQL scripts. */
+@UtilityClass
 class SqlUtils {
 
   private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
