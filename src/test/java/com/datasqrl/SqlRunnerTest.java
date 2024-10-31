@@ -1,16 +1,15 @@
 package com.datasqrl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.io.File;
+import java.net.URISyntaxException;
 import org.apache.flink.shaded.guava31.com.google.common.io.Resources;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import picocli.CommandLine;
-
-import java.io.File;
-import java.net.URISyntaxException;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MiniClusterExtension.class)
 class SqlRunnerTest {
@@ -35,14 +34,11 @@ class SqlRunnerTest {
   @Test
   void testCommandLineInvocationWithSqlFile() {
     // Simulating passing command-line arguments using picocli
-    String[] args = {
-        "-s", sqlFile.getAbsolutePath(),
-        "--block"
-    };
+    String[] args = {"-s", sqlFile.getAbsolutePath(), "--block"};
 
     // Use CommandLine to parse and execute
     CommandLine cmd = new CommandLine(new SqlRunner());
-    int exitCode = cmd.execute(args);  // Executes the SqlRunner logic with arguments
+    int exitCode = cmd.execute(args); // Executes the SqlRunner logic with arguments
 
     // Assert the exit code is as expected (0 for success)
     assertEquals(0, exitCode);
@@ -51,9 +47,9 @@ class SqlRunnerTest {
   @Test
   void testCompiledPlan() {
     String[] args = {
-        "--configfile", configDir.getAbsolutePath(),
-        "--planfile", planFile.getAbsolutePath(),
-        "--block"
+      "--configfile", configDir.getAbsolutePath(),
+      "--planfile", planFile.getAbsolutePath(),
+      "--block"
     };
 
     CommandLine cmd = new CommandLine(new SqlRunner());
@@ -66,10 +62,13 @@ class SqlRunnerTest {
   @Test
   void testUdf() {
     String[] args = {
-        "--configfile", configDir.getAbsolutePath(),
-        "-s", sqlUdfFile.getAbsolutePath(),
-        "--udfpath", udfPath,
-        "--block"
+      "--configfile",
+      configDir.getAbsolutePath(),
+      "-s",
+      sqlUdfFile.getAbsolutePath(),
+      "--udfpath",
+      udfPath,
+      "--block"
     };
 
     CommandLine cmd = new CommandLine(new SqlRunner());

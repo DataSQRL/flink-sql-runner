@@ -3,9 +3,7 @@ package com.datasqrl;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utility class for parsing SQL scripts.
- */
+/** Utility class for parsing SQL scripts. */
 class SqlUtils {
 
   private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
@@ -25,10 +23,13 @@ class SqlUtils {
    * @return A list of individual SQL statements.
    */
   public static List<String> parseStatements(String script) {
-    String formatted = formatSqlFile(script).replaceAll(BEGIN_CERTIFICATE,
-            ESCAPED_BEGIN_CERTIFICATE).replaceAll(END_CERTIFICATE, ESCAPED_END_CERTIFICATE)
-        .replaceAll(COMMENT_PATTERN, "").replaceAll(ESCAPED_BEGIN_CERTIFICATE, BEGIN_CERTIFICATE)
-        .replaceAll(ESCAPED_END_CERTIFICATE, END_CERTIFICATE);
+    String formatted =
+        formatSqlFile(script)
+            .replaceAll(BEGIN_CERTIFICATE, ESCAPED_BEGIN_CERTIFICATE)
+            .replaceAll(END_CERTIFICATE, ESCAPED_END_CERTIFICATE)
+            .replaceAll(COMMENT_PATTERN, "")
+            .replaceAll(ESCAPED_BEGIN_CERTIFICATE, BEGIN_CERTIFICATE)
+            .replaceAll(ESCAPED_END_CERTIFICATE, END_CERTIFICATE);
 
     List<String> statements = new ArrayList<>();
 

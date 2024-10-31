@@ -17,44 +17,53 @@
 
 package com.datasqrl;
 
+import java.io.File;
+import java.util.*;
+import java.util.concurrent.Callable;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
-import java.io.File;
-import java.util.*;
-import java.util.concurrent.Callable;
 
-/**
- * Main class for executing SQL scripts using picocli.
- */
-@Command(name = "SqlRunner", mixinStandardHelpOptions = true, version = "1.0", description = "Runs SQL scripts using Flink TableEnvironment.")
+/** Main class for executing SQL scripts using picocli. */
+@Command(
+    name = "SqlRunner",
+    mixinStandardHelpOptions = true,
+    version = "1.0",
+    description = "Runs SQL scripts using Flink TableEnvironment.")
 @Slf4j
 public class SqlRunner implements Callable<Integer> {
 
-  @Option(names = {"-s", "--sqlfile"}, description = "SQL file to execute.")
+  @Option(
+      names = {"-s", "--sqlfile"},
+      description = "SQL file to execute.")
   private File sqlFile;
 
-  @Option(names = {"--block"}, description = "Wait for the flink job manager to exit.",
-  defaultValue = "false")
+  @Option(
+      names = {"--block"},
+      description = "Wait for the flink job manager to exit.",
+      defaultValue = "false")
   private boolean block;
 
-  @Option(names = {"--planfile"}, description = "Compiled plan JSON file.")
+  @Option(
+      names = {"--planfile"},
+      description = "Compiled plan JSON file.")
   private File planFile;
 
-  @Option(names = {"--configfile"}, description = "Configuration YAML file.")
+  @Option(
+      names = {"--configfile"},
+      description = "Configuration YAML file.")
   private File configFile;
 
-  @Option(names = {"--udfpath"}, description = "Path to UDFs.")
+  @Option(
+      names = {"--udfpath"},
+      description = "Path to UDFs.")
   private String udfPath;
 
   public static void main(String[] args) {
@@ -110,7 +119,6 @@ public class SqlRunner implements Callable<Integer> {
     return objectMapper.writeValueAsString(map);
   }
 
-
   public static ObjectMapper getObjectMapper() {
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -130,7 +138,8 @@ public class SqlRunner implements Callable<Integer> {
    */
   private Configuration loadConfigurationFromYaml(File configFile) throws Exception {
     log.info("Loading configuration from {}", configFile.getAbsolutePath());
-    Configuration configuration = GlobalConfiguration.loadConfiguration(configFile.getAbsolutePath());
+    Configuration configuration =
+        GlobalConfiguration.loadConfiguration(configFile.getAbsolutePath());
     return configuration;
   }
 }

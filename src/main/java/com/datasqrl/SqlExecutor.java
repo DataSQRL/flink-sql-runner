@@ -15,15 +15,13 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Class for executing SQL scripts programmatically.
- */
+/** Class for executing SQL scripts programmatically. */
 class SqlExecutor {
 
   private static final Logger log = LoggerFactory.getLogger(SqlExecutor.class);
 
-  private static final Pattern SET_STATEMENT_PATTERN = Pattern.compile(
-      "SET\\s+'(\\S+)'\\s*=\\s*'(.+)';?", Pattern.CASE_INSENSITIVE);
+  private static final Pattern SET_STATEMENT_PATTERN =
+      Pattern.compile("SET\\s+'(\\S+)'\\s*=\\s*'(.+)';?", Pattern.CASE_INSENSITIVE);
 
   private final TableEnvironment tableEnv;
 
@@ -35,9 +33,8 @@ class SqlExecutor {
       throw e;
     }
 
-    EnvironmentSettings tEnvConfig = EnvironmentSettings.newInstance()
-        .withConfiguration(configuration)
-        .build();
+    EnvironmentSettings tEnvConfig =
+        EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
 
@@ -62,14 +59,15 @@ class SqlExecutor {
     for (String statement : statements) {
       tableResult = executeStatement(statement);
     }
-//
-//    TableEnvironmentImpl tEnv1 = (TableEnvironmentImpl) tableEnv;
-//
-//    StatementSetOperation parse = (StatementSetOperation)tEnv1.getParser()
-//        .parse(statements.get(statements.size()-1)).get(0);
-//
-//    CompiledPlan plan = tEnv1.compilePlan(parse.getOperations());
-//    plan.writeToFile("/Users/henneberger/flink-jar-runner/src/test/resources/sql/compiled-plan-udf.json");
+    //
+    //    TableEnvironmentImpl tEnv1 = (TableEnvironmentImpl) tableEnv;
+    //
+    //    StatementSetOperation parse = (StatementSetOperation)tEnv1.getParser()
+    //        .parse(statements.get(statements.size()-1)).get(0);
+    //
+    //    CompiledPlan plan = tEnv1.compilePlan(parse.getOperations());
+    //
+    // plan.writeToFile("/Users/henneberger/flink-jar-runner/src/test/resources/sql/compiled-plan-udf.json");
 
     return tableResult;
   }
