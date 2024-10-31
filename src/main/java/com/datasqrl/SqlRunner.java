@@ -89,6 +89,16 @@ public class SqlRunner implements Callable<Integer> {
     if (sqlFile != null) {
       // Single SQL file mode
       String script = FileUtils.readFileUtf8(sqlFile);
+
+      Set<String> missingEnvironmentVariables =
+          EnvironmentVariablesUtils.validateEnvironmentVariables(script);
+      if (!missingEnvironmentVariables.isEmpty()) {
+        throw new IllegalStateException(
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
+      }
+
       tableResult = sqlExecutor.executeScript(script);
     } else if (planFile != null) {
       // Compiled plan JSON file
