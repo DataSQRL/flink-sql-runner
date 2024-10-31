@@ -82,18 +82,23 @@ public class SqlRunner implements Callable<Integer> {
       configuration = loadConfigurationFromYaml(configFile);
     }
 
-    log.info("Environment variables");
-    TreeMap<String, String> envVariables = new TreeMap<>(System.getenv());
-    envVariables.forEach((name, value) -> log.info("{}: {}", name, value));
-
     // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath, envVariables);
+    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath);
     TableResult tableResult;
     // Input validation and execution logic
     if (sqlFile != null) {
       // Single SQL file mode
       String script = FileUtils.readFileUtf8(sqlFile);
-      EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+
+      Set<String> missingEnvironmentVariables =
+          EnvironmentVariablesUtils.validateEnvironmentVariables(script);
+      if (!missingEnvironmentVariables.isEmpty()) {
+        throw new IllegalStateException(
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
+      }
+
       tableResult = sqlExecutor.executeScript(script);
     } else if (planFile != null) {
       // Compiled plan JSON file

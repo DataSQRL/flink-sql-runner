@@ -39,10 +39,8 @@ class SqlExecutor {
       Pattern.compile("SET\\s+'(\\S+)'\\s*=\\s*'(.+)';?", Pattern.CASE_INSENSITIVE);
 
   private final TableEnvironment tableEnv;
-  private final Map<String, String> envVariables;
 
-  public SqlExecutor(
-      Configuration configuration, String udfPath, Map<String, String> envVariables) {
+  public SqlExecutor(Configuration configuration, String udfPath) {
     StreamExecutionEnvironment sEnv;
     try {
       sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -61,7 +59,6 @@ class SqlExecutor {
     if (udfPath != null) {
       setupUdfPath(udfPath);
     }
-    this.envVariables = envVariables;
   }
 
   /**
@@ -110,8 +107,7 @@ class SqlExecutor {
       } else {
         System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
-        tableResult =
-            tableEnv.executeSql(EnvironmentVariablesUtils.replaceWithEnv(statement, envVariables));
+        tableResult = tableEnv.executeSql(EnvironmentVariablesUtils.replaceWithEnv(statement));
       }
     } catch (Exception e) {
       log.error("Failed to execute statement: {}", statement, e);
