@@ -7,7 +7,9 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @UtilityClass
 public class EnvironmentVariablesUtils {
 
@@ -47,8 +49,12 @@ public class EnvironmentVariablesUtils {
       scriptEnvironmentVariables.add(matcher.group(1));
     }
 
-    scriptEnvironmentVariables.removeAll(envVariables.keySet());
+    if (envVariables.keySet().containsAll(scriptEnvironmentVariables)) {
+      log.info("All environment variables are available: {}", scriptEnvironmentVariables);
+      return Collections.emptySet();
+    }
 
+    scriptEnvironmentVariables.removeAll(envVariables.keySet());
     return Collections.unmodifiableSet(scriptEnvironmentVariables);
   }
 }
