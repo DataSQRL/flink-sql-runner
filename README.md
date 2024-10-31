@@ -142,7 +142,7 @@ docker pull datasqrl/flink-jar-runner:latest
 Contributions are welcome! Feel free to open an issue or submit a [pull request](https://github.com/DataSQRL/flink-jar-runner/pulls) on GitHub.
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/DataSQRL/flink-jar-runner/blob/main/LICENSE) file for details.
+This project is licensed under the Apache 2 License. See the [LICENSE](https://github.com/DataSQRL/flink-jar-runner/blob/main/LICENSE) file for details.
 
 ## Contact
 For any questions or support, please open an [issue](https://github.com/DataSQRL/flink-jar-runner/issues) in the GitHub repository.
