@@ -34,3 +34,4 @@ RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
 RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.
 
 COPY --from=build /app/build/dependencies /opt/flink/lib
+COPY flink-jar-runner-1.0.0-SNAPSHOT.jar /opt/flink/runner/flink-jar-runner-1.0.0-SNAPSHOT.jar
