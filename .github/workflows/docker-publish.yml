@@ -39,5 +39,6 @@ jobs:
       - name: Build and push Docker image
         working-directory: flink-dockerfile-example
         run: |
-          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} -t $DOCKER_REPO:${{ matrix.SQRL_VERSION }} .
-          docker push $DOCKER_REPO:${{ matrix.SQRL_VERSION }}
+          DOCKER_TAG=$DOCKER_REPO:0.0.1-RC1-sqrl${{ matrix.SQRL_VERSION }}
+          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} -t $DOCKER_TAG .
+          docker push $DOCKER_TAG
