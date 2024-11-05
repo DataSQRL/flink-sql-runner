@@ -16,16 +16,23 @@
 
 FROM gradle:8.6-jdk11 AS build
 
+ARG SQRL_VERSION="0.5.7"
+
 WORKDIR /app
 
 COPY build.gradle /app/build.gradle
 
+ENV SQRL_VERSION=${SQRL_VERSION}
+
 RUN gradle --no-daemon --console=plain copyDependencies
+
+RUN ls -lha /app/build/dependencies
 
 FROM flink:1.19.1-scala_2.12-java11
 
 RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
 RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.
 
-COPY --from=build /app/build/dependencies /opt/flink/lib
+USER 9999
 
+COPY --from=build /app/build/dependencies /opt/flink/lib

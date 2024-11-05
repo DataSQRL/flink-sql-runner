@@ -41,20 +41,13 @@ class SqlExecutor {
   private final TableEnvironment tableEnv;
 
   public SqlExecutor(Configuration configuration, String udfPath) {
-    StreamExecutionEnvironment sEnv;
-    try {
-      sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-    } catch (Exception e) {
-      throw e;
-    }
+    StreamExecutionEnvironment sEnv =
+        StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
     EnvironmentSettings tEnvConfig =
         EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
-
-    // Apply configuration settings
-    tableEnv.getConfig().addConfiguration(configuration);
 
     if (udfPath != null) {
       setupUdfPath(udfPath);

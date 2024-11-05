@@ -16,48 +16,35 @@
 package com.datasqrl;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-/** Main class for executing SQL scripts using picocli. */
-@Slf4j
-public class SqlRunner implements Callable<Integer> {
+@RequiredArgsConstructor
+public class FlinkMain {
 
-  private File sqlFile;
+  private final String sqlFile;
 
-  private boolean block;
-
-  private File planFile;
-
-  private File configFile;
-
-  private String udfPath;
-
-  public static void main(String[] args) throws Exception {
-    System.out.println(String.format("Executing flink-jar-runner with: %s", Arrays.toString(args)));
-    int exitCode = new SqlRunner().call();
-    System.exit(exitCode);
+  public static void main(String[] args) {
+    System.out.println("Executing flink-jar-runner ");
+    new FlinkMain("/opt/flink/usrlib/flink-files/flink.sql").run();
+    System.out.println("Finished flink-jar-runner");
   }
 
-  @Override
-  public Integer call() throws Exception {
+  public TableResult run() {
     Map<String, String> flinkConfig = new HashMap<>();
     flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
     Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
@@ -69,12 +56,15 @@ public class SqlRunner implements Callable<Integer> {
             .build();
     StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
     TableResult tableResult = null;
-    String[] statements = readResourceFile(sqlFile.getAbsolutePath()).split("\n\n");
+    String[] statements = readResourceFile(sqlFile).split("\n\n");
     for (String statement : statements) {
       if (statement.trim().isEmpty()) continue;
       tableResult = tEnv.executeSql(replaceWithEnv(statement));
+      System.out.println(statement);
+      System.out.println("");
     }
-    return 0;
+
+    return tableResult;
   }
 
   public String replaceWithEnv(String command) {
