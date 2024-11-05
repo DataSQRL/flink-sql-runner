@@ -18,7 +18,6 @@ package com.datasqrl;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.flink.configuration.Configuration;
@@ -42,20 +41,13 @@ class SqlExecutor {
   private final TableEnvironment tableEnv;
 
   public SqlExecutor(Configuration configuration, String udfPath) {
-    StreamExecutionEnvironment sEnv;
-    try {
-      sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-    } catch (Exception e) {
-      throw e;
-    }
+    StreamExecutionEnvironment sEnv =
+        StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
     EnvironmentSettings tEnvConfig =
         EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
-
-    // Apply configuration settings
-    tableEnv.getConfig().addConfiguration(configuration);
 
     if (udfPath != null) {
       setupUdfPath(udfPath);
@@ -103,11 +95,6 @@ class SqlExecutor {
       }
     } catch (Exception e) {
       log.error("Failed to execute statement: {}", statement, e);
-      try {
-        TimeUnit.MINUTES.sleep(20);
-      } catch (InterruptedException e1) {
-        e1.printStackTrace();
-      }
       throw e;
     }
     return tableResult;
