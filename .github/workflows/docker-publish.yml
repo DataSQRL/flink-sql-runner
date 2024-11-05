@@ -1,6 +1,8 @@
 name: Publish Docker Image
 
 on:
+  release:
+    types: [created]
   push:
     branches:
       - main
@@ -17,6 +19,7 @@ jobs:
 
     env:
       DOCKER_REPO: datasqrl/flink-jar-runner
+      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}
 
     steps:
       - name: Checkout code
@@ -26,6 +29,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Log in to Docker Hub
+        if: github.event_name == 'release' && github.event.action == 'created'
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -36,9 +40,28 @@ jobs:
           docker pull gradle:8.6-jdk11
           docker pull flink:1.19.1-scala_2.12-java11
 
-      - name: Build and push Docker image
+      - name: Run Maven Build
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
+          mvn versions:set -DnewVersion=${{ env.VERSION }}
+          mvn clean install -DskipTests=true
+
+      - name: Build Docker image
         working-directory: flink-dockerfile-example
         run: |
-          DOCKER_TAG=$DOCKER_REPO:0.0.1-RC1-sqrl${{ matrix.SQRL_VERSION }}
+          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl${{ matrix.SQRL_VERSION }}
           docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} -t $DOCKER_TAG .
+
+      - name: Push Docker image
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
           docker push $DOCKER_TAG
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release' && github.event.action == 'created'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/flink-jar-runner-${{ env.VERSION }}.jar
+          asset_name: flink-jar-runner-${{ env.VERSION }}.jar
+          asset_content_type: application/java-archive
