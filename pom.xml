@@ -26,18 +26,21 @@
 
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
-    <git-code-format-maven-plugin.version>5.3</git-code-format-maven-plugin.version>
-    <license-maven-plugin.version>4.6</license-maven-plugin.version>
 
     <maven.deploy.skip>true</maven.deploy.skip>
+
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
+
+    <license-maven-plugin.version>4.6</license-maven-plugin.version>
+    <git-code-format-maven-plugin.version>5.3</git-code-format-maven-plugin.version>
     <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+    <surefire-plugin.version>3.5.0</surefire-plugin.version>
 
     <flink.version>1.19.1</flink.version>
-
     <slf4j.version>1.7.36</slf4j.version>
     <log4j.version>2.17.1</log4j.version>
+    <feign.version>13.5</feign.version>
   </properties>
 
   <dependencies>
@@ -117,6 +120,34 @@
       <version>1.18.34</version>
       <scope>provided</scope>
     </dependency>
+
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-core</artifactId>
+      <version>${feign.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-httpclient</artifactId>
+      <version>${feign.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-jackson</artifactId>
+      <version>${feign.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-form</artifactId>
+      <version>${feign.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <version>4.2.2</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -156,7 +187,7 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.datasqrl.FlinkMain</mainClass>
+                  <mainClass>com.datasqrl.SqlRunner</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -223,6 +254,10 @@
           <licenseSets>
             <licenseSet>
               <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
+
+              <excludes>
+                <exclude>src/test/resources/**</exclude>
+              </excludes>
             </licenseSet>
           </licenseSets>
           <strictCheck>true</strictCheck>
@@ -241,6 +276,62 @@
               <goal>check</goal>
             </goals>
             <phase>compile</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.marvinformatics</groupId>
+        <artifactId>docker-compose-maven-plugin</artifactId>
+        <version>5.0.0</version>
+        <configuration>
+          <skip>${skipTests}</skip>
+          <composeFile>${project.basedir}/docker-compose.yml</composeFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>up</id>
+            <goals>
+              <goal>up</goal>
+            </goals>
+            <phase>pre-integration-test</phase>
+            <configuration>
+              <detachedMode>true</detachedMode>
+            </configuration>
+          </execution>
+          <execution>
+            <id>down</id>
+            <goals>
+              <goal>down</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <removeVolumes>true</removeVolumes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire-plugin.version}</version>
+        <configuration>
+          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <forkCount>0.5C</forkCount>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${surefire-plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>
@@ -303,6 +394,41 @@
       </build>
     </profile>
 
+    <profile>
+      <!-- extra tasks only meant to be executed by CI server -->
+      <id>ci</id>
+      <properties>
+        <gcf.skip>true</gcf.skip>
+      </properties>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.0.0</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>post-integration-test</phase>
+                <configuration>
+                  <!-- print logs from cloud-compilation service, helpful when troubleshooting -->
+                  <executable>docker</executable>
+                  <arguments>
+                    <argument>logs</argument>
+                    <argument>flink-jar-runner-flink-jobmanager-1</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+        </plugins>
+      </build>
+
+    </profile>
     <profile>
       <!-- just compile, skip all other checks -->
       <id>quickbuild</id>
