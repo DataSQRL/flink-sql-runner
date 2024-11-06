@@ -55,6 +55,7 @@ jobs:
       - name: Push Docker image
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
+          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl${{ matrix.SQRL_VERSION }}
           docker push $DOCKER_TAG
 
       - name: Upload to GitHub Release
