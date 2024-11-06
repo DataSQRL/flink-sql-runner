@@ -43,8 +43,8 @@ jobs:
       - name: Run Maven Build
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
-          mvn versions:set -DnewVersion=${{ env.VERSION }}
-          mvn clean install -DskipTests=true
+          mvn -B versions:set -DnewVersion=${{ env.VERSION }}
+          mvn -B clean install -DskipTests=true
 
       - name: Build Docker image
         working-directory: flink-dockerfile-example
@@ -68,3 +68,4 @@ jobs:
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
