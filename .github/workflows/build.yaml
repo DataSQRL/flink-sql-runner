@@ -31,4 +31,4 @@ jobs:
         run: mvn -B package --file pom.xml
 
       - name: Run JUnit tests
-        run: mvn test
+        run: mvn -B verify -Pci
