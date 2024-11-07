@@ -279,7 +279,7 @@
         <version>5.0.0</version>
         <configuration>
           <skip>${skipTests}</skip>
-          <composeFile>${project.basedir}/docker-compose.yml</composeFile>
+          <composeFile>${project.basedir}/src/test/resources/docker-compose.yml</composeFile>
         </configuration>
         <executions>
           <execution>

@@ -31,7 +31,7 @@ jobs:
         run: |
           set -x
           mvn -B dependency:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
-          docker compose pull
+          docker compose -f src/test/resources/docker-compose.yml pull
 
       - name: Build and test with Maven
         run: mvn -B verify -Pci
