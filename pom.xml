@@ -129,9 +129,9 @@
     </dependency>
 
     <dependency>
-         <groupId>com.nextbreakpoint</groupId>
-    <artifactId>com.nextbreakpoint.flinkclient</artifactId>
-    <version>1.0.4</version>
+      <groupId>com.nextbreakpoint</groupId>
+      <artifactId>com.nextbreakpoint.flinkclient</artifactId>
+      <version>1.0.4</version>
     </dependency>
 
     <dependency>

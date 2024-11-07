@@ -15,25 +15,22 @@
  */
 package com.datasqrl;
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -82,7 +79,7 @@ public class FlinkMain {
 
   private final String sqlFile;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
 
     CommandLine cl = new CommandLine(new SqlRunner());
@@ -93,7 +90,7 @@ public class FlinkMain {
     System.out.println("Finished flink-jar-runner");
   }
 
-  public TableResult run() {
+  public TableResult run() throws IOException {
     Map<String, String> flinkConfig = new HashMap<>();
     flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
     Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
@@ -105,12 +102,18 @@ public class FlinkMain {
             .build();
     StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
     TableResult tableResult = null;
-    String[] statements = readResourceFile(sqlFile).split("\n\n");
+    String script = FileUtils.readFileUtf8(new File(sqlFile));
+    List<String> statements = SqlUtils.parseStatements(script);
     for (String statement : statements) {
       if (statement.trim().isEmpty()) continue;
-      tableResult = tEnv.executeSql(replaceWithEnv(statement));
-      System.out.println(statement);
-      System.out.println("");
+      try {
+        tableResult = tEnv.executeSql(replaceWithEnv(statement));
+        System.out.println(statement);
+        System.out.println("");
+      } catch (Exception e) {
+        e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
+        throw e;
+      }
     }
 
     return tableResult;
@@ -132,17 +135,5 @@ public class FlinkMain {
     matcher.appendTail(result);
 
     return result.toString();
-  }
-
-  private static String readResourceFile(String fileName) {
-    try (InputStream inputStream = Files.newInputStream(Path.of(fileName));
-        BufferedReader reader =
-            new java.io.BufferedReader(
-                new java.io.InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-      return reader.lines().collect(Collectors.joining("\n"));
-    } catch (IOException | NullPointerException e) {
-      System.err.println("Error reading the resource file: " + e.getMessage());
-      throw new RuntimeException(e);
-    }
   }
 }

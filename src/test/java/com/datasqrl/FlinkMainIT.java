@@ -16,6 +16,7 @@
 package com.datasqrl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
@@ -27,13 +28,10 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class FlinkMainIT extends AbstractITSupport {
 
-  @ParameterizedTest
-  @CsvSource({
-    "/opt/flink/usrlib/flink-files/flink.sql",
-    "/opt/flink/usrlib/flink-files/test_sql.sql",
-    "/opt/flink/usrlib/flink-files/test_udf_sql.sql"
-  })
-  void test(String sqlFile) throws IOException, Exception {
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({"flink.sql", "test_sql.sql", "test_udf_sql.sql"})
+  void test(String filename) throws IOException, Exception {
+    String sqlFile = "/opt/flink/usrlib/flink-files/" + filename;
     File jarFile = new File("target/flink-jar-runner-1.0.0-SNAPSHOT.jar");
 
     JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
@@ -45,9 +43,14 @@ class FlinkMainIT extends AbstractITSupport {
         uploadResponse.getFilename().substring(uploadResponse.getFilename().lastIndexOf("/") + 1);
 
     // Step 3: Submit the job
-    JarRunResponseBody jobResponse =
-        client.runJar(jarId, null, null, null, "--sqlfile," + sqlFile, null, 1);
-    String jobId = jobResponse.getJobid();
-    assertThat(jobId).isNotNull();
+    assertThatNoException()
+        .as("Running script %s", filename)
+        .isThrownBy(
+            () -> {
+              JarRunResponseBody jobResponse =
+                  client.runJar(jarId, null, null, null, "--sqlfile," + sqlFile, null, 1);
+              String jobId = jobResponse.getJobid();
+              assertThat(jobId).isNotNull();
+            });
   }
 }

@@ -15,7 +15,6 @@
 --
 
 -- Set parallelism and other configuration settings
-SET 'execution.parallelism' = '4';
 
 -- Create a source table using the datagen connector to simulate streaming data
 CREATE TABLE orders (
