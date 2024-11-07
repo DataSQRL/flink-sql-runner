@@ -49,7 +49,7 @@ class SqlRunnerTest {
   @Test
   void testCommandLineInvocationWithSqlFile() {
     // Simulating passing command-line arguments using picocli
-    String[] args = {"-s", sqlFile.getAbsolutePath(), "--block"};
+    String[] args = {"-s", sqlFile.getAbsolutePath()};
 
     // Use CommandLine to parse and execute
     CommandLine cmd = new CommandLine(new FlinkMain.SqlRunner());

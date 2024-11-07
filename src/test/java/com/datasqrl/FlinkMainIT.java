@@ -17,7 +17,6 @@ package com.datasqrl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
@@ -40,16 +39,13 @@ class FlinkMainIT extends AbstractITSupport {
   static Stream<Arguments> sqlScripts() {
     var scripts = List.of("flink.sql", "test_sql.sql");
     var config = List.of(true, false);
-    var block = List.of(true, false);
-    return Lists.cartesianProduct(scripts, config, block).stream()
+    return Lists.cartesianProduct(scripts, config).stream()
         .map(pair -> Arguments.of(pair.toArray()));
   }
 
-  @ParameterizedTest(name = "{0} {1} {2}")
+  @ParameterizedTest(name = "{0} {1}")
   @MethodSource("sqlScripts")
-  void givenSqlScript_whenExecuting_thenSuccess(String filename, boolean config, boolean block) {
-    assumeThat(block).as("`--block` doesn't seem to work").isFalse();
-
+  void givenSqlScript_whenExecuting_thenSuccess(String filename, boolean config) {
     String sqlFile = "/opt/flink/usrlib/sql/" + filename;
     var args = new ArrayList<String>();
     args.add("--sqlfile");
@@ -58,17 +54,28 @@ class FlinkMainIT extends AbstractITSupport {
       args.add("--config-dir");
       args.add("/opt/flink/usrlib/config/");
     }
-    if (block) {
-      args.add("--block");
-    }
     execute(args.toArray(String[]::new));
   }
 
+  static Stream<Arguments> planScripts() {
+    var scripts = List.of("compiled-plan.json", "test_plan.json");
+    var config = List.of(true, false);
+    return Lists.cartesianProduct(scripts, config).stream()
+        .map(pair -> Arguments.of(pair.toArray()));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @CsvSource({"compiled-plan.json", "test_plan.json"})
-  void givenPlansScript_whenExecuting_thenSuccess(String filename) {
+  @MethodSource("planScripts")
+  void givenPlansScript_whenExecuting_thenSuccess(String filename, boolean config) {
     String planFile = "/opt/flink/usrlib/plans/" + filename;
-    execute("--planfile", planFile);
+    var args = new ArrayList<String>();
+    args.add("--planfile");
+    args.add(planFile);
+    if (config) {
+      args.add("--config-dir");
+      args.add("/opt/flink/usrlib/config/");
+    }
+    execute(args.toArray(String[]::new));
   }
 
   @SneakyThrows

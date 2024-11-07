@@ -50,12 +50,6 @@ public class FlinkMain {
     private String sqlFile;
 
     @Option(
-        names = {"--block"},
-        description = "Wait for the flink job manager to exit.",
-        defaultValue = "false")
-    private boolean block;
-
-    @Option(
         names = {"--planfile"},
         description = "Compiled plan JSON file.")
     private String planFile;
@@ -80,7 +74,6 @@ public class FlinkMain {
   private final String planFile;
   private final String configDir;
   private final String udfPath;
-  private final boolean block;
 
   public static void main(String[] args) throws Exception {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
@@ -94,8 +87,7 @@ public class FlinkMain {
       runner.udfPath = System.getenv("UDF_PATH");
     }
 
-    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath, runner.block)
-        .run();
+    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath).run();
     System.out.println("Finished flink-jar-runner");
   }
 
@@ -146,10 +138,6 @@ public class FlinkMain {
       System.err.println("- A single SQL file (--sqlfile)");
       System.err.println("- A plan JSON file (--planfile)");
       return 1;
-    }
-
-    if (block) {
-      tableResult.await();
     }
 
     return 0;
