@@ -16,18 +16,21 @@
 package com.datasqrl;
 
 import java.io.File;
+import java.util.*;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
+import picocli.CommandLine.*;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -83,7 +86,7 @@ public class FlinkMain {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
 
     CommandLine cl = new CommandLine(new SqlRunner());
-    int exitCode = cl.execute(args);
+    cl.execute(args);
     SqlRunner runner = cl.getCommand();
 
     // Determine UDF path
@@ -96,7 +99,7 @@ public class FlinkMain {
     System.out.println("Finished flink-jar-runner");
   }
 
-  public TableResult run() throws Exception {
+  public int run() throws Exception {
 
     // Load configuration if configDir is provided
     Configuration configuration = new Configuration();
@@ -135,39 +138,38 @@ public class FlinkMain {
                 missingEnvironmentVariables));
       }
 
-      planJson = EnvironmentVariablesUtils.replaceWithEnv(planJson);
+      planJson = replaceScriptWithEnv(planJson);
 
       tableResult = sqlExecutor.executeCompiledPlan(planJson);
     } else {
       System.err.println("Invalid input. Please provide one of the following combinations:");
       System.err.println("- A single SQL file (--sqlfile)");
       System.err.println("- A plan JSON file (--planfile)");
-      return null;
+      return 1;
     }
 
     if (block) {
       tableResult.await();
     }
 
-    return tableResult;
+    return 0;
   }
 
-  public String replaceWithEnv(String command) {
-    Map<String, String> envVariables = System.getenv();
-    Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}");
+  @SneakyThrows
+  private String replaceScriptWithEnv(String script) {
+    ObjectMapper objectMapper = getObjectMapper();
+    Map map = objectMapper.readValue(script, Map.class);
+    return objectMapper.writeValueAsString(map);
+  }
 
-    String substitutedStr = command;
-    StringBuffer result = new StringBuffer();
-    // First pass to replace environment variables
-    Matcher matcher = pattern.matcher(substitutedStr);
-    while (matcher.find()) {
-      String key = matcher.group(1);
-      String envValue = envVariables.getOrDefault(key, "");
-      matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
-    }
-    matcher.appendTail(result);
+  public static ObjectMapper getObjectMapper() {
+    ObjectMapper objectMapper = new ObjectMapper();
 
-    return result.toString();
+    // Register the custom deserializer module
+    SimpleModule module = new SimpleModule();
+    module.addDeserializer(String.class, new JsonEnvVarDeserializer());
+    objectMapper.registerModule(module);
+    return objectMapper;
   }
 
   /**
