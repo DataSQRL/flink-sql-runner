@@ -76,6 +76,7 @@ public class FlinkMain {
   }
 
   private final String sqlFile;
+  private final String udfPath;
 
   public static void main(String[] args) throws Exception {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
@@ -84,7 +85,7 @@ public class FlinkMain {
     int exitCode = cl.execute(args);
     SqlRunner runner = cl.getCommand();
 
-    new FlinkMain(runner.sqlFile).run();
+    new FlinkMain(runner.sqlFile, runner.udfPath).run();
     System.out.println("Finished flink-jar-runner");
   }
 
@@ -102,7 +103,7 @@ public class FlinkMain {
     String script = FileUtils.readFileUtf8(new File(sqlFile));
 
     // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(sEnvConfig, null);
+    SqlExecutor sqlExecutor = new SqlExecutor(sEnvConfig, udfPath);
 
     Set<String> missingEnvironmentVariables =
         EnvironmentVariablesUtils.validateEnvironmentVariables(script);

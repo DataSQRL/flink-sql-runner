@@ -18,20 +18,27 @@ package com.datasqrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
+import com.nextbreakpoint.flinkclient.api.ApiException;
 import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody.StatusEnum;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class FlinkMainIT extends AbstractITSupport {
 
   @ParameterizedTest(name = "{0}")
-  @CsvSource({"flink.sql", "test_sql.sql", "test_udf_sql.sql"})
-  void test(String filename) throws IOException, Exception {
+  @CsvSource({"flink.sql", "test_sql.sql"})
+  void givenScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
     String sqlFile = "/opt/flink/usrlib/flink-files/" + filename;
+    execute(filename, "--sqlfile", sqlFile);
+  }
+
+  void execute(String filename, String... arguments) throws ApiException {
     File jarFile = new File("target/flink-jar-runner-1.0.0-SNAPSHOT.jar");
 
     JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
@@ -48,9 +55,23 @@ class FlinkMainIT extends AbstractITSupport {
         .isThrownBy(
             () -> {
               JarRunResponseBody jobResponse =
-                  client.runJar(jarId, null, null, null, "--sqlfile," + sqlFile, null, 1);
+                  client.runJar(
+                      jarId,
+                      null,
+                      null,
+                      null,
+                      Arrays.stream(arguments).collect(Collectors.joining(",")),
+                      null,
+                      1);
               String jobId = jobResponse.getJobid();
               assertThat(jobId).isNotNull();
             });
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({"test_udf_sql.sql"})
+  void givenUdfScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+    String sqlFile = "/opt/flink/usrlib/flink-files/" + filename;
+    execute(filename, "--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 }

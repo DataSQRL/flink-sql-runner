@@ -56,6 +56,7 @@ services:
     volumes:
       - flink_conf:/opt/flink/conf
       - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
+      - ./src/test/resources/udfs/:/opt/flink/usrlib/udfs/
       - ./src/test/resources/datasources/:/datasources/
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
@@ -82,6 +83,7 @@ services:
     volumes:
       - flink_conf:/opt/flink/conf
       - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
+      - ./src/test/resources/udfs/:/opt/flink/usrlib/udfs/
       - ./src/test/resources/datasources/:/datasources/
     networks:
       - datasqrl_network
