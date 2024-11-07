@@ -15,25 +15,31 @@
  */
 package com.datasqrl;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.util.FileUtils;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /** Main class for executing SQL scripts using picocli. */
 @Slf4j
 @RequiredArgsConstructor
-public class SqlRunner implements Callable<Integer> {
+public class SqlRunner {
 
-  private final File sqlFile;
+  private final String sqlFile;
 
   private boolean block;
 
@@ -45,89 +51,59 @@ public class SqlRunner implements Callable<Integer> {
 
   public static void main(String[] args) throws Exception {
     System.out.println(String.format("Executing flink-jar-runner with: %s", Arrays.toString(args)));
-    int exitCode = new SqlRunner(new File("/opt/flink/usrlib/flink-files/flink.sql")).call();
+    int exitCode = new SqlRunner("/opt/flink/usrlib/flink-files/flink.sql").call();
     System.exit(exitCode);
   }
 
-  @Override
   public Integer call() throws Exception {
-    // Determine UDF path
-    if (udfPath == null) {
-      udfPath = System.getenv("UDF_PATH");
+    Map<String, String> flinkConfig = new HashMap<>();
+    flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
+    Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
+    StreamExecutionEnvironment sEnv =
+        StreamExecutionEnvironment.getExecutionEnvironment(sEnvConfig);
+    EnvironmentSettings tEnvConfig =
+        EnvironmentSettings.newInstance()
+            .withConfiguration(Configuration.fromMap(flinkConfig))
+            .build();
+    StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
+    TableResult tableResult = null;
+    String[] statements = readResourceFile(sqlFile).split("\n\n");
+    for (String statement : statements) {
+      if (statement.trim().isEmpty()) continue;
+      tableResult = tEnv.executeSql(replaceWithEnv(statement));
+      System.out.println(statement);
+      System.out.println("");
     }
-
-    // Load configuration if configFile is provided
-    Configuration configuration = new Configuration();
-    if (configFile != null) {
-      configuration = loadConfigurationFromYaml(configFile);
-    }
-
-    // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath);
-    TableResult tableResult;
-    // Input validation and execution logic
-    if (sqlFile != null) {
-      // Single SQL file mode
-      String script = FileUtils.readFileUtf8(sqlFile);
-
-      Set<String> missingEnvironmentVariables =
-          EnvironmentVariablesUtils.validateEnvironmentVariables(script);
-      if (!missingEnvironmentVariables.isEmpty()) {
-        throw new IllegalStateException(
-            String.format(
-                "Could not find the following environment variables: %s",
-                missingEnvironmentVariables));
-      }
-
-      tableResult = sqlExecutor.executeScript(script);
-    } else if (planFile != null) {
-      // Compiled plan JSON file
-      String planJson = FileUtils.readFileUtf8(planFile);
-      planJson = replaceScriptWithEnv(planJson);
-
-      tableResult = sqlExecutor.executeCompiledPlan(planJson);
-    } else {
-      log.error("Invalid input. Please provide one of the following combinations:");
-      log.error("- A single SQL file (--sqlfile)");
-      log.error("- A plan JSON file (--planfile)");
-      return 1;
-    }
-
-    if (block) {
-      tableResult.await();
-    }
-
     return 0;
   }
 
-  @SneakyThrows
-  private String replaceScriptWithEnv(String script) {
-    ObjectMapper objectMapper = getObjectMapper();
-    Map map = objectMapper.readValue(script, Map.class);
-    return objectMapper.writeValueAsString(map);
+  public String replaceWithEnv(String command) {
+    Map<String, String> envVariables = System.getenv();
+    Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}");
+
+    String substitutedStr = command;
+    StringBuffer result = new StringBuffer();
+    // First pass to replace environment variables
+    Matcher matcher = pattern.matcher(substitutedStr);
+    while (matcher.find()) {
+      String key = matcher.group(1);
+      String envValue = envVariables.getOrDefault(key, "");
+      matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
+    }
+    matcher.appendTail(result);
+
+    return result.toString();
   }
 
-  public static ObjectMapper getObjectMapper() {
-    ObjectMapper objectMapper = new ObjectMapper();
-
-    // Register the custom deserializer module
-    SimpleModule module = new SimpleModule();
-    module.addDeserializer(String.class, new JsonEnvVarDeserializer());
-    objectMapper.registerModule(module);
-    return objectMapper;
-  }
-
-  /**
-   * Loads configuration from a YAML file.
-   *
-   * @param configFile The YAML configuration file.
-   * @return A Configuration object.
-   * @throws Exception If an error occurs while reading the file.
-   */
-  private Configuration loadConfigurationFromYaml(File configFile) throws Exception {
-    log.info("Loading configuration from {}", configFile.getAbsolutePath());
-    Configuration configuration =
-        GlobalConfiguration.loadConfiguration(configFile.getAbsolutePath());
-    return configuration;
+  private static String readResourceFile(String fileName) {
+    try (InputStream inputStream = Files.newInputStream(Path.of(fileName));
+        BufferedReader reader =
+            new java.io.BufferedReader(
+                new java.io.InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+      return reader.lines().collect(Collectors.joining("\n"));
+    } catch (IOException | NullPointerException e) {
+      System.err.println("Error reading the resource file: " + e.getMessage());
+      throw new RuntimeException(e);
+    }
   }
 }

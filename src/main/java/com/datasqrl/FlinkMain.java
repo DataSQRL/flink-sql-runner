@@ -21,8 +21,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -32,15 +34,62 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @RequiredArgsConstructor
 public class FlinkMain {
 
+  @Command(
+      name = "SqlRunner",
+      mixinStandardHelpOptions = true,
+      version = "1.0",
+      description = "Runs SQL scripts using Flink TableEnvironment.")
+  public static class SqlRunner implements Callable<Void> {
+
+    @Option(
+        names = {"-s", "--sqlfile"},
+        description = "SQL file to execute.")
+    private String sqlFile;
+
+    @Option(
+        names = {"--block"},
+        description = "Wait for the flink job manager to exit.",
+        defaultValue = "false")
+    private boolean block;
+
+    @Option(
+        names = {"--planfile"},
+        description = "Compiled plan JSON file.")
+    private String planFile;
+
+    @Option(
+        names = {"--configfile"},
+        description = "Configuration YAML file.")
+    private String configFile;
+
+    @Option(
+        names = {"--udfpath"},
+        description = "Path to UDFs.")
+    private String udfPath;
+
+    @Override
+    public Void call() throws Exception {
+      return null;
+    }
+  }
+
   private final String sqlFile;
 
   public static void main(String[] args) {
-    System.out.println("Executing flink-jar-runner ");
-    new FlinkMain("/opt/flink/usrlib/flink-files/flink.sql").run();
+    System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
+
+    CommandLine cl = new CommandLine(new SqlRunner());
+    int exitCode = cl.execute(args);
+    SqlRunner runner = cl.getCommand();
+
+    new FlinkMain(runner.sqlFile).run();
     System.out.println("Finished flink-jar-runner");
   }
 

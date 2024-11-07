@@ -41,6 +41,8 @@
     <slf4j.version>1.7.36</slf4j.version>
     <log4j.version>2.17.1</log4j.version>
     <feign.version>13.5</feign.version>
+
+    <picocli.version>4.7.6</picocli.version>
   </properties>
 
   <dependencies>
@@ -97,6 +99,11 @@
     </dependency>
 
     <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>${picocli.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>5.8.1</version>
@@ -122,24 +129,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.github.openfeign</groupId>
-      <artifactId>feign-core</artifactId>
-      <version>${feign.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.github.openfeign</groupId>
-      <artifactId>feign-httpclient</artifactId>
-      <version>${feign.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.github.openfeign</groupId>
-      <artifactId>feign-jackson</artifactId>
-      <version>${feign.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.github.openfeign</groupId>
-      <artifactId>feign-form</artifactId>
-      <version>${feign.version}</version>
+         <groupId>com.nextbreakpoint</groupId>
+    <artifactId>com.nextbreakpoint.flinkclient</artifactId>
+    <version>1.0.4</version>
     </dependency>
 
     <dependency>
@@ -187,7 +179,7 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.datasqrl.SqlRunner</mainClass>
+                  <mainClass>com.datasqrl.FlinkMain</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -418,7 +410,7 @@
                   <executable>docker</executable>
                   <arguments>
                     <argument>logs</argument>
-                    <argument>flink-jar-runner-flink-jobmanager-1</argument>
+                    <argument>flink-jar-runner-jobmanager-1</argument>
                   </arguments>
                 </configuration>
               </execution>

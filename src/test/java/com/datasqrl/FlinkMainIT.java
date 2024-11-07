@@ -17,69 +17,37 @@ package com.datasqrl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.datasqrl.flink.client.AccumulatorsResponse;
-import com.datasqrl.flink.client.JarUploadResponse;
-import com.datasqrl.flink.client.JobDetails;
-import com.datasqrl.flink.client.JobMetric;
-import com.datasqrl.flink.client.JobRequest;
-import com.datasqrl.flink.client.JobSubmitResponse;
-import feign.form.FormData;
+import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
+import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
+import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody.StatusEnum;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class FlinkMainIT extends AbstractITSupport {
 
-  @Test
-  void test() throws IOException {
+  @ParameterizedTest
+  @CsvSource({
+    "/opt/flink/usrlib/flink-files/flink.sql",
+    "/opt/flink/usrlib/flink-files/test_sql.sql",
+    "/opt/flink/usrlib/flink-files/test_udf_sql.sql"
+  })
+  void test(String sqlFile) throws IOException, Exception {
     File jarFile = new File("target/flink-jar-runner-1.0.0-SNAPSHOT.jar");
 
-    byte[] fileContent = Files.readAllBytes(jarFile.toPath());
+    JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
 
-    // Create FormData with content type, file name, and data
-    FormData formData = new FormData("application/java-archive", jarFile.getName(), fileContent);
-
-    JarUploadResponse uploadResponse = client.uploadJar(formData);
-
-    assertThat(uploadResponse.status()).isEqualToIgnoringCase("success");
-    System.out.println("Jar uploaded successfully");
+    assertThat(uploadResponse.getStatus()).isEqualTo(StatusEnum.SUCCESS);
 
     // Step 2: Extract jarId from the response
     String jarId =
-        uploadResponse.filename().substring(uploadResponse.filename().lastIndexOf("/") + 1);
+        uploadResponse.getFilename().substring(uploadResponse.getFilename().lastIndexOf("/") + 1);
 
     // Step 3: Submit the job
-    JobRequest jobRequest =
-        JobRequest.builder()
-            .programArgs("--input /path/to/input --output /path/to/output")
-            .parallelism(1)
-            .build();
-
-    JobSubmitResponse jobResponse = client.submitJob(jarId, jobRequest);
-    String jobId = jobResponse.jobid();
+    JarRunResponseBody jobResponse =
+        client.runJar(jarId, null, null, null, "--sqlfile," + sqlFile, null, 1);
+    String jobId = jobResponse.getJobid();
     assertThat(jobId).isNotNull();
-
-    JobDetails jobDetails = client.getJobDetails(jobId);
-    System.out.println("Job State: " + jobDetails.state());
-    // Step 4: Check job details
-
-    // Step 5: Get Job Metrics
-    List<JobMetric> jobMetrics = client.getJobMetrics(jobId);
-    for (JobMetric metric : jobMetrics) {
-      System.out.println("Metric ID: " + metric.id() + ", Value: " + metric.value());
-    }
-
-    // Step 6: Get Job Accumulators
-    AccumulatorsResponse accumulatorsResponse = client.getJobAccumulators(jobId);
-    if (accumulatorsResponse.userTaskAccumulators() != null) {
-      for (AccumulatorsResponse.AccumulatorInfo accumulator :
-          accumulatorsResponse.userTaskAccumulators()) {
-        System.out.printf(
-            "Accumulator Name: %s, Type: %s, Value: %s%n",
-            accumulator.name(), accumulator.type(), accumulator.value());
-      }
-    }
   }
 }

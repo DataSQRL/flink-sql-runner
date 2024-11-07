@@ -15,23 +15,9 @@
  */
 package com.datasqrl;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-
-import com.datasqrl.flink.client.FlinkClient;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import feign.Feign;
-import feign.Logger.ErrorLogger;
-import feign.Logger.Level;
-import feign.Request.Options;
-import feign.Retryer;
-import feign.form.FormEncoder;
-import feign.jackson.JacksonDecoder;
-import feign.jackson.JacksonEncoder;
+import com.nextbreakpoint.flinkclient.api.ApiException;
+import com.nextbreakpoint.flinkclient.api.FlinkApi;
+import com.nextbreakpoint.flinkclient.model.JobIdsWithStatusOverview;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,45 +25,23 @@ import org.junit.jupiter.api.BeforeAll;
 @Slf4j
 public class AbstractITSupport {
 
-  protected static FlinkClient client;
+  protected static FlinkApi client;
 
   @BeforeAll
-  static void waitServiceStart() {
-    client = newClientBuilder().logLevel(Level.NONE).target(FlinkClient.class, serverUrl());
+  static void waitServiceStart() throws ApiException {
+    client = new FlinkApi();
+    client.getApiClient().setBasePath(serverUrl());
 
-    await()
-        .atMost(100, SECONDS)
-        .pollInterval(500, MILLISECONDS)
-        .ignoreExceptions()
-        .until(
-            () -> {
-              log.info("Awaiting for custody-api");
-              try (var response = client.healthCheck(); ) {
-                return response.status() == 200;
+    final JobIdsWithStatusOverview statusOverview = client.getJobs();
+    statusOverview
+        .getJobs()
+        .forEach(
+            jobIdWithStatus -> {
+              try {
+                client.terminateJob(jobIdWithStatus.getId(), "cancel");
+              } catch (ApiException ignored) {
               }
             });
-  }
-
-  public static ObjectMapper jacksonMapper() {
-    var mapper =
-        new ObjectMapper()
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-            .configure(SerializationFeature.INDENT_OUTPUT, true)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .findAndRegisterModules();
-    return mapper;
-  }
-
-  protected static Feign.Builder newClientBuilder() {
-    var mapper = jacksonMapper();
-
-    return Feign.builder()
-        .encoder(new FormEncoder(new JacksonEncoder(mapper)))
-        .decoder(new JacksonDecoder(mapper))
-        .logLevel(Level.BASIC)
-        .logger(new ErrorLogger())
-        .options(new Options(300, SECONDS, 300, SECONDS, true))
-        .retryer(Retryer.NEVER_RETRY);
   }
 
   protected static String serverUrl() {

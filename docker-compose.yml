@@ -14,6 +14,10 @@
 # limitations under the License.
 #
 
+networks:
+  datasqrl_network:
+    driver: bridge
+
 services:
   postgres:
     image: postgres:16
@@ -25,16 +29,22 @@ services:
       - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 1s
+      timeout: 1s
+      retries: 50
+    networks:
+      - datasqrl_network
 
-  flink-jobmanager:
+  jobmanager:
     image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
+      - |
+        FLINK_PROPERTIES=
+        taskmanager.slot.timeout: 30000ms
+        jobmanager.rpc.address: jobmanager
     command: jobmanager
     ports:
       - "8081:8081"  # Flink JobManager REST port
@@ -47,20 +57,34 @@ services:
       - flink_conf:/opt/flink/conf
       - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
       - ./src/test/resources/datasources/:/datasources/
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
+      interval: 1s
+      timeout: 1s
+      retries: 50
+    networks:
+      - datasqrl_network
 
-  flink-taskmanager:
+  taskmanager:
     image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
+      - |
+        FLINK_PROPERTIES=
+        taskmanager.slot.timeout: 30000ms
+        jobmanager.rpc.address: jobmanager
     command: taskmanager
     depends_on:
-      - flink-jobmanager
+      jobmanager:
+        condition: service_healthy
     volumes:
       - flink_conf:/opt/flink/conf
       - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
       - ./src/test/resources/datasources/:/datasources/
+    networks:
+      - datasqrl_network
 
 volumes:
   flink_conf:
