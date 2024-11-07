@@ -14,10 +14,4 @@
 # limitations under the License.
 #
 
-rest:
-  address: "localhost"
-  port: "8081"
-execution:
-  parallelism: "4"
-  target: "local"
-  attached: "true"
+"table.exec.source.idle-timeout": "100 ms"

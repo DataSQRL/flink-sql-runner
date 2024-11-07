@@ -1,0 +1,96 @@
+#
+# Copyright © 2024 DataSQRL (contact@datasqrl.com)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: flink-jar-runner
+
+networks:
+  datasqrl_network:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: datasqrl
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 1s
+      retries: 50
+    networks:
+      - datasqrl_network
+
+  jobmanager:
+    image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
+    environment:
+      - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
+      - JDBC_USERNAME=postgres
+      - JDBC_PASSWORD=postgres
+      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
+      - PROPERTIES_GROUP_ID=mygroupid
+      - |
+        FLINK_PROPERTIES=
+        taskmanager.slot.timeout: 30000ms
+        jobmanager.rpc.address: jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"  # Flink JobManager REST port
+      - "6123:6123"  # RPC port
+      - "6124:6124"  # Blob server port
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - flink_conf:/opt/flink/conf
+      - ./:/opt/flink/usrlib/
+      - ./datasources/:/datasources/
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
+      interval: 1s
+      timeout: 1s
+      retries: 50
+    networks:
+      - datasqrl_network
+
+  taskmanager:
+    image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
+    environment:
+      - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
+      - JDBC_USERNAME=postgres
+      - JDBC_PASSWORD=postgres
+      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
+      - PROPERTIES_GROUP_ID=mygroupid
+      - |
+        FLINK_PROPERTIES=
+        taskmanager.slot.timeout: 30000ms
+        jobmanager.rpc.address: jobmanager
+    command: taskmanager
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+    volumes:
+      - flink_conf:/opt/flink/conf
+      - ./:/opt/flink/usrlib/
+      - ./datasources/:/datasources/
+    networks:
+      - datasqrl_network
+
+volumes:
+  flink_conf:

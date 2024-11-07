@@ -27,8 +27,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven
 
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
+      - name: Download dependencies
+        run: |
+          set -x
+          mvn -B dependency:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
+          docker compose -f src/test/resources/docker-compose.yml pull
 
-      - name: Run JUnit tests
+      - name: Build and test with Maven
         run: mvn -B verify -Pci
