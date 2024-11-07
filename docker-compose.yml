@@ -41,6 +41,8 @@ services:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
+      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
+      - PROPERTIES_GROUP_ID=mygroupid
       - |
         FLINK_PROPERTIES=
         taskmanager.slot.timeout: 30000ms
@@ -55,8 +57,7 @@ services:
         condition: service_healthy
     volumes:
       - flink_conf:/opt/flink/conf
-      - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
-      - ./src/test/resources/udfs/:/opt/flink/usrlib/udfs/
+      - ./src/test/resources/:/opt/flink/usrlib/
       - ./src/test/resources/datasources/:/datasources/
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
@@ -72,6 +73,8 @@ services:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
+      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
+      - PROPERTIES_GROUP_ID=mygroupid
       - |
         FLINK_PROPERTIES=
         taskmanager.slot.timeout: 30000ms
@@ -82,8 +85,7 @@ services:
         condition: service_healthy
     volumes:
       - flink_conf:/opt/flink/conf
-      - ./src/test/resources/sql/:/opt/flink/usrlib/flink-files/
-      - ./src/test/resources/udfs/:/opt/flink/usrlib/udfs/
+      - ./src/test/resources/:/opt/flink/usrlib/
       - ./src/test/resources/datasources/:/datasources/
     networks:
       - datasqrl_network

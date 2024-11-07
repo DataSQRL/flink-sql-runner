@@ -33,9 +33,16 @@ class FlinkMainIT extends AbstractITSupport {
 
   @ParameterizedTest(name = "{0}")
   @CsvSource({"flink.sql", "test_sql.sql"})
-  void givenScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
-    String sqlFile = "/opt/flink/usrlib/flink-files/" + filename;
+  void givenSqlScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+    String sqlFile = "/opt/flink/usrlib/sql/" + filename;
     execute(filename, "--sqlfile", sqlFile);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({"compiled-plan.json", "test_plan.json"})
+  void givenPlansScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+    String planFile = "/opt/flink/usrlib/plans/" + filename;
+    execute(filename, "--planfile", planFile);
   }
 
   void execute(String filename, String... arguments) throws ApiException {
@@ -71,7 +78,7 @@ class FlinkMainIT extends AbstractITSupport {
   @ParameterizedTest(name = "{0}")
   @CsvSource({"test_udf_sql.sql"})
   void givenUdfScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
-    String sqlFile = "/opt/flink/usrlib/flink-files/" + filename;
+    String sqlFile = "/opt/flink/usrlib/sql/" + filename;
     execute(filename, "--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 }

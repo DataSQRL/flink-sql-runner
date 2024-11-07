@@ -15,6 +15,10 @@
  */
 package com.datasqrl;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+
 import com.nextbreakpoint.flinkclient.api.ApiException;
 import com.nextbreakpoint.flinkclient.api.FlinkApi;
 import com.nextbreakpoint.flinkclient.model.JobIdsWithStatusOverview;
@@ -37,6 +41,16 @@ public class AbstractITSupport {
     client.getApiClient().setConnectTimeout(timeout);
     client.getApiClient().setReadTimeout(timeout);
     client.getApiClient().setWriteTimeout(timeout);
+
+    await()
+        .atMost(100, SECONDS)
+        .pollInterval(500, MILLISECONDS)
+        .ignoreExceptions()
+        .until(
+            () -> {
+              log.info("Awaiting for custody-api");
+              return client.getJobs() != null;
+            });
 
     final JobIdsWithStatusOverview statusOverview = client.getJobs();
     statusOverview

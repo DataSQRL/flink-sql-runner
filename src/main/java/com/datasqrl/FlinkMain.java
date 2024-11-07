@@ -76,6 +76,7 @@ public class FlinkMain {
   }
 
   private final String sqlFile;
+  private final String planFile;
   private final String udfPath;
 
   public static void main(String[] args) throws Exception {
@@ -85,11 +86,17 @@ public class FlinkMain {
     int exitCode = cl.execute(args);
     SqlRunner runner = cl.getCommand();
 
-    new FlinkMain(runner.sqlFile, runner.udfPath).run();
+    // Determine UDF path
+    if (runner.udfPath == null) {
+      runner.udfPath = System.getenv("UDF_PATH");
+    }
+
+    new FlinkMain(runner.sqlFile, runner.planFile, runner.udfPath).run();
     System.out.println("Finished flink-jar-runner");
   }
 
   public TableResult run() throws Exception {
+
     Map<String, String> flinkConfig = new HashMap<>();
     flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
     Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
@@ -99,23 +106,47 @@ public class FlinkMain {
         EnvironmentSettings.newInstance()
             .withConfiguration(Configuration.fromMap(flinkConfig))
             .build();
-    TableResult tableResult = null;
-    String script = FileUtils.readFileUtf8(new File(sqlFile));
 
     // Initialize SqlExecutor
     SqlExecutor sqlExecutor = new SqlExecutor(sEnvConfig, udfPath);
+    TableResult tableResult;
+    // Input validation and execution logic
+    if (sqlFile != null) {
+      // Single SQL file mode
+      String script = FileUtils.readFileUtf8(new File(sqlFile));
 
-    Set<String> missingEnvironmentVariables =
-        EnvironmentVariablesUtils.validateEnvironmentVariables(script);
-    if (!missingEnvironmentVariables.isEmpty()) {
-      throw new IllegalStateException(
-          String.format(
-              "Could not find the following environment variables: %s",
-              missingEnvironmentVariables));
+      Set<String> missingEnvironmentVariables =
+          EnvironmentVariablesUtils.validateEnvironmentVariables(script);
+      if (!missingEnvironmentVariables.isEmpty()) {
+        throw new IllegalStateException(
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
+      }
+
+      tableResult = sqlExecutor.executeScript(script);
+    } else if (planFile != null) {
+      // Compiled plan JSON file
+      String planJson = FileUtils.readFileUtf8(new File(planFile));
+
+      Set<String> missingEnvironmentVariables =
+          EnvironmentVariablesUtils.validateEnvironmentVariables(planJson);
+      if (!missingEnvironmentVariables.isEmpty()) {
+        throw new IllegalStateException(
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
+      }
+
+      planJson = EnvironmentVariablesUtils.replaceWithEnv(planJson);
+
+      tableResult = sqlExecutor.executeCompiledPlan(planJson);
+    } else {
+      System.err.println("Invalid input. Please provide one of the following combinations:");
+      System.err.println("- A single SQL file (--sqlfile)");
+      System.err.println("- A plan JSON file (--planfile)");
+      return null;
     }
-
-    tableResult = sqlExecutor.executeScript(script);
-
     return tableResult;
   }
 
