@@ -17,7 +17,6 @@ package com.datasqrl;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -25,8 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
@@ -60,9 +58,9 @@ public class FlinkMain {
     private String planFile;
 
     @Option(
-        names = {"--configfile"},
-        description = "Configuration YAML file.")
-    private String configFile;
+        names = {"--configDir"},
+        description = "Directory containing configuration YAML file.")
+    private String configDir;
 
     @Option(
         names = {"--udfpath"},
@@ -77,6 +75,7 @@ public class FlinkMain {
 
   private final String sqlFile;
   private final String planFile;
+  private final String configDir;
   private final String udfPath;
 
   public static void main(String[] args) throws Exception {
@@ -91,24 +90,20 @@ public class FlinkMain {
       runner.udfPath = System.getenv("UDF_PATH");
     }
 
-    new FlinkMain(runner.sqlFile, runner.planFile, runner.udfPath).run();
+    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath).run();
     System.out.println("Finished flink-jar-runner");
   }
 
   public TableResult run() throws Exception {
 
-    Map<String, String> flinkConfig = new HashMap<>();
-    flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
-    Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
-    StreamExecutionEnvironment sEnv =
-        StreamExecutionEnvironment.getExecutionEnvironment(sEnvConfig);
-    EnvironmentSettings tEnvConfig =
-        EnvironmentSettings.newInstance()
-            .withConfiguration(Configuration.fromMap(flinkConfig))
-            .build();
+    // Load configuration if configDir is provided
+    Configuration configuration = new Configuration();
+    if (configDir != null) {
+      configuration = loadConfigurationFromYaml(configDir);
+    }
 
     // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(sEnvConfig, udfPath);
+    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath);
     TableResult tableResult;
     // Input validation and execution logic
     if (sqlFile != null) {
@@ -166,5 +161,17 @@ public class FlinkMain {
     matcher.appendTail(result);
 
     return result.toString();
+  }
+
+  /**
+   * Loads configuration from a YAML file.
+   *
+   * @param configDir The YAML configuration file.
+   * @return A Configuration object.
+   * @throws Exception If an error occurs while reading the file.
+   */
+  private Configuration loadConfigurationFromYaml(String configDir) throws Exception {
+    System.out.printf("Loading configuration from %s\n", configDir);
+    return GlobalConfiguration.loadConfiguration(configDir);
   }
 }

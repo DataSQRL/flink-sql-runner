@@ -33,7 +33,7 @@ class FlinkMainIT extends AbstractITSupport {
   @CsvSource({"flink.sql", "test_sql.sql"})
   void givenSqlScript_whenExecuting_thenSuccess(String filename) throws Exception {
     String sqlFile = "/opt/flink/usrlib/sql/" + filename;
-    execute(filename, "--sqlfile", sqlFile);
+    execute(filename, "--sqlfile", sqlFile, "--config-dir", "/opt/flink/usrlib/config/");
   }
 
   @ParameterizedTest(name = "{0}")
