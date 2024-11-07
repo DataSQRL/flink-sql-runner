@@ -132,6 +132,7 @@
       <groupId>com.nextbreakpoint</groupId>
       <artifactId>com.nextbreakpoint.flinkclient</artifactId>
       <version>1.0.4</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

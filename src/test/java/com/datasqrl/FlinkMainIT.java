@@ -18,12 +18,10 @@ package com.datasqrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
-import com.nextbreakpoint.flinkclient.api.ApiException;
 import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
 import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody.StatusEnum;
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,19 +31,19 @@ class FlinkMainIT extends AbstractITSupport {
 
   @ParameterizedTest(name = "{0}")
   @CsvSource({"flink.sql", "test_sql.sql"})
-  void givenSqlScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+  void givenSqlScript_whenExecuting_thenSuccess(String filename) throws Exception {
     String sqlFile = "/opt/flink/usrlib/sql/" + filename;
     execute(filename, "--sqlfile", sqlFile);
   }
 
   @ParameterizedTest(name = "{0}")
   @CsvSource({"compiled-plan.json", "test_plan.json"})
-  void givenPlansScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+  void givenPlansScript_whenExecuting_thenSuccess(String filename) throws Exception {
     String planFile = "/opt/flink/usrlib/plans/" + filename;
     execute(filename, "--planfile", planFile);
   }
 
-  void execute(String filename, String... arguments) throws ApiException {
+  void execute(String filename, String... arguments) throws Exception {
     File jarFile = new File("target/flink-jar-runner-1.0.0-SNAPSHOT.jar");
 
     JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
@@ -77,8 +75,15 @@ class FlinkMainIT extends AbstractITSupport {
 
   @ParameterizedTest(name = "{0}")
   @CsvSource({"test_udf_sql.sql"})
-  void givenUdfScript_whenExecuting_thenSuccess(String filename) throws IOException, Exception {
+  void givenUdfSqlScript_whenExecuting_thenSuccess(String filename) throws Exception {
     String sqlFile = "/opt/flink/usrlib/sql/" + filename;
     execute(filename, "--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({"compiled-plan-udf.json"})
+  void givenUdfPlansScript_whenExecuting_thenSuccess(String filename) throws Exception {
+    String planFile = "/opt/flink/usrlib/plans/" + filename;
+    execute(filename, "--planfile", planFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 }
