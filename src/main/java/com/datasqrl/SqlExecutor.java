@@ -94,7 +94,7 @@ class SqlExecutor {
         tableResult = tableEnv.executeSql(EnvironmentVariablesUtils.replaceWithEnv(statement));
       }
     } catch (Exception e) {
-      log.error("Failed to execute statement: {}", statement, e);
+      e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
       throw e;
     }
     return tableResult;

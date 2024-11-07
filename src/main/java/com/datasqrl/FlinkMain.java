@@ -16,11 +16,10 @@
 package com.datasqrl;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,7 +28,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -79,7 +77,7 @@ public class FlinkMain {
 
   private final String sqlFile;
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
 
     CommandLine cl = new CommandLine(new SqlRunner());
@@ -90,7 +88,7 @@ public class FlinkMain {
     System.out.println("Finished flink-jar-runner");
   }
 
-  public TableResult run() throws IOException {
+  public TableResult run() throws Exception {
     Map<String, String> flinkConfig = new HashMap<>();
     flinkConfig.put("table.exec.source.idle-timeout", "100 ms");
     Configuration sEnvConfig = Configuration.fromMap(flinkConfig);
@@ -100,21 +98,22 @@ public class FlinkMain {
         EnvironmentSettings.newInstance()
             .withConfiguration(Configuration.fromMap(flinkConfig))
             .build();
-    StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
     TableResult tableResult = null;
     String script = FileUtils.readFileUtf8(new File(sqlFile));
-    List<String> statements = SqlUtils.parseStatements(script);
-    for (String statement : statements) {
-      if (statement.trim().isEmpty()) continue;
-      try {
-        tableResult = tEnv.executeSql(replaceWithEnv(statement));
-        System.out.println(statement);
-        System.out.println("");
-      } catch (Exception e) {
-        e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
-        throw e;
-      }
+
+    // Initialize SqlExecutor
+    SqlExecutor sqlExecutor = new SqlExecutor(sEnvConfig, null);
+
+    Set<String> missingEnvironmentVariables =
+        EnvironmentVariablesUtils.validateEnvironmentVariables(script);
+    if (!missingEnvironmentVariables.isEmpty()) {
+      throw new IllegalStateException(
+          String.format(
+              "Could not find the following environment variables: %s",
+              missingEnvironmentVariables));
     }
+
+    tableResult = sqlExecutor.executeScript(script);
 
     return tableResult;
   }

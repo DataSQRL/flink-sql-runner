@@ -19,6 +19,7 @@ import com.nextbreakpoint.flinkclient.api.ApiException;
 import com.nextbreakpoint.flinkclient.api.FlinkApi;
 import com.nextbreakpoint.flinkclient.model.JobIdsWithStatusOverview;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -31,6 +32,11 @@ public class AbstractITSupport {
   static void waitServiceStart() throws ApiException {
     client = new FlinkApi();
     client.getApiClient().setBasePath(serverUrl());
+
+    int timeout = (int) TimeUnit.MINUTES.toMillis(2);
+    client.getApiClient().setConnectTimeout(timeout);
+    client.getApiClient().setReadTimeout(timeout);
+    client.getApiClient().setWriteTimeout(timeout);
 
     final JobIdsWithStatusOverview statusOverview = client.getJobs();
     statusOverview
