@@ -58,7 +58,7 @@ public class FlinkMain {
     private String planFile;
 
     @Option(
-        names = {"--configDir"},
+        names = {"--config-dir"},
         description = "Directory containing configuration YAML file.")
     private String configDir;
 
@@ -77,6 +77,7 @@ public class FlinkMain {
   private final String planFile;
   private final String configDir;
   private final String udfPath;
+  private final boolean block;
 
   public static void main(String[] args) throws Exception {
     System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
@@ -90,7 +91,8 @@ public class FlinkMain {
       runner.udfPath = System.getenv("UDF_PATH");
     }
 
-    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath).run();
+    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath, runner.block)
+        .run();
     System.out.println("Finished flink-jar-runner");
   }
 
@@ -142,6 +144,11 @@ public class FlinkMain {
       System.err.println("- A plan JSON file (--planfile)");
       return null;
     }
+
+    if (block) {
+      tableResult.await();
+    }
+
     return tableResult;
   }
 
