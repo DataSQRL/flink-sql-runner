@@ -16,7 +16,7 @@
 
 FROM gradle:8.6-jdk11 AS build
 
-ARG SQRL_VERSION="0.5.7"
+ARG SQRL_VERSION="v0.5.7"
 
 WORKDIR /app
 
