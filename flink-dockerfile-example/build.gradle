@@ -27,8 +27,13 @@ ext {
     flinkVersion = "1.19.1"
     jdbcVersion = "3.2.0-1.19"
     kafkaVersion = "3.2.0-1.19"
-    sqrlVersion = System.getenv('SQRL_VERSION')
     icebergVersion = "1.6.0"
+    sqrlVersion = System.getenv('SQRL_VERSION')?.replaceFirst('^v', '') ?: 'dev'
+}
+
+// Logic to fetch the latest snapshot version if sqrlVersion is 'dev'
+if (sqrlVersion == 'dev') {
+    sqrlVersion = '0.5.10-SNAPSHOT'
 }
 
 repositories {
@@ -36,6 +41,13 @@ repositories {
     mavenCentral()
     maven {
         url "https://packages.confluent.io/maven/"
+    }
+    maven {
+        url "https://maven.pkg.github.com/DataSQRL/sqrl"
+        credentials {
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
+        }
     }
 }
 

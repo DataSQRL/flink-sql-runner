@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        SQRL_VERSION: [0.5.6, 0.5.7, 0.5.8, 0.5.9]
+        SQRL_VERSION: [v0.5.6, v0.5.7, v0.5.8, v0.5.9, dev]
 
     env:
       DOCKER_REPO: datasqrl/flink-jar-runner
@@ -50,7 +50,7 @@ jobs:
         working-directory: flink-dockerfile-example
         run: |
           DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl${{ matrix.SQRL_VERSION }}
-          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} -t $DOCKER_TAG .
+          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg GITHUB_ACTOR=${{ github.actor }} --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} -t $DOCKER_TAG .
 
       - name: Push Docker image
         if: github.event_name == 'release' && github.event.action == 'created'
