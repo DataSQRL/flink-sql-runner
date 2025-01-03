@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        SQRL_VERSION: [v0.5.6, v0.5.7, v0.5.8, v0.5.9, dev]
+        SQRL_VERSION: [v0.5.6, v0.5.7, v0.5.8, v0.5.9, v0.5.10, dev]
 
     env:
       DOCKER_REPO: datasqrl/flink-jar-runner
