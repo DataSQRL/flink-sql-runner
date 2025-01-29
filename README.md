@@ -24,7 +24,7 @@ Add the following to your pom.xml:
 <dependency>
 <groupId>com.datasqrl</groupId>
 <artifactId>flink-jar-runner</artifactId>
-<version>1.0.0</version>
+<version>0.0.3</version>
 </dependency>
 ```
 
@@ -42,17 +42,17 @@ The tool can be executed via the command line with the following arguments:
 
 | Argument	| Description                                |
  ----------- |--------------------------------------------|
-|--sql-schema| 	Path to the SQL schema file               |
-|--compiled-plan| 	Path to the compiled plan JSON file       |
-|--system-jars| 	Directory containing additional JAR files |
-|--local-mode| 	tbd                                       |
+|--sqlfile| 	SQL file to execute               |
+|--planfile| 	Compiled plan JSON file       |
+|--config-dir| 	Directory containing configuration YAML file       |
+|--udfpath| 	Path to UDFs |
 
 Example usage:
 ```bash
 java -jar flink-jar-runner.jar \
---sql-schema /path/to/schema.sql \
---compiled-plan /path/to/compiledplan.json \
---system-jars /path/to/jars
+--sqlfile /path/to/schema.sql \
+--planfile /path/to/compiledplan.json \
+--udfpath /path/to/jars
 ```
 
 ### Environment Variable Substitution
@@ -97,7 +97,7 @@ spec:
       cpu: 1
   job:
     jarURI: http://raw.github.com/datasqrl/releases/1.0.0/flink-jar-runner.jar
-    args: ["--sql-schema", "/opt/flink/usrlib/sql-scripts/schema.sql", "--compiled-plan", "/opt/flink/usrlib/sql-scripts/compiledplan.json", "--system-jars", "/opt/flink/usrlib/jars"]
+    args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/schema.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiledplan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
 ```
@@ -113,10 +113,9 @@ Running Flink jar-runner locally:
 
 ```bash
 java -jar flink-jar-runner.jar \
---sql-schema /path/to/schema.sql \
---compiled-plan /path/to/compiledplan.json \
---system-jars /path/to/jars \
---local-mode
+--sqlfile /path/to/schema.sql \
+--planfile /path/to/compiledplan.json \
+--udfpath /path/to/jars
 ```
 
 ---
@@ -129,13 +128,13 @@ You can download the JAR directly from Maven Central or Docker Hub:
 <dependency>
 <groupId>com.datasqrl</groupId>
 <artifactId>flink-jar-runner</artifactId>
-<version>1.0.0</version>
+<version>0.0.3</version>
 </dependency>
 ```
 - Docker:
 
 ```bash
-docker pull datasqrl/flink-jar-runner:latest
+docker pull datasqrl/flink-jar-runner:0.0.3-sqrlv0.5.10
 ```
 
 ## Contributing
