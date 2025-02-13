@@ -430,6 +430,7 @@
         <enforcer.skip>true</enforcer.skip>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <gcf.skip>true</gcf.skip>
+        <license.skip>true</license.skip>
       </properties>
     </profile>
   </profiles>
