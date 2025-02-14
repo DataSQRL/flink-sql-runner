@@ -38,7 +38,7 @@ services:
       - datasqrl_network
 
   jobmanager:
-    image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
+    image: flink:${test-image-tag}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
@@ -70,7 +70,7 @@ services:
       - datasqrl_network
 
   taskmanager:
-    image: datasqrl/flink-jar-runner:0.0.1-RC1-sqrl0.5.7
+    image: flink:${test-image-tag}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres

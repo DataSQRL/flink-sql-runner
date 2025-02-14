@@ -80,7 +80,7 @@ class FlinkMainIT extends AbstractITSupport {
 
   @SneakyThrows
   void execute(String... arguments) {
-    File jarFile = new File("target/flink-jar-runner-1.0.0-SNAPSHOT.jar");
+    File jarFile = new File("target/flink-jar-runner.uber.jar");
 
     JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
 

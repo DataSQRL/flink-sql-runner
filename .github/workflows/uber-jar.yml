@@ -13,13 +13,19 @@ on:
 jobs:
   uber-jar:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
     strategy:
       matrix:
-        SQRL_VERSION: [0.5.6, 0.5.7, 0.5.8, 0.5.9, 0.5.10, dev]
+        SQRL_VERSION: [0.5.6, 0.5.7, 0.5.8, 0.5.9, 0.5.10, 0.6.0-SNAPSHOT]
+        FLINK_PROFILE: [flink18, flink19]
 
     env:
       DOCKER_REPO: datasqrl/flink-jar-runner
-      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || '1.0.0-SNAPSHOT' }}
+      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}
 
     steps:
       - name: Checkout code
@@ -37,24 +43,32 @@ jobs:
 
       - name: Pull base images
         run: |
-          docker pull maven:3.9.9-eclipse-temurin-11
           docker pull alpine:3
 
-      - name: Run Maven Build
-        if: github.event_name == 'release' && github.event.action == 'created'
+      - name: Generate settings.xml
         run: |
-          mvn -B versions:set -DnewVersion=${{ env.VERSION }}
-          mvn -B clean install -DskipTests=true
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Download dependencies
+        run: |
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
+
+      - name: Run Maven Build
+        run: |
+          mvn -B clean install -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
 
       - name: Build Docker image
         run: |
-          cp uber-jar/Dockerfile .
-          DOCKER_TAG=$DOCKER_REPO:jar-only-${{ env.VERSION }}-sqrlv${{ matrix.SQRL_VERSION }}
-          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg GITHUB_ACTOR=${{ github.actor }} --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} --build-arg RUNNER_VERSION=${{ env.VERSION }} -t $DOCKER_TAG .
-
-      - name: Push Docker image
-        if: github.event_name == 'release' && github.event.action == 'created'
-        run: |
-          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrlv${{ matrix.SQRL_VERSION }}
+          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrlv${{ matrix.SQRL_VERSION }}-flink${{ matrix.FLINK_PROFILE }}
+          ls -lha
+          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg RUNNER_VERSION=${{ env.VERSION }} -t $DOCKER_TAG .
           docker push $DOCKER_TAG
-
