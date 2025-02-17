@@ -17,9 +17,9 @@ package com.datasqrl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.google.common.io.Resources;
 import java.io.File;
 import java.net.URISyntaxException;
-import org.apache.flink.shaded.guava31.com.google.common.io.Resources;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

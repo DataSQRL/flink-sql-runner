@@ -48,7 +48,7 @@
     <picocli.version>4.7.6</picocli.version>
 
     <sqrl.version>0.5.10</sqrl.version>
-    <flink.version>1.19.1</flink.version>
+    <flink.version>1.19.2</flink.version>
     <jdbc.version>3.2.0-1.19</jdbc.version>
     <kafka.version>3.2.0-1.19</kafka.version>
   </properties>
@@ -424,9 +424,43 @@
 
   <profiles>
     <profile>
-      <id>flink19</id>
+      <id>flink2_0</id>
       <properties>
-        <flink.version>1.19.1</flink.version>
+        <flink.version>2.0-preview1</flink.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
+        <kafka.version>3.2.0-1.19</kafka.version>
+        <test-image-tag>2.0-preview1-scala_2.12-java17</test-image-tag>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>flink1_20</id>
+      <properties>
+        <flink.version>1.20.1</flink.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
+        <kafka.version>3.2.0-1.19</kafka.version>
+        <test-image-tag>1.20.0-scala_2.12-java17</test-image-tag>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>flink1_19</id>
+      <properties>
+        <flink.version>1.19.2</flink.version>
         <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.19</kafka.version>
         <test-image-tag>1.19.1-scala_2.12-java11</test-image-tag>
@@ -441,7 +475,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>flink18</id>
+      <id>flink1_18</id>
       <properties>
         <flink.version>1.18.1</flink.version>
         <jdbc.version>3.2.0-1.18</jdbc.version>
