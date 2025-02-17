@@ -27,7 +27,7 @@
   <distributionManagement>
     <snapshotRepository>
       <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/acorn-java</url>
+      <url>https://maven.pkg.github.com/DataSQRL/flink-jar-runner</url>
     </snapshotRepository>
   </distributionManagement>
 
