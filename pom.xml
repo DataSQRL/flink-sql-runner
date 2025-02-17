@@ -24,10 +24,15 @@
   <version>1.0.0-SNAPSHOT</version>
   <inceptionYear>2024</inceptionYear>
 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/DataSQRL/acorn-java</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
-
-    <maven.deploy.skip>true</maven.deploy.skip>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
@@ -241,6 +246,8 @@
             <phase>package</phase>
             <configuration>
               <finalName>flink-jar-runner.uber</finalName>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>sqrlv${sqrl.version}-flink${flink.version}</shadedClassifierName>
               <artifactSet>
                 <excludes>
                   <exclude>org.apache.flink:flink-shaded-force-shading</exclude>
