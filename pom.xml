@@ -212,7 +212,7 @@
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
-      <id>datasqrl</id>
+      <id>github</id>
       <url>https://maven.pkg.github.com/DataSQRL/sqrl</url>
     </repository>
   </repositories>
