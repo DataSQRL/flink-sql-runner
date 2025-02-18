@@ -14,9 +14,7 @@
 # limitations under the License.
 #
 
-FROM alpine:3
+FROM flink:${flink-base-image}
 
-USER 9999
-
-WORKDIR /runner
-COPY target/flink-jar-runner.uber.jar /runner/
+RUN mkdir -p /opt/flink/plugins/flink-jar-runner
+COPY flink-jar-runner.uber.jar /opt/flink/plugins/flink-jar-runner

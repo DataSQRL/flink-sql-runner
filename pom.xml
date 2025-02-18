@@ -33,6 +33,7 @@
 
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
+    <flink-base-image>1.19.1-scala_2.12-java17</flink-base-image>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
@@ -232,6 +233,16 @@
         <directory>src/test/resources</directory>
       </testResource>
     </testResources>
+    <resources>
+      <resource>
+        <filtering>true</filtering>
+        <directory>src/test/docker</directory>
+        <targetPath>${project.basedir}/target</targetPath>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -424,12 +435,12 @@
 
   <profiles>
     <profile>
-      <id>flink2_0</id>
+      <id>flink-2.0</id>
       <properties>
         <flink.version>2.0-preview1</flink.version>
         <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.19</kafka.version>
-        <test-image-tag>2.0-preview1-scala_2.12-java17</test-image-tag>
+        <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
       </properties>
 
       <dependencies>
@@ -441,12 +452,12 @@
       </dependencies>
     </profile>
     <profile>
-      <id>flink1_20</id>
+      <id>flink-1.20</id>
       <properties>
         <flink.version>1.20.1</flink.version>
         <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.19</kafka.version>
-        <test-image-tag>1.20.0-scala_2.12-java17</test-image-tag>
+        <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
       </properties>
 
       <dependencies>
@@ -458,12 +469,12 @@
       </dependencies>
     </profile>
     <profile>
-      <id>flink1_19</id>
+      <id>flink-1.19</id>
       <properties>
         <flink.version>1.19.2</flink.version>
         <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.19</kafka.version>
-        <test-image-tag>1.19.1-scala_2.12-java11</test-image-tag>
+        <flink-base-image>1.19.1-scala_2.12-java11</flink-base-image>
       </properties>
 
       <dependencies>
@@ -475,18 +486,18 @@
       </dependencies>
     </profile>
     <profile>
-      <id>flink1_18</id>
+      <id>flink-1.18</id>
       <properties>
         <flink.version>1.18.1</flink.version>
         <jdbc.version>3.2.0-1.18</jdbc.version>
         <kafka.version>3.2.0-1.18</kafka.version>
-        <test-image-tag>1.18.1-scala_2.12-java11</test-image-tag>
+        <flink-base-image>1.18.1-scala_2.12-java11</flink-base-image>
       </properties>
 
       <dependencies>
         <dependency>
           <groupId>com.datasqrl</groupId>
-          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <artifactId>sqrl-jdbc-1.18</artifactId>
           <version>${sqrl.version}</version>
         </dependency>
       </dependencies>
