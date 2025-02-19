@@ -1,0 +1,86 @@
+name: Build uber jar
+
+on:
+  release:
+    types: [created]
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  uber-jar:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        SQRL_VERSION: [0.5.10, 0.6.0-SNAPSHOT]
+        FLINK_PROFILE: [flink-1.19, flink-1.20]
+
+    env:
+      DOCKER_REPO: datasqrl/flink-jar-runner
+      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Download dependencies
+        run: |
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
+
+      - name: Update version
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
+          mvn -B versions:set -DnewVersion=${{ env.VERSION }}
+
+      - name: Run Maven Build
+        run: |
+          mvn -B clean install -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        working-directory: ./target/
+        run: |
+          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl-${{ matrix.SQRL_VERSION }}-${{ matrix.FLINK_PROFILE }}
+          docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg RUNNER_VERSION=${{ env.VERSION }} -t $DOCKER_TAG .
+          docker push $DOCKER_TAG
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release' && github.event.action == 'created'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/flink-jar-runner.uber.jar
+          asset_name: flink-jar-runner-${{ env.VERSION }}-sqrl-${{ matrix.SQRL_VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
+          asset_content_type: application/java-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true

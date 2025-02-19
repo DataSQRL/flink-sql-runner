@@ -24,10 +24,16 @@
   <version>1.0.0-SNAPSHOT</version>
   <inceptionYear>2024</inceptionYear>
 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/DataSQRL/flink-jar-runner</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
-
-    <maven.deploy.skip>true</maven.deploy.skip>
+    <flink-base-image>1.19.1-scala_2.12-java17</flink-base-image>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
@@ -37,12 +43,15 @@
     <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
     <surefire-plugin.version>3.5.0</surefire-plugin.version>
 
-    <flink.version>1.19.1</flink.version>
     <slf4j.version>1.7.36</slf4j.version>
     <log4j.version>2.17.1</log4j.version>
     <feign.version>13.5</feign.version>
-
     <picocli.version>4.7.6</picocli.version>
+
+    <sqrl.version>0.5.10</sqrl.version>
+    <flink.version>1.19.2</flink.version>
+    <jdbc.version>3.2.0-1.19</jdbc.version>
+    <kafka.version>3.2.0-1.19</kafka.version>
   </properties>
 
   <dependencies>
@@ -112,13 +121,13 @@
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-test-utils</artifactId>
-      <version>1.19.1</version>
+      <version>${flink.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-table-api-java-bridge</artifactId>
-      <version>1.19.1</version>
+      <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -141,9 +150,104 @@
       <version>4.2.2</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-kafka</artifactId>
+      <version>${kafka.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-jdbc</artifactId>
+      <version>${jdbc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-avro-confluent-registry</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-lib-common</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-json</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-secure</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-time</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-text</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-flexible-json</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl</groupId>
+      <artifactId>sqrl-flexible-csv</artifactId>
+      <version>${sqrl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-s3-fs-hadoop</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
   </dependencies>
+  <repositories>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+    <repository>
+      <id>confluent</id>
+      <url>https://packages.confluent.io/maven/</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/DataSQRL/sqrl</url>
+    </repository>
+  </repositories>
 
   <build>
+    <testResources>
+      <testResource>
+        <filtering>true</filtering>
+        <directory>src/test/docker</directory>
+      </testResource>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+    </testResources>
+    <resources>
+      <resource>
+        <filtering>true</filtering>
+        <directory>src/test/docker</directory>
+        <targetPath>${project.basedir}/target</targetPath>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -157,6 +261,9 @@
             </goals>
             <phase>package</phase>
             <configuration>
+              <finalName>flink-jar-runner.uber</finalName>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>sqrlv${sqrl.version}-flink${flink.version}</shadedClassifierName>
               <artifactSet>
                 <excludes>
                   <exclude>org.apache.flink:flink-shaded-force-shading</exclude>
@@ -279,7 +386,7 @@
         <version>5.0.0</version>
         <configuration>
           <skip>${skipTests}</skip>
-          <composeFile>${project.basedir}/src/test/resources/docker-compose.yml</composeFile>
+          <composeFile>${project.basedir}/target/test-classes/docker-compose.yml</composeFile>
         </configuration>
         <executions>
           <execution>
@@ -332,6 +439,74 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>flink-2.0</id>
+      <properties>
+        <flink.version>2.0-preview1</flink.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
+        <kafka.version>3.2.0-1.19</kafka.version>
+        <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>flink-1.20</id>
+      <properties>
+        <flink.version>1.20.1</flink.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
+        <kafka.version>3.2.0-1.19</kafka.version>
+        <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>flink-1.19</id>
+      <properties>
+        <flink.version>1.19.2</flink.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
+        <kafka.version>3.2.0-1.19</kafka.version>
+        <flink-base-image>1.19.1-scala_2.12-java11</flink-base-image>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.19</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>flink-1.18</id>
+      <properties>
+        <flink.version>1.18.1</flink.version>
+        <jdbc.version>3.2.0-1.18</jdbc.version>
+        <kafka.version>3.2.0-1.18</kafka.version>
+        <flink-base-image>1.18.1-scala_2.12-java11</flink-base-image>
+      </properties>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.datasqrl</groupId>
+          <artifactId>sqrl-jdbc-1.18</artifactId>
+          <version>${sqrl.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
     <profile>
       <!-- useful profile for local development -->
       <id>dev</id>
@@ -430,7 +605,21 @@
         <enforcer.skip>true</enforcer.skip>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <gcf.skip>true</gcf.skip>
+        <license.skip>true</license.skip>
       </properties>
+    </profile>
+
+    <profile>
+      <!-- helper profile to proper configure eclipse -->
+      <id>m2e</id>
+      <activation>
+        <property>
+          <name>m2e.version</name>
+        </property>
+      </activation>
+      <build>
+        <directory>${project.basedir}/m2e-target</directory>
+      </build>
     </profile>
   </profiles>
 </project>
