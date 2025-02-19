@@ -69,9 +69,11 @@ jobs:
       - name: Build Docker image
         working-directory: ./target/
         run: |
-          cat Dockerfile
-          echo 'mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop' >> Dockerfile
+          echo -e "\n" >> Dockerfile
+          echo 'RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop' >> Dockerfile
           echo 'RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.' >> Dockerfile
+          cat Dockerfile
+          echo "---------------------------"
           DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl-${{ matrix.SQRL_VERSION }}-${{ matrix.FLINK_PROFILE }}
           docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg RUNNER_VERSION=${{ env.VERSION }} -t $DOCKER_TAG .
           docker push $DOCKER_TAG
