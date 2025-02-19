@@ -18,5 +18,3 @@ FROM flink:${flink-base-image}
 
 RUN mkdir -p /opt/flink/plugins/flink-jar-runner
 COPY flink-jar-runner.uber.jar /opt/flink/plugins/flink-jar-runner
-RUN mkdir -p /opt/flink/plugins/flink-jar-runner
-RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.
