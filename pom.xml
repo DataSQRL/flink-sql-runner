@@ -225,6 +225,16 @@
   </repositories>
 
   <build>
+    <resources>
+      <resource>
+        <targetPath>${project.basedir}/target</targetPath>
+        <filtering>true</filtering>
+        <directory>src/test/docker</directory>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
     <testResources>
       <testResource>
         <filtering>true</filtering>
@@ -234,16 +244,6 @@
         <directory>src/test/resources</directory>
       </testResource>
     </testResources>
-    <resources>
-      <resource>
-        <filtering>true</filtering>
-        <directory>src/test/docker</directory>
-        <targetPath>${project.basedir}/target</targetPath>
-      </resource>
-      <resource>
-        <directory>src/main/resources</directory>
-      </resource>
-    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -473,7 +473,7 @@
     <profile>
       <id>flink-1.19</id>
       <activation>
-      <activeByDefault>true</activeByDefault>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
         <flink.version>1.19.2</flink.version>
