@@ -33,7 +33,6 @@
 
   <properties>
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
-    <flink-base-image>1.19.1-scala_2.12-java17</flink-base-image>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
@@ -49,9 +48,6 @@
     <picocli.version>4.7.6</picocli.version>
 
     <sqrl.version>0.5.10</sqrl.version>
-    <flink.version>1.19.2</flink.version>
-    <jdbc.version>3.2.0-1.19</jdbc.version>
-    <kafka.version>3.2.0-1.19</kafka.version>
   </properties>
 
   <dependencies>
@@ -357,6 +353,7 @@
 
               <excludes>
                 <exclude>src/test/resources/**</exclude>
+                <exclude>m2e-target/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -475,11 +472,14 @@
     </profile>
     <profile>
       <id>flink-1.19</id>
+      <activation>
+      <activeByDefault>true</activeByDefault>
+      </activation>
       <properties>
         <flink.version>1.19.2</flink.version>
         <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>1.19.1-scala_2.12-java11</flink-base-image>
+        <flink-base-image>1.19.2-scala_2.12-java11</flink-base-image>
       </properties>
 
       <dependencies>
