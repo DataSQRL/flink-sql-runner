@@ -38,6 +38,7 @@ services:
       - datasqrl_network
 
   jobmanager:
+    user: 1000:1000
     image: flink:${flink-base-image}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
@@ -70,6 +71,7 @@ services:
       - datasqrl_network
 
   taskmanager:
+    user: 1000:1000
     image: flink:${flink-base-image}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl

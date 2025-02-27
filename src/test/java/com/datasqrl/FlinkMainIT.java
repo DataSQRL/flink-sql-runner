@@ -15,12 +15,15 @@
  */
 package com.datasqrl;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.junit.jupiter.api.Assertions.fail;
 
-import com.nextbreakpoint.flinkclient.model.JarRunResponseBody;
-import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody;
-import com.nextbreakpoint.flinkclient.model.JarUploadResponseBody.StatusEnum;
+import com.nextbreakpoint.flink.client.model.JarRunResponseBody;
+import com.nextbreakpoint.flink.client.model.JobExceptionsInfoWithHistory;
+import com.nextbreakpoint.flink.client.model.JobStatus;
+import com.nextbreakpoint.flink.client.model.TerminationMode;
+import com.nextbreakpoint.flink.client.model.UploadStatus;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.apache.flink.shaded.curator5.com.google.common.base.Objects;
 import org.apache.flink.shaded.curator5.com.google.common.collect.Lists;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -79,34 +83,42 @@ class FlinkMainIT extends AbstractITSupport {
   }
 
   @SneakyThrows
-  void execute(String... arguments) {
-    File jarFile = new File("target/flink-jar-runner.uber.jar");
+  JarRunResponseBody execute(String... arguments) {
+    var jarFile = new File("target/flink-jar-runner.uber.jar");
 
-    JarUploadResponseBody uploadResponse = client.uploadJar(jarFile);
+    var uploadResponse = client.uploadJar(jarFile);
 
-    assertThat(uploadResponse.getStatus()).isEqualTo(StatusEnum.SUCCESS);
+    assertThat(uploadResponse.getStatus()).isEqualTo(UploadStatus.SUCCESS);
 
     // Step 2: Extract jarId from the response
     String jarId =
         uploadResponse.getFilename().substring(uploadResponse.getFilename().lastIndexOf("/") + 1);
 
     // Step 3: Submit the job
-    assertThatNoException()
-        .as("Running script %s", Arrays.toString(arguments))
-        .isThrownBy(
-            () -> {
-              JarRunResponseBody jobResponse =
-                  client.runJar(
-                      jarId,
-                      null,
-                      null,
-                      null,
-                      Arrays.stream(arguments).collect(Collectors.joining(",")),
-                      null,
-                      1);
-              String jobId = jobResponse.getJobid();
-              assertThat(jobId).isNotNull();
-            });
+    var jobResponse =
+        client.submitJobFromJar(
+            jarId,
+            null,
+            null,
+            null,
+            null,
+            Arrays.stream(arguments).collect(Collectors.joining(",")),
+            null,
+            1);
+    String jobId = jobResponse.getJobid();
+    assertThat(jobId).isNotNull();
+
+    SECONDS.sleep(10);
+
+    var status = client.getJobStatusInfo(jobId);
+    if (Objects.equal(status.getStatus(), JobStatus.RUNNING)) {
+      client.cancelJob(jobId, TerminationMode.CANCEL);
+    } else {
+      JobExceptionsInfoWithHistory exceptions = client.getJobExceptions(jobId, 5, null);
+      fail(exceptions.toString());
+    }
+
+    return jobResponse;
   }
 
   @ParameterizedTest(name = "{0}")

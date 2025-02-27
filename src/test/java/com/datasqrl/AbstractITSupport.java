@@ -19,9 +19,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
-import com.nextbreakpoint.flinkclient.api.ApiException;
-import com.nextbreakpoint.flinkclient.api.FlinkApi;
-import com.nextbreakpoint.flinkclient.model.JobIdsWithStatusOverview;
+import com.nextbreakpoint.flink.client.api.ApiException;
+import com.nextbreakpoint.flink.client.api.FlinkApi;
+import com.nextbreakpoint.flink.client.model.JobIdsWithStatusOverview;
+import com.nextbreakpoint.flink.client.model.TerminationMode;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +40,17 @@ public class AbstractITSupport {
     client.getApiClient().setBasePath(serverUrl());
 
     int timeout = (int) TimeUnit.MINUTES.toMillis(2);
-    client.getApiClient().setConnectTimeout(timeout);
-    client.getApiClient().setReadTimeout(timeout);
-    client.getApiClient().setWriteTimeout(timeout);
+    client
+        .getApiClient()
+        .setHttpClient(
+            client
+                .getApiClient()
+                .getHttpClient()
+                .newBuilder()
+                .connectTimeout(Duration.ofMinutes(2))
+                .writeTimeout(Duration.ofMinutes(2))
+                .readTimeout(Duration.ofMinutes(2))
+                .build());
 
     await()
         .atMost(100, SECONDS)
@@ -49,16 +59,16 @@ public class AbstractITSupport {
         .until(
             () -> {
               log.info("Awaiting for custody-api");
-              return client.getJobs() != null;
+              return client.getJobsOverview() != null;
             });
 
-    final JobIdsWithStatusOverview statusOverview = client.getJobs();
+    final JobIdsWithStatusOverview statusOverview = client.getJobIdsWithStatusesOverview();
     statusOverview
         .getJobs()
         .forEach(
             jobIdWithStatus -> {
               try {
-                client.terminateJob(jobIdWithStatus.getId(), "cancel");
+                client.cancelJob(jobIdWithStatus.getId(), TerminationMode.CANCEL);
               } catch (ApiException ignored) {
               }
             });
