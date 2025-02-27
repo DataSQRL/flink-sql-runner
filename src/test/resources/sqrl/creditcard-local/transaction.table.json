@@ -1,0 +1,14 @@
+{
+  "flink" : {
+    "format" : "flexible-json",
+    "path" : "s3://sqrl-examples-data-bucket/cc-datasqrl-example/d42a69082/transaction.jsonl",
+    "source.monitor-interval" : "10 min",
+    "connector" : "filesystem"
+  },
+  "version" : 1,
+  "table" : {
+    "type" : "source",
+    "primary-key" : ["transactionId", "time"],
+    "timestamp" : "time"
+  }
+}

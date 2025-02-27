@@ -1,0 +1,12 @@
+IMPORT creditcard-data.Transaction AS _Transaction;
+
+_TransactionAggregate := SELECT merchantId, 
+                                1 as total_amount, 
+                                max(amount) as max_amount
+                         FROM _Transaction
+                         GROUP BY merchantId;
+
+TransactionByMerchant := SELECT merchantId, 
+                                total_amount * 2 as double_ta, 
+                                max_amount 
+                         FROM _TransactionAggregate;

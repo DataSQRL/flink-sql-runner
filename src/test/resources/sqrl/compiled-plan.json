@@ -1,0 +1,256 @@
+{
+  "flinkVersion" : "1.19",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`_transaction_1`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "transactionId",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "cardNo",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "time",
+              "dataType" : "TIMESTAMP NOT NULL"
+            }, {
+              "name" : "amount",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "merchantId",
+              "dataType" : "BIGINT NOT NULL"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_transactionId_time",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "transactionId", "time" ]
+            }
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "datagen",
+            "rows-per-second" : "10",
+            "fields.merchantId.min" : "1",
+            "fields.merchantId.max" : "10",
+            "fields.amount.min" : "1",
+            "fields.amount.max" : "20"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`transactionId` BIGINT NOT NULL, `cardNo` DOUBLE NOT NULL, `time` TIMESTAMP NOT NULL, `amount` DOUBLE NOT NULL, `merchantId` BIGINT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, _transaction_1]], fields=[transactionId, cardNo, time, amount, merchantId])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`merchantId` BIGINT NOT NULL, `amount` DOUBLE NOT NULL, `time` TIMESTAMP NOT NULL>",
+    "description" : "Calc(select=[merchantId, amount, time])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`merchantId` BIGINT NOT NULL, `amount` DOUBLE NOT NULL, `time` TIMESTAMP NOT NULL>",
+    "description" : "Exchange(distribution=[hash[merchantId]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "max_amount",
+      "internalName" : "$MAX$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "name" : "__timestamp",
+      "internalName" : "$MAX$1",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "TIMESTAMP NOT NULL"
+    } ],
+    "aggCallNeedRetractions" : [ false, false ],
+    "generateUpdateBefore" : false,
+    "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`merchantId` BIGINT NOT NULL, `max_amount` DOUBLE NOT NULL, `__timestamp` TIMESTAMP NOT NULL>",
+    "description" : "GroupAggregate(groupBy=[merchantId], select=[merchantId, MAX(amount) AS max_amount, MAX(time) AS __timestamp])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "LITERAL",
+      "value" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`merchantId` BIGINT NOT NULL, `double_ta` INT NOT NULL, `max_amount` DOUBLE NOT NULL, `__timestamp` TIMESTAMP NOT NULL>",
+    "description" : "Calc(select=[merchantId, 2 AS double_ta, max_amount, __timestamp])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`transactionbymerchant_1`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "merchantId",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "double_ta",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "max_amount",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "__timestamp",
+              "dataType" : "TIMESTAMP NOT NULL"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_merchantId",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "merchantId" ]
+            }
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "jdbc",
+            "url" : "jdbc:postgresql://postgres:5432/datasqrl",
+            "table-name" : "transactionbymerchant_1",
+            "username" : "postgres",
+            "password" : "postgres"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`merchantId` BIGINT NOT NULL, `double_ta` INT NOT NULL, `max_amount` DOUBLE NOT NULL, `__timestamp` TIMESTAMP NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.transactionbymerchant_1], fields=[merchantId, double_ta, max_amount, __timestamp])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
