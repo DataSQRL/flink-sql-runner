@@ -15,16 +15,27 @@
  */
 package com.datasqrl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.google.common.collect.MoreCollectors;
 import com.nextbreakpoint.flink.client.model.JarRunResponseBody;
 import com.nextbreakpoint.flink.client.model.JobExceptionsInfoWithHistory;
 import com.nextbreakpoint.flink.client.model.JobStatus;
 import com.nextbreakpoint.flink.client.model.TerminationMode;
 import com.nextbreakpoint.flink.client.model.UploadStatus;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,12 +44,52 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.curator5.com.google.common.base.Objects;
 import org.apache.flink.shaded.curator5.com.google.common.collect.Lists;
+import org.awaitility.core.ThrowingRunnable;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.statement.SqlLogger;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class FlinkMainIT extends AbstractITSupport {
+
+  interface TransactionDao {
+
+    @SqlQuery(
+        "SELECT count(1) FROM public.transactionbymerchant_1 t where t.\"__timestamp\" > :minDate")
+    int getRowCount(@Bind("minDate") Timestamp minDate);
+
+    @SqlQuery("SELECT count(1) FROM public.transactionbymerchant_1 t")
+    int getRowCount();
+
+    @SqlQuery("SELECT double_ta FROM public.transactionbymerchant_1 limit 1")
+    int getDoubleTA();
+
+    @SqlQuery(
+        "SELECT max(transactionbymerchant_1.\"__timestamp\") FROM public.transactionbymerchant_1")
+    OffsetDateTime getMaxTimestamp();
+
+    @SqlUpdate("TRUNCATE public.transactionbymerchant_1")
+    void truncateTable();
+  }
+
+  @BeforeEach
+  @AfterEach
+  void terminateJobs() throws Exception {
+    var jobs = client.getJobsOverview();
+    jobs.getJobs().stream()
+        .filter(job -> Objects.equal(job.getState(), JobStatus.RUNNING))
+        .forEach(job -> stopJobs(job.getJid()));
+  }
 
   static Stream<Arguments> sqlScripts() {
     var scripts = List.of("flink.sql", "test_sql.sql");
@@ -82,8 +133,119 @@ class FlinkMainIT extends AbstractITSupport {
     execute(args.toArray(String[]::new));
   }
 
+  @Test
+  void givenPlanScript_whenCheckPoint_thenResumeSuccessfulySuccess() throws Exception {
+    var transactionDao = connect();
+    // clear any old data
+    transactionDao.truncateTable();
+    assertThat(transactionDao.getRowCount()).isZero();
+
+    // change the compilation plan
+    updateCompiledPlan(3);
+
+    String planFile = "/opt/flink/usrlib/sqrl/compiled-plan.json";
+    var args = new ArrayList<String>();
+    args.add("--planfile");
+    args.add(planFile);
+    args.add("--config-dir");
+    args.add("/opt/flink/usrlib/config/");
+    var jobResponse = execute(args.toArray(String[]::new));
+
+    untilAssert(() -> assertThat(transactionDao.getRowCount()).isEqualTo(10));
+    // test if initial change to compilation plan took effect
+    assertThat(transactionDao.getDoubleTA()).isEqualTo(3);
+
+    Path savePoint = Path.of("/tmp/flink-jar-runner/" + System.currentTimeMillis());
+
+    // take a savepoint
+    CommandLineUtil.execute(
+        Path.of("."),
+        "docker exec -t flink-jar-runner-jobmanager-1 bin/flink stop "
+            + jobResponse.getJobid()
+            + " --savepointPath "
+            + savePoint);
+
+    // check if STOPed, make sure no new records are create
+    untilAssert(
+        () ->
+            assertThat(
+                    transactionDao.getRowCount(
+                        Timestamp.valueOf(
+                            ZonedDateTime.now()
+                                .withZoneSameInstant(ZoneId.of("Z"))
+                                .toLocalDateTime())))
+                .isEqualTo(0));
+    assertThat(savePoint).isNotEmptyDirectory();
+
+    Path savePointFile;
+    try (var filePathStream = Files.walk(savePoint)) {
+      savePointFile =
+          filePathStream
+              .filter(Files::isRegularFile)
+              .filter(path -> "_metadata".equals(path.getFileName().toString()))
+              .collect(MoreCollectors.onlyElement());
+    }
+    // make sure savepoint was created
+    assertThat(savePointFile).exists();
+
+    // change compiled plan again
+    updateCompiledPlan(5);
+
+    var restoration =
+        Timestamp.valueOf(
+            ZonedDateTime.now().withZoneSameInstant(ZoneId.of("Z")).toLocalDateTime());
+
+    // restart with savepoint
+    restoreAndExecute(savePointFile.getParent().toString(), args.toArray(String[]::new));
+
+    untilAssert(() -> assertThat(transactionDao.getRowCount(restoration)).isEqualTo(10));
+    assertThat(transactionDao.getDoubleTA()).isEqualTo(5);
+  }
+
   @SneakyThrows
+  private void updateCompiledPlan(int newValue) {
+    var contents = Files.readString(Path.of("src/test/resources/sqrl/compiled-plan.json"), UTF_8);
+    contents = contents.replace("\"value\" : 2", "\"value\" : " + newValue);
+    Files.writeString(Path.of("target/test-classes/sqrl/compiled-plan.json"), contents, UTF_8);
+  }
+
+  public void untilAssert(ThrowingRunnable assertion) {
+    await()
+        .atMost(20, SECONDS)
+        .pollInterval(100, MILLISECONDS)
+        .ignoreExceptions()
+        .untilAsserted(assertion);
+  }
+
+  private TransactionDao connect() {
+    var jdbi = Jdbi.create("jdbc:postgresql://localhost:5432/datasqrl", "postgres", "postgres");
+    jdbi.installPlugin(new SqlObjectPlugin());
+    jdbi.setSqlLogger(
+        new SqlLogger() {
+          @Override
+          public void logAfterExecution(StatementContext context) {
+            System.out.printf(
+                "Executed in '%s' with parameters '%s'\n",
+                context.getParsedSql().getSql(), context.getBinding());
+          }
+
+          @Override
+          public void logException(StatementContext context, SQLException ex) {
+            System.out.printf(
+                "Exception while executing '%s' with parameters '%s'\n",
+                context.getParsedSql().getSql(), context.getBinding(), ex);
+          }
+        });
+
+    return jdbi.onDemand(TransactionDao.class);
+  }
+
   JarRunResponseBody execute(String... arguments) {
+    return restoreAndExecute(null, arguments);
+  }
+
+  @SneakyThrows
+  JarRunResponseBody restoreAndExecute(String savepointPath, String... arguments) {
     var jarFile = new File("target/flink-jar-runner.uber.jar");
 
     var uploadResponse = client.uploadJar(jarFile);
@@ -91,7 +253,7 @@ class FlinkMainIT extends AbstractITSupport {
     assertThat(uploadResponse.getStatus()).isEqualTo(UploadStatus.SUCCESS);
 
     // Step 2: Extract jarId from the response
-    String jarId =
+    var jarId =
         uploadResponse.getFilename().substring(uploadResponse.getFilename().lastIndexOf("/") + 1);
 
     // Step 3: Submit the job
@@ -99,8 +261,8 @@ class FlinkMainIT extends AbstractITSupport {
         client.submitJobFromJar(
             jarId,
             null,
-            null,
-            null,
+            savepointPath == null ? null : false,
+            savepointPath,
             null,
             Arrays.stream(arguments).collect(Collectors.joining(",")),
             null,
@@ -108,8 +270,13 @@ class FlinkMainIT extends AbstractITSupport {
     String jobId = jobResponse.getJobid();
     assertThat(jobId).isNotNull();
 
-    SECONDS.sleep(10);
+    SECONDS.sleep(2);
 
+    return jobResponse;
+  }
+
+  @SneakyThrows
+  private void stopJobs(String jobId) {
     var status = client.getJobStatusInfo(jobId);
     if (Objects.equal(status.getStatus(), JobStatus.RUNNING)) {
       client.cancelJob(jobId, TerminationMode.CANCEL);
@@ -117,8 +284,6 @@ class FlinkMainIT extends AbstractITSupport {
       JobExceptionsInfoWithHistory exceptions = client.getJobExceptions(jobId, 5, null);
       fail(exceptions.toString());
     }
-
-    return jobResponse;
   }
 
   @ParameterizedTest(name = "{0}")

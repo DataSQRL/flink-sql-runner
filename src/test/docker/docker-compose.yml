@@ -22,13 +22,15 @@ networks:
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: datasqrl
     ports:
       - "5432:5432"
+    volumes:
+      - ./sqrl/postgres-schema.sql:/docker-entrypoint-initdb.d/database-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 1s
@@ -38,18 +40,17 @@ services:
       - datasqrl_network
 
   jobmanager:
-    user: 1000:1000
     image: flink:${flink-base-image}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
-      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
-      - PROPERTIES_GROUP_ID=mygroupid
       - |
         FLINK_PROPERTIES=
         taskmanager.slot.timeout: 30000ms
         jobmanager.rpc.address: jobmanager
+        state.savepoints-storage: filesystem
+        state.savepoints.dir: file:///tmp/flink-jar-runner
     command: jobmanager
     ports:
       - "8081:8081"  # Flink JobManager REST port
@@ -62,27 +63,32 @@ services:
       - flink_conf:/opt/flink/conf
       - ./:/opt/flink/usrlib/
       - ./datasources/:/datasources/
+      - /tmp:/tmp
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 1s
       timeout: 1s
       retries: 50
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
       - datasqrl_network
 
   taskmanager:
-    user: 1000:1000
     image: flink:${flink-base-image}
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
       - JDBC_PASSWORD=postgres
-      - PROPERTIES_BOOTSTRAP_SERVERS=kafka:9092
-      - PROPERTIES_GROUP_ID=mygroupid
       - |
         FLINK_PROPERTIES=
         taskmanager.slot.timeout: 30000ms
         jobmanager.rpc.address: jobmanager
+        state.savepoints-storage: filesystem
+        state.savepoints.dir: file:///tmp/flink-jar-runner
     command: taskmanager
     depends_on:
       jobmanager:
@@ -91,6 +97,12 @@ services:
       - flink_conf:/opt/flink/conf
       - ./:/opt/flink/usrlib/
       - ./datasources/:/datasources/
+      - /tmp:/tmp
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
       - datasqrl_network
 
