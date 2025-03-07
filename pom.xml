@@ -243,6 +243,34 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>io.sundr</groupId>
+        <artifactId>sundr-maven-plugin</artifactId>
+        <version>0.200.0</version>
+        <inherited>false</inherited>
+        <configuration>
+          <boms>
+            <bom>
+              <artifactId>sqrl-flink-bom</artifactId>
+              <name>DataSQRL: Flink support</name>
+
+              <modules>
+                <includes>
+                  <include>${project.groupId}:*</include>
+                </includes>
+              </modules>
+            </bom>
+          </boms>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate-bom</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
