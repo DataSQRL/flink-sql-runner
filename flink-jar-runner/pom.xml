@@ -237,7 +237,7 @@
             <configuration>
               <finalName>flink-jar-runner.uber</finalName>
               <shadedArtifactAttached>true</shadedArtifactAttached>
-              <shadedClassifierName>sqrlv${sqrl.version}-flink${flink.version}</shadedClassifierName>
+              <shadedClassifierName>flink${flink.version}</shadedClassifierName>
               <artifactSet>
                 <excludes>
                   <exclude>org.apache.flink:flink-shaded-force-shading</exclude>
@@ -409,5 +409,5 @@
       </build>
 
     </profile>
-      </profiles>
+  </profiles>
 </project>

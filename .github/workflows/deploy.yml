@@ -1,4 +1,4 @@
-name: Build uber jar
+name: Deploy jars
 
 on:
   release:
