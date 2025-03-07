@@ -256,6 +256,10 @@
               <artifactId>sqrl-flink-bom</artifactId>
               <name>DataSQRL: Flink support</name>
 
+              <properties>
+                <license.skip>true</license.skip>
+              </properties>
+
               <modules>
                 <includes>
                   <include>${project.groupId}:*</include>
