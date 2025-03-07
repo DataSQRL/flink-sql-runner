@@ -50,6 +50,7 @@ jobs:
       - name: Download dependencies
         run: |
           mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
+          mvn -B -f flink-jar-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:testResources com.marvinformatics:docker-compose-maven-plugin:5.0.0:pull -P${{ matrix.FLINK_PROFILE }} -Dsqrl.version=${{ matrix.SQRL_VERSION }}
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
@@ -67,7 +68,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker image
-        working-directory: ./target/
+        working-directory: ./flink-jar-runner/target/
         run: |
           DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-sqrl-${{ matrix.SQRL_VERSION }}-${{ matrix.FLINK_PROFILE }}
           docker build --build-arg SQRL_VERSION=${{ matrix.SQRL_VERSION }} --build-arg RUNNER_VERSION=${{ env.VERSION }} -t $DOCKER_TAG .
