@@ -27,7 +27,6 @@
 
   <modules>
     <module>flink-jar-runner</module>
-    <module>sqrl-errors</module>
     <module>sqrl-flexible-csv</module>
     <module>sqrl-flexible-json</module>
     <module>sqrl-h2-1.16</module>
@@ -37,7 +36,6 @@
     <module>sqrl-jdbc-1.19</module>
     <module>sqrl-json</module>
     <module>sqrl-lib-common</module>
-    <module>sqrl-name</module>
     <module>sqrl-secure</module>
     <module>sqrl-text</module>
     <module>sqrl-time</module>
@@ -196,8 +194,8 @@
               <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
 
               <excludes>
-                <exclude>src/test/resources/**</exclude>
-                <exclude>m2e-target/**</exclude>
+                <exclude>*/src/test/resources/**</exclude>
+                <exclude>*/m2e-target/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
