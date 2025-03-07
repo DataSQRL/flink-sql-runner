@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.datasqrl.flink</groupId>
     <artifactId>sqrl-flink-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>sqrl-json</artifactId>
