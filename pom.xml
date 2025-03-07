@@ -27,15 +27,21 @@
 
   <modules>
     <module>flink-jar-runner</module>
-    <!--
-    <module>sqrl-lib-common</module>
-    <module>sqrl-json</module>
-    <module>sqrl-secure</module>
-    <module>sqrl-time</module>
-    <module>sqrl-text</module>
-    <module>sqrl-flexible-json</module>
+    <module>sqrl-errors</module>
     <module>sqrl-flexible-csv</module>
-    -->
+    <module>sqrl-flexible-json</module>
+    <module>sqrl-h2-1.16</module>
+    <module>sqrl-jdbc-1.16</module>
+    <module>sqrl-jdbc-1.17</module>
+    <module>sqrl-jdbc-1.18</module>
+    <module>sqrl-jdbc-1.19</module>
+    <module>sqrl-json</module>
+    <module>sqrl-lib-common</module>
+    <module>sqrl-name</module>
+    <module>sqrl-secure</module>
+    <module>sqrl-text</module>
+    <module>sqrl-time</module>
+    <module>sqrl-vector</module>
   </modules>
 
   <distributionManagement>
@@ -60,6 +66,9 @@
     <log4j.version>2.17.1</log4j.version>
     <feign.version>13.5</feign.version>
     <picocli.version>4.7.6</picocli.version>
+    <flink.version>1.19.2</flink.version>
+    <postgres.version>42.5.0</postgres.version>
+    <testcontainers.version>1.18.0</testcontainers.version>
   </properties>
 
   <dependencyManagement>
@@ -71,6 +80,26 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.30</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.8.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>5.8.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
   <repositories>
     <repository>
