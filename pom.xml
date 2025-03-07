@@ -194,8 +194,8 @@
               <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
 
               <excludes>
-                <exclude>*/src/test/resources/**</exclude>
-                <exclude>*/m2e-target/**</exclude>
+                <exclude>src/test/resources/**</exclude>
+                <exclude>m2e-target/**</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
@@ -340,34 +340,6 @@
       <properties>
         <gcf.skip>true</gcf.skip>
       </properties>
-
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>3.0.0</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <phase>post-integration-test</phase>
-                <configuration>
-                  <!-- print logs from cloud-compilation service, helpful when troubleshooting -->
-                  <executable>docker</executable>
-                  <arguments>
-                    <argument>logs</argument>
-                    <argument>flink-jar-runner-jobmanager-1</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-
-        </plugins>
-      </build>
-
     </profile>
     <profile>
       <!-- just compile, skip all other checks -->

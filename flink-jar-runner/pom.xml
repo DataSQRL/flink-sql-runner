@@ -377,5 +377,37 @@
         </dependency>
       </dependencies>
     </profile>
-  </profiles>
+
+    <profile>
+      <id>ci</id>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.0.0</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>post-integration-test</phase>
+                <configuration>
+                  <!-- print logs from docker, helpful when troubleshooting -->
+                  <executable>docker</executable>
+                  <skip>${skipTests}</skip>
+                  <arguments>
+                    <argument>logs</argument>
+                    <argument>flink-jar-runner-jobmanager-1</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+
+    </profile>
+      </profiles>
 </project>
