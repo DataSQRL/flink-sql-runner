@@ -54,7 +54,7 @@
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <flink.version>1.17.2</flink.version>
+    <flink.version>2.0-preview1</flink.version>
   </properties>
 
   <dependencies>
