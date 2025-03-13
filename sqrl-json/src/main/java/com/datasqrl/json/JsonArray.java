@@ -18,6 +18,8 @@ package com.datasqrl.json;
 import static com.datasqrl.json.JsonFunctions.createJsonArgumentTypeStrategy;
 import static com.datasqrl.json.JsonFunctions.createJsonType;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -29,7 +31,8 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /** Creates a JSON array from the list of JSON objects and scalar values. */
-public class JsonArray extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class JsonArray extends ScalarFunction implements StandardLibraryFunction {
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {

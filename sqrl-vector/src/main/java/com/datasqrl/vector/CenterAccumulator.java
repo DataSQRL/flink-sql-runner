@@ -15,8 +15,6 @@
  */
 package com.datasqrl.vector;
 
-// import com.google.common.base.Preconditions;
-
 // mutable accumulator of structured type for the aggregate function
 public class CenterAccumulator {
 

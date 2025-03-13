@@ -15,6 +15,8 @@
  */
 package com.datasqrl.datatype;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -23,7 +25,8 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 
-public class Noop extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class Noop extends ScalarFunction implements StandardLibraryFunction {
 
   public boolean eval(Object... objects) {
     return true;

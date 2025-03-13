@@ -15,6 +15,8 @@
  */
 package com.datasqrl.secure;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.util.Optional;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -22,7 +24,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 
 /** Generates a random UUID string */
-public class Uuid extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class Uuid extends ScalarFunction implements StandardLibraryFunction {
 
   public String eval() {
     return java.util.UUID.randomUUID().toString();

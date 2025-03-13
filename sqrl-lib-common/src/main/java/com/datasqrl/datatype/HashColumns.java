@@ -15,6 +15,8 @@
  */
 package com.datasqrl.datatype;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,7 +29,8 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 
-public class HashColumns extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class HashColumns extends ScalarFunction implements StandardLibraryFunction {
 
   public String eval(Object... objects) {
     if (objects.length == 0) return "";

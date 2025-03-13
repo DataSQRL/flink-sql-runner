@@ -15,9 +15,11 @@
  */
 package com.datasqrl;
 
+import com.datasqrl.function.StandardLibraryFunction;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.flink.configuration.Configuration;
@@ -52,6 +54,30 @@ class SqlExecutor {
     if (udfPath != null) {
       setupUdfPath(udfPath);
     }
+  }
+
+  public void setupSystemFunctions() {
+
+    ServiceLoader<StandardLibraryFunction> standardLibraryFunctions =
+        ServiceLoader.load(StandardLibraryFunction.class);
+
+    standardLibraryFunctions.forEach(
+        function -> {
+          String sql =
+              String.format(
+                  "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
+                  getFunctionNameFromClass(function.getClass()), function.getClass().getName());
+
+          System.out.println(sql);
+          tableEnv.executeSql(sql);
+        });
+  }
+
+  static String getFunctionNameFromClass(Class clazz) {
+    //	    String fctName = clazz.getSimpleName();
+    //	    fctName = Character.toLowerCase(fctName.charAt(0)) + fctName.substring(1);
+    //	    return fctName;
+    return clazz.getSimpleName().toLowerCase();
   }
 
   /**

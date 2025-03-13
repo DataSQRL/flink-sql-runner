@@ -15,6 +15,8 @@
  */
 package com.datasqrl.time;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -25,6 +27,7 @@ import java.time.temporal.ChronoUnit;
  * endOfWeek(parseTimestamp(2023-03-12T18:23:34.083Z)) returns the timestamp
  * 2023-03-12T23:59:59.999999999Z
  */
+@AutoService(StandardLibraryFunction.class)
 public class EndOfWeek extends TimeTumbleWindowFunction {
 
   public EndOfWeek() {

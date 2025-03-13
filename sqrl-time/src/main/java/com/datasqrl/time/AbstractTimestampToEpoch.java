@@ -16,6 +16,7 @@
 package com.datasqrl.time;
 
 import com.datasqrl.function.FlinkTypeUtil;
+import com.datasqrl.function.StandardLibraryFunction;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import org.apache.flink.table.api.DataTypes;
@@ -24,7 +25,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 
 @AllArgsConstructor
-public abstract class AbstractTimestampToEpoch extends ScalarFunction {
+public abstract class AbstractTimestampToEpoch extends ScalarFunction
+    implements StandardLibraryFunction {
 
   private final boolean isMilli;
 
