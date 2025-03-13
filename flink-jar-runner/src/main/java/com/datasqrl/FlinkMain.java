@@ -132,6 +132,7 @@ public class FlinkMain {
 
       planJson = replaceScriptWithEnv(planJson);
 
+      sqlExecutor.setupSystemFunctions();
       tableResult = sqlExecutor.executeCompiledPlan(planJson);
     } else {
       System.err.println("Invalid input. Please provide one of the following combinations:");

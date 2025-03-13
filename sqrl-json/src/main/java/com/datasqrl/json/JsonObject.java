@@ -17,6 +17,8 @@ package com.datasqrl.json;
 
 import static com.datasqrl.json.JsonFunctions.createJsonArgumentTypeStrategy;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.api.DataTypes;
@@ -34,7 +36,8 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
  * of each pair being the key and the second being the value. If multiple key-value pairs have the
  * same key, the last pair is added to the JSON object.
  */
-public class JsonObject extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class JsonObject extends ScalarFunction implements StandardLibraryFunction {
   static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {

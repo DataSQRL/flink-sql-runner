@@ -15,6 +15,8 @@
  */
 package com.datasqrl.time;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.time.temporal.ChronoUnit;
 
 /**
@@ -22,6 +24,7 @@ import java.time.temporal.ChronoUnit;
  * endOfHour(parseTimestamp(2023-03-12T18:23:34.083Z)) returns the timestamp
  * 2023-03-12T18:59:59.999999999Z
  */
+@AutoService(StandardLibraryFunction.class)
 public class EndOfHour extends TimeTumbleWindowFunction {
 
   public EndOfHour() {

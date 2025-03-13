@@ -188,6 +188,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>sqrl-vector</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>sqrl-flexible-json</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -278,6 +283,16 @@
           <composeFile>${project.basedir}/target/test-classes/docker-compose.yml</composeFile>
         </configuration>
         <executions>
+          <execution>
+            <id>down-before-execution</id>
+            <goals>
+              <goal>down</goal>
+            </goals>
+            <phase>pre-integration-test</phase>
+            <configuration>
+              <removeVolumes>true</removeVolumes>
+            </configuration>
+          </execution>
           <execution>
             <id>up</id>
             <goals>

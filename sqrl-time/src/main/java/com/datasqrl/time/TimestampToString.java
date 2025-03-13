@@ -16,6 +16,8 @@
 package com.datasqrl.time;
 
 import com.datasqrl.function.FlinkTypeUtil;
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.time.Instant;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -23,7 +25,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 
 /** Converts the timestamp to an ISO timestamp string */
-public class TimestampToString extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class TimestampToString extends ScalarFunction implements StandardLibraryFunction {
 
   public String eval(Instant instant) {
     return instant.toString();

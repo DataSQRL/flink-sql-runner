@@ -15,11 +15,14 @@
  */
 package com.datasqrl.json;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 
 /** For a given JSON object, checks whether the provided JSON path exists */
-public class JsonExists extends ScalarFunction {
+@AutoService(StandardLibraryFunction.class)
+public class JsonExists extends ScalarFunction implements StandardLibraryFunction {
 
   public Boolean eval(FlinkJsonType json, String path) {
     if (json == null) {

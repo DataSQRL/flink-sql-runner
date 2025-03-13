@@ -80,7 +80,6 @@
       <artifactId>sqrl-lib-common</artifactId>
       <version>${project.version}</version>
     </dependency>
-
   </dependencies>
 
 </project>

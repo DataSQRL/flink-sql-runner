@@ -15,6 +15,8 @@
  */
 package com.datasqrl.json;
 
+import com.datasqrl.function.StandardLibraryFunction;
+import com.google.auto.service.AutoService;
 import java.util.LinkedHashMap;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,7 +36,9 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
             value = "RAW",
             bridgedTo = FlinkJsonType.class,
             rawSerializer = FlinkJsonTypeSerializer.class))
-public class JsonObjectAgg extends AggregateFunction<Object, ObjectAgg> {
+@AutoService(StandardLibraryFunction.class)
+public class JsonObjectAgg extends AggregateFunction<Object, ObjectAgg>
+    implements StandardLibraryFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
