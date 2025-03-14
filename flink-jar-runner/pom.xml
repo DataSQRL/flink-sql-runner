@@ -32,6 +32,12 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-base</artifactId>
+      <version>${flink.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
       <artifactId>flink-streaming-java</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
@@ -251,6 +257,15 @@
                 </excludes>
               </artifactSet>
               <filters>
+                <filter>
+                  <artifact>org.apache.flink:flink-connector-kafka</artifact>
+                  <excludes>
+                    <exclude>org/apache/flink/streaming/connectors/kafka/table/DynamicKafkaDeserializationSchema**</exclude>
+                    <exclude>org/apache/flink/streaming/connectors/kafka/table/KafkaDynamicSource**</exclude>
+                    <exclude>org/apache/flink/streaming/connectors/kafka/table/KafkaDynamicTableFactory**</exclude>
+                    <exclude>org/apache/flink/streaming/connectors/kafka/table/UpsertKafkaDynamicTableFactory**</exclude>
+                  </excludes>
+                </filter>
                 <filter>
                   <!-- Do not copy the signatures in the META-INF folder.
                   Otherwise, this might cause SecurityExceptions when using the JAR. -->
