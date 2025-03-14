@@ -65,6 +65,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.DeserFailureHandlerOptions.*;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -152,6 +153,8 @@ public class KafkaDynamicTableFactory
         options.add(SCAN_BOUNDED_MODE);
         options.add(SCAN_BOUNDED_SPECIFIC_OFFSETS);
         options.add(SCAN_BOUNDED_TIMESTAMP_MILLIS);
+        options.add(SCAN_DESER_FAILURE_HANDLER);
+        options.add(SCAN_DESER_FAILURE_TOPIC);
         return options;
     }
 
@@ -194,6 +197,8 @@ public class KafkaDynamicTableFactory
                 context.getCatalogTable().getOptions(),
                 valueDecodingFormat);
 
+        validateDeserFailureHandlerOptions(tableOptions);
+
         final StartupOptions startupOptions = getStartupOptions(tableOptions);
 
         final BoundedOptions boundedOptions = getBoundedOptions(tableOptions);
@@ -215,6 +220,8 @@ public class KafkaDynamicTableFactory
 
         final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
+        final DeserFailureHandler deserFailureHandler = DeserFailureHandler.of(tableOptions, properties);
+
         return createKafkaTableSource(
                 physicalDataType,
                 keyDecodingFormat.orElse(null),
@@ -231,7 +238,8 @@ public class KafkaDynamicTableFactory
                 boundedOptions.boundedMode,
                 boundedOptions.specificOffsets,
                 boundedOptions.boundedTimestampMillis,
-                context.getObjectIdentifier().asSummaryString());
+                context.getObjectIdentifier().asSummaryString(),
+                deserFailureHandler);
     }
 
     @Override
@@ -395,7 +403,8 @@ public class KafkaDynamicTableFactory
             BoundedMode boundedMode,
             Map<KafkaTopicPartition, Long> specificEndOffsets,
             long endTimestampMillis,
-            String tableIdentifier) {
+            String tableIdentifier,
+            DeserFailureHandler deserFailureHandler) {
         return new KafkaDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
@@ -413,7 +422,8 @@ public class KafkaDynamicTableFactory
                 specificEndOffsets,
                 endTimestampMillis,
                 false,
-                tableIdentifier);
+                tableIdentifier,
+                deserFailureHandler);
     }
 
     protected KafkaDynamicSink createKafkaTableSink(

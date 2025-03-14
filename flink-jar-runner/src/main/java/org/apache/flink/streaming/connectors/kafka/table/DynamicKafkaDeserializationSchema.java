@@ -56,6 +56,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
     private final boolean upsertMode;
 
+    private final DeserFailureHandler deserFailureHandler;
+
     DynamicKafkaDeserializationSchema(
             int physicalArity,
             @Nullable DeserializationSchema<RowData> keyDeserialization,
@@ -65,7 +67,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
             boolean hasMetadata,
             MetadataConverter[] metadataConverters,
             TypeInformation<RowData> producedTypeInfo,
-            boolean upsertMode) {
+            boolean upsertMode,
+            DeserFailureHandler deserFailureHandler) {
         if (upsertMode) {
             Preconditions.checkArgument(
                     keyDeserialization != null && keyProjection.length > 0,
@@ -84,6 +87,7 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
                         upsertMode);
         this.producedTypeInfo = producedTypeInfo;
         this.upsertMode = upsertMode;
+        this.deserFailureHandler = deserFailureHandler;
     }
 
     @Override
@@ -110,13 +114,15 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
         // shortcut in case no output projection is required,
         // also not for a cartesian product with the keys
         if (keyDeserialization == null && !hasMetadata) {
-            valueDeserialization.deserialize(record.value(), collector);
+            deserFailureHandler.deserWithFailureHandling(
+                    record, () -> valueDeserialization.deserialize(record.value(), collector));
             return;
         }
 
         // buffer key(s)
         if (keyDeserialization != null) {
-            keyDeserialization.deserialize(record.key(), keyCollector);
+            deserFailureHandler.deserWithFailureHandling(
+                    record, () -> keyDeserialization.deserialize(record.key(), keyCollector));
         }
 
         // project output while emitting values
@@ -127,7 +133,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
             // collect tombstone messages in upsert mode by hand
             outputCollector.collect(null);
         } else {
-            valueDeserialization.deserialize(record.value(), outputCollector);
+            deserFailureHandler.deserWithFailureHandling(
+                    record, () -> valueDeserialization.deserialize(record.value(), outputCollector));
         }
         keyCollector.buffer.clear();
     }

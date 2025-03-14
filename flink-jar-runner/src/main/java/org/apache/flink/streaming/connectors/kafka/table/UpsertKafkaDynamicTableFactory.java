@@ -54,6 +54,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.DeserFailureHandlerOptions.*;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -111,6 +112,8 @@ public class UpsertKafkaDynamicTableFactory
         options.add(SCAN_BOUNDED_MODE);
         options.add(SCAN_BOUNDED_SPECIFIC_OFFSETS);
         options.add(SCAN_BOUNDED_TIMESTAMP_MILLIS);
+        options.add(SCAN_DESER_FAILURE_HANDLER);
+        options.add(SCAN_DESER_FAILURE_TOPIC);
         options.add(DELIVERY_GUARANTEE);
         options.add(TRANSACTIONAL_ID_PREFIX);
         return options;
@@ -148,6 +151,8 @@ public class UpsertKafkaDynamicTableFactory
 
         final BoundedOptions boundedOptions = getBoundedOptions(tableOptions);
 
+        final DeserFailureHandler deserFailureHandler = DeserFailureHandler.of(tableOptions, properties);
+
         return new KafkaDynamicSource(
                 context.getPhysicalRowDataType(),
                 keyDecodingFormat,
@@ -165,7 +170,8 @@ public class UpsertKafkaDynamicTableFactory
                 boundedOptions.specificOffsets,
                 boundedOptions.boundedTimestampMillis,
                 true,
-                context.getObjectIdentifier().asSummaryString());
+                context.getObjectIdentifier().asSummaryString(),
+                deserFailureHandler);
     }
 
     @Override
@@ -251,6 +257,7 @@ public class UpsertKafkaDynamicTableFactory
         validateScanBoundedMode(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(primaryKeyIndexes);
+        validateDeserFailureHandlerOptions(tableOptions);
     }
 
     private static void validateSink(
