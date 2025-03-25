@@ -15,29 +15,35 @@ jobs:
     steps:
       - name: Delete GHCR image
         run: |
-          # Convert the repository name to lowercase for GHCR compatibility
-          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          set -x
 
-          # Our PR image tag is pr-<number>-<flink_profile>
+          # Hardcoded GHCR image repository
+          REPO="datasqrl/flink-sql-runner"
+
+          # PR image tag is pr-<number>-<flink_profile>
           TAG="pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}"
-          IMAGE="ghcr.io/$REPO/flink-jar-runner:$TAG"
+          IMAGE="ghcr.io/$REPO:$TAG"
 
           echo "Attempting to delete image: $IMAGE"
 
-          # Build the Basic Auth header from your PAT credentials
+          # Build Basic Auth header from PAT credentials
           TOKEN_BASE64="$(echo -n "${{ secrets.PAT_USERNAME }}:${{ secrets.PAT_PASSWORD }}" | base64)"
 
-          # Make a GET request (including multiple Accept types) to retrieve the Docker-Content-Digest header
-          # We use '-sD -' to capture both headers and body in RAW_RESPONSE
+          # Make GET request to fetch Docker-Content-Digest header
           RAW_RESPONSE=$(curl -sD - \
             -H "Authorization: Basic $TOKEN_BASE64" \
-            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json" \
-            "https://ghcr.io/v2/$REPO/flink-jar-runner/manifests/$TAG")
+            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.oci.image.index.v1+json" \
+            "https://ghcr.io/v2/$REPO/manifests/$TAG")
+
+          # Output raw response for debugging
+          echo "==== RAW RESPONSE START ===="
+          echo "$RAW_RESPONSE"
+          echo "==== RAW RESPONSE END ===="
 
           # Separate headers from body
           HEADERS=$(echo "$RAW_RESPONSE" | sed -n '/^HTTP/,$p' | sed '/^$/q')
 
-          # Extract the Docker-Content-Digest from headers
+          # Extract Docker-Content-Digest from headers
           DIGEST=$(echo "$HEADERS" | awk '/docker-content-digest:/ { print $2 }' | tr -d $'\r')
 
           if [[ -z "$DIGEST" ]]; then
@@ -54,7 +60,7 @@ jobs:
           DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X DELETE \
             -H "Authorization: Basic $TOKEN_BASE64" \
-            "https://ghcr.io/v2/$REPO/flink-jar-runner/manifests/$DIGEST")
+            "https://ghcr.io/v2/$REPO/manifests/$DIGEST")
 
           if [[ "$DELETE_STATUS" -ge 200 && "$DELETE_STATUS" -lt 300 ]]; then
             echo "Image deleted successfully (HTTP $DELETE_STATUS)."
