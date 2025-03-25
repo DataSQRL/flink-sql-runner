@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        FLINK_PROFILE: [flink-1.19, flink-1.20]
+        FLINK_PROFILE: [flink-1.19, flink-1.20, flink-2.0]
 
     env:
       VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}

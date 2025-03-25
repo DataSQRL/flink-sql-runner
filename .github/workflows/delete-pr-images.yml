@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        FLINK_PROFILE: [flink-1.19, flink-1.20]
+        FLINK_PROFILE: [flink-1.19, flink-1.20, flink-2.0]
 
     steps:
       - name: Delete GHCR image via GitHub REST API
