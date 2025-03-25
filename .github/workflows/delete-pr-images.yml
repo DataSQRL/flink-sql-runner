@@ -13,56 +13,102 @@ jobs:
         FLINK_PROFILE: [flink-1.19, flink-1.20]
 
     steps:
-      - name: Delete GHCR image
+      - name: Delete GHCR image via GitHub GraphQL API
+        env:
+          GH_USERNAME: ${{ secrets.PAT_USERNAME }}
+          GH_PASSWORD: ${{ secrets.PAT_PASSWORD }}
         run: |
           set -euxo pipefail
 
-          REPO="datasqrl/flink-sql-runner"
+          OWNER="datasqrl"
+          PACKAGE_NAME="flink-sql-runner"
           TAG="pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}"
-          IMAGE="ghcr.io/$REPO:$TAG"
 
-          echo "Attempting to delete image: $IMAGE"
+          echo "🔐 Authenticating and generating bearer token for GitHub GraphQL API..."
 
-          TOKEN_BASE64="$(echo -n "${{ secrets.PAT_USERNAME }}:${{ secrets.PAT_PASSWORD }}" | base64)"
+          # Get GitHub API token using basic auth
+          BEARER_TOKEN=$(curl -s -u "$GH_USERNAME:$GH_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d '{"scopes":["read:packages", "delete:packages"],"note":"Delete GHCR action"}' \
+            https://api.github.com/authorizations | jq -r '.token')
 
-          RAW_RESPONSE=$(curl -sD - \
-            -H "Authorization: Basic $TOKEN_BASE64" \
-            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json" \
-            "https://ghcr.io/v2/$REPO/manifests/$TAG")
-
-          # Immediately check HTTP status
-          STATUS_CODE=$(echo "$RAW_RESPONSE" | grep HTTP | awk '{print $2}' | tr -d $'\r')
-
-          if [[ "$STATUS_CODE" -eq 401 ]]; then
-            echo "ERROR: Unauthorized (401). Check your PAT credentials or GHCR permissions."
-            exit 1
-          elif [[ "$STATUS_CODE" -eq 404 ]]; then
-            echo "ERROR: Image not found (404). Check your image name or tag."
-            exit 1
-          elif [[ "$STATUS_CODE" -ge 400 ]]; then
-            echo "ERROR: Unexpected error occurred. HTTP status: $STATUS_CODE"
+          if [[ -z "$BEARER_TOKEN" || "$BEARER_TOKEN" == "null" ]]; then
+            echo "❌ Failed to acquire bearer token."
             exit 1
           fi
 
-          HEADERS=$(echo "$RAW_RESPONSE" | sed -n '/^HTTP/,$p' | sed '/^$/q')
-          DIGEST=$(echo "$HEADERS" | awk '/docker-content-digest:/ { print $2 }' | tr -d $'\r')
+          echo "🔍 Searching for GHCR package version with tag: $TAG"
 
-          if [[ -z "$DIGEST" ]]; then
-            echo "ERROR: No digest found. Response headers were:"
-            echo "$HEADERS"
+          QUERY=$(jq -nc --arg owner "$OWNER" --arg name "$PACKAGE_NAME" '
+          {
+            query: "query($owner:String!, $name:String!) {
+              repository(owner: $owner, name: $name) {
+                packages(first: 50, packageType: CONTAINER, names: [\"flink-sql-runner\"]) {
+                  nodes {
+                    name
+                    versions(first: 100) {
+                      nodes {
+                        id
+                        version
+                        tags
+                      }
+                    }
+                  }
+                }
+              }
+            }",
+            variables: {
+              owner: $owner,
+              name: $name
+            }
+          }')
+
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $BEARER_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -d "$QUERY" https://api.github.com/graphql)
+
+          echo "GraphQL query result:"
+          echo "$RESPONSE" | jq
+
+          PACKAGE_VERSION_ID=$(echo "$RESPONSE" | jq -r \
+            --arg TAG "$TAG" \
+            '.data.repository.packages.nodes[].versions.nodes[] 
+              | select(.tags[]? == $TAG) 
+              | .id')
+
+          if [[ -z "$PACKAGE_VERSION_ID" || "$PACKAGE_VERSION_ID" == "null" ]]; then
+            echo "❌ No matching package version found for tag $TAG"
             exit 1
           fi
 
-          echo "Found digest: $DIGEST"
+          echo "✅ Found package version ID: $PACKAGE_VERSION_ID"
 
-          DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X DELETE \
-            -H "Authorization: Basic $TOKEN_BASE64" \
-            "https://ghcr.io/v2/$REPO/manifests/$DIGEST")
+          DELETE_MUTATION=$(jq -nc --arg id "$PACKAGE_VERSION_ID" '
+          {
+            query: "mutation($id: ID!) {
+              deletePackageVersion(input: {packageVersionId: $id}) {
+                success
+              }
+            }",
+            variables: { id: $id }
+          }')
 
-          if [[ "$DELETE_STATUS" -ge 200 && "$DELETE_STATUS" -lt 300 ]]; then
-            echo "Image deleted successfully (HTTP $DELETE_STATUS)."
+          DELETE_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $BEARER_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -d "$DELETE_MUTATION" https://api.github.com/graphql)
+
+          echo "Delete mutation result:"
+          echo "$DELETE_RESPONSE" | jq
+
+          SUCCESS=$(echo "$DELETE_RESPONSE" | jq -r '.data.deletePackageVersion.success')
+
+          if [[ "$SUCCESS" == "true" ]]; then
+            echo "✅ Successfully deleted image with tag $TAG"
           else
-            echo "ERROR: Failed to delete image. HTTP status $DELETE_STATUS"
+            echo "❌ Failed to delete image with tag $TAG"
             exit 1
           fi
