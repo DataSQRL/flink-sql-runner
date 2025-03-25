@@ -1,0 +1,36 @@
+name: Delete GHCR image on PR close
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-ghcr:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    strategy:
+      matrix:
+        FLINK_PROFILE: [flink-1.19, flink-1.20]
+
+    steps:
+      - name: Delete GHCR image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/flink-jar-runner:${{ github.head_ref }}-${{ matrix.FLINK_PROFILE }}"
+          echo "Deleting image: $IMAGE"
+          TOKEN=$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64)
+
+          DIGEST=$(curl -s -H "Authorization: Basic $TOKEN" \
+            -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+            -I "https://ghcr.io/v2/${{ github.repository }}/flink-jar-runner/manifests/${{ github.head_ref }}-${{ matrix.FLINK_PROFILE }}" \
+            | awk '/docker-content-digest/ { print $2 }' | tr -d $'\r')
+
+          if [[ -n "$DIGEST" ]]; then
+            echo "Found digest: $DIGEST"
+            curl -X DELETE \
+              -H "Authorization: Basic $TOKEN" \
+              "https://ghcr.io/v2/${{ github.repository }}/flink-jar-runner/manifests/$DIGEST"
+          else
+            echo "No digest found. Image may not exist."
+          fi

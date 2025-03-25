@@ -72,12 +72,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         working-directory: ./flink-jar-runner/target/
         run: |
-          DOCKER_TAG=$DOCKER_REPO:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
-          docker build -t $DOCKER_TAG .
-          docker push $DOCKER_TAG
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            IMAGE=ghcr.io/${{ github.repository }}/flink-jar-runner:${{ github.head_ref || github.ref_name }}-${{ matrix.FLINK_PROFILE }}
+          else
+            IMAGE=${{ env.DOCKER_REPO }}:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
+          fi
+
+          echo "Building image: $IMAGE"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
 
       - name: Rename jar file
         if: github.event_name == 'release' && github.event.action == 'created'
