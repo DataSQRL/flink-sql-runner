@@ -378,7 +378,7 @@
       <id>flink-1.18</id>
       <properties>
         <flink.version>1.18.1</flink.version>
-        <jdbc.version>3.2.0-1.18</jdbc.version>
+        <jdbc.version>3.2.0-1.19</jdbc.version>
         <kafka.version>3.2.0-1.18</kafka.version>
         <flink-base-image>1.18.1-scala_2.12-java11</flink-base-image>
       </properties>
