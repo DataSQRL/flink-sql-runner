@@ -62,7 +62,7 @@
     <surefire-plugin.version>3.5.0</surefire-plugin.version>
 
     <slf4j.version>1.7.36</slf4j.version>
-    <log4j.version>2.17.1</log4j.version>
+    <log4j.version>2.24.3</log4j.version>
     <feign.version>13.5</feign.version>
     <picocli.version>4.7.6</picocli.version>
     <flink.version>1.19.2</flink.version>
