@@ -105,27 +105,6 @@
     </dependency>
   </dependencies>
 
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-    </repository>
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-      <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/sqrl</url>
-    </repository>
-  </repositories>
-
   <build>
     <pluginManagement>
       <plugins>
