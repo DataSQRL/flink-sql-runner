@@ -13,102 +13,47 @@ jobs:
         FLINK_PROFILE: [flink-1.19, flink-1.20]
 
     steps:
-      - name: Delete GHCR image via GitHub GraphQL API
+      - name: Delete GHCR image via GitHub REST API
         env:
           GH_USERNAME: ${{ secrets.PAT_USERNAME }}
           GH_PASSWORD: ${{ secrets.PAT_PASSWORD }}
+          ORG: DataSQRL
+          PACKAGE: flink-sql-runner
+          TAG: pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
         run: |
           set -euxo pipefail
 
-          OWNER="datasqrl"
-          PACKAGE_NAME="flink-sql-runner"
-          TAG="pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}"
+          echo "🔐 Generating basic auth token..."
+          TOKEN_BASE64=$(echo -n "$GH_USERNAME:$GH_PASSWORD" | base64)
 
-          echo "🔐 Authenticating and generating bearer token for GitHub GraphQL API..."
+          echo "🔍 Getting package versions for $ORG/$PACKAGE..."
 
-          # Get GitHub API token using basic auth
-          BEARER_TOKEN=$(curl -s -u "$GH_USERNAME:$GH_PASSWORD" \
-            -H "Content-Type: application/json" \
-            -d '{"scopes":["read:packages", "delete:packages"],"note":"Delete GHCR action"}' \
-            https://api.github.com/authorizations | jq -r '.token')
+          VERSION_LIST=$(curl -s \
+            -H "Authorization: Basic $TOKEN_BASE64" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/orgs/$ORG/packages/container/$PACKAGE/versions")
 
-          if [[ -z "$BEARER_TOKEN" || "$BEARER_TOKEN" == "null" ]]; then
-            echo "❌ Failed to acquire bearer token."
-            exit 1
-          fi
+          echo "📦 Searching for tag: $TAG..."
 
-          echo "🔍 Searching for GHCR package version with tag: $TAG"
-
-          QUERY=$(jq -nc --arg owner "$OWNER" --arg name "$PACKAGE_NAME" '
-          {
-            query: "query($owner:String!, $name:String!) {
-              repository(owner: $owner, name: $name) {
-                packages(first: 50, packageType: CONTAINER, names: [\"flink-sql-runner\"]) {
-                  nodes {
-                    name
-                    versions(first: 100) {
-                      nodes {
-                        id
-                        version
-                        tags
-                      }
-                    }
-                  }
-                }
-              }
-            }",
-            variables: {
-              owner: $owner,
-              name: $name
-            }
-          }')
-
-          RESPONSE=$(curl -s \
-            -H "Authorization: Bearer $BEARER_TOKEN" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/vnd.github.package-deletes-preview+json" \
-            -d "$QUERY" https://api.github.com/graphql)
-
-          echo "GraphQL query result:"
-          echo "$RESPONSE" | jq
-
-          PACKAGE_VERSION_ID=$(echo "$RESPONSE" | jq -r \
-            --arg TAG "$TAG" \
-            '.data.repository.packages.nodes[].versions.nodes[] 
-              | select(.tags[]? == $TAG) 
-              | .id')
+          PACKAGE_VERSION_ID=$(echo "$VERSION_LIST" | jq -r --arg TAG "$TAG" '
+            .[] | select(.metadata.container.tags[]? == $TAG) | .id' | head -n 1)
 
           if [[ -z "$PACKAGE_VERSION_ID" || "$PACKAGE_VERSION_ID" == "null" ]]; then
-            echo "❌ No matching package version found for tag $TAG"
+            echo "❌ Package version with tag $TAG not found."
             exit 1
           fi
 
-          echo "✅ Found package version ID: $PACKAGE_VERSION_ID"
+          echo "🗑️ Deleting package version ID: $PACKAGE_VERSION_ID..."
 
-          DELETE_MUTATION=$(jq -nc --arg id "$PACKAGE_VERSION_ID" '
-          {
-            query: "mutation($id: ID!) {
-              deletePackageVersion(input: {packageVersionId: $id}) {
-                success
-              }
-            }",
-            variables: { id: $id }
-          }')
+          DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -H "Authorization: Basic $TOKEN_BASE64" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/orgs/$ORG/packages/container/$PACKAGE/versions/$PACKAGE_VERSION_ID")
 
-          DELETE_RESPONSE=$(curl -s \
-            -H "Authorization: Bearer $BEARER_TOKEN" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/vnd.github.package-deletes-preview+json" \
-            -d "$DELETE_MUTATION" https://api.github.com/graphql)
-
-          echo "Delete mutation result:"
-          echo "$DELETE_RESPONSE" | jq
-
-          SUCCESS=$(echo "$DELETE_RESPONSE" | jq -r '.data.deletePackageVersion.success')
-
-          if [[ "$SUCCESS" == "true" ]]; then
-            echo "✅ Successfully deleted image with tag $TAG"
+          if [[ "$DELETE_STATUS" -ge 200 && "$DELETE_STATUS" -lt 300 ]]; then
+            echo "✅ Successfully deleted GHCR tag $TAG (version ID $PACKAGE_VERSION_ID)"
           else
-            echo "❌ Failed to delete image with tag $TAG"
+            echo "❌ Failed to delete package version. HTTP status: $DELETE_STATUS"
             exit 1
           fi
