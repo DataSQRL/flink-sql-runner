@@ -45,7 +45,7 @@
   <distributionManagement>
     <snapshotRepository>
       <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/flink-jar-runner</url>
+      <url>https://maven.pkg.github.com/DataSQRL/flink-sql-runner</url>
     </snapshotRepository>
   </distributionManagement>
 
