@@ -23,7 +23,6 @@ jobs:
         FLINK_PROFILE: [flink-1.19, flink-1.20]
 
     env:
-      DOCKER_REPO: datasqrl/flink-jar-runner
       VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}
 
     steps:
@@ -77,10 +76,9 @@ jobs:
         working-directory: ./flink-jar-runner/target/
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-            IMAGE=ghcr.io/$REPO/flink-jar-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
+            IMAGE=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
           else
-            IMAGE=${{ env.DOCKER_REPO }}:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
+            IMAGE=datasqrl/flink-jar-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
           fi
 
           echo "Building image: $IMAGE"
