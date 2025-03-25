@@ -8,7 +8,7 @@ jobs:
   delete-ghcr:
     runs-on: ubuntu-latest
     permissions:
-      packages: write  # Also ensures read permission
+      packages: admin
 
     strategy:
       matrix:
