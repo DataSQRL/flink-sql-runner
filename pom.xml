@@ -67,7 +67,7 @@
     <picocli.version>4.7.6</picocli.version>
     <flink.version>1.19.2</flink.version>
     <postgres.version>42.7.5</postgres.version>
-    <testcontainers.version>1.18.0</testcontainers.version>
+    <testcontainers.version>1.20.6</testcontainers.version>
   </properties>
 
   <dependencyManagement>
