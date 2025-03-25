@@ -15,48 +15,46 @@ jobs:
     steps:
       - name: Delete GHCR image
         run: |
-          set -x
+          set -euxo pipefail
 
-          # Hardcoded GHCR image repository
           REPO="datasqrl/flink-sql-runner"
-
-          # PR image tag is pr-<number>-<flink_profile>
           TAG="pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}"
           IMAGE="ghcr.io/$REPO:$TAG"
 
           echo "Attempting to delete image: $IMAGE"
 
-          # Build Basic Auth header from PAT credentials
           TOKEN_BASE64="$(echo -n "${{ secrets.PAT_USERNAME }}:${{ secrets.PAT_PASSWORD }}" | base64)"
 
-          # Make GET request to fetch Docker-Content-Digest header
           RAW_RESPONSE=$(curl -sD - \
             -H "Authorization: Basic $TOKEN_BASE64" \
-            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.oci.image.index.v1+json" \
+            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json" \
             "https://ghcr.io/v2/$REPO/manifests/$TAG")
 
-          # Output raw response for debugging
-          echo "==== RAW RESPONSE START ===="
-          echo "$RAW_RESPONSE"
-          echo "==== RAW RESPONSE END ===="
+          # Immediately check HTTP status
+          STATUS_CODE=$(echo "$RAW_RESPONSE" | grep HTTP | awk '{print $2}' | tr -d $'\r')
 
-          # Separate headers from body
+          if [[ "$STATUS_CODE" -eq 401 ]]; then
+            echo "ERROR: Unauthorized (401). Check your PAT credentials or GHCR permissions."
+            exit 1
+          elif [[ "$STATUS_CODE" -eq 404 ]]; then
+            echo "ERROR: Image not found (404). Check your image name or tag."
+            exit 1
+          elif [[ "$STATUS_CODE" -ge 400 ]]; then
+            echo "ERROR: Unexpected error occurred. HTTP status: $STATUS_CODE"
+            exit 1
+          fi
+
           HEADERS=$(echo "$RAW_RESPONSE" | sed -n '/^HTTP/,$p' | sed '/^$/q')
-
-          # Extract Docker-Content-Digest from headers
           DIGEST=$(echo "$HEADERS" | awk '/docker-content-digest:/ { print $2 }' | tr -d $'\r')
 
           if [[ -z "$DIGEST" ]]; then
-            echo "ERROR: No digest found in GHCR response. The image might not exist, or GHCR didn’t return the digest."
-            echo "==== HEADERS START ===="
+            echo "ERROR: No digest found. Response headers were:"
             echo "$HEADERS"
-            echo "==== HEADERS END ===="
             exit 1
           fi
 
           echo "Found digest: $DIGEST"
 
-          # DELETE the image by digest
           DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X DELETE \
             -H "Authorization: Basic $TOKEN_BASE64" \
