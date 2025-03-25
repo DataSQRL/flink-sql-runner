@@ -25,8 +25,8 @@
     <version>0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>sqrl-jdbc-1.19</artifactId>
-  <description>Jdbc sink for flink 1.19</description>
+  <artifactId>sqrl-jdbc-2.0</artifactId>
+  <description>Jdbc sink for flink 2.0</description>
 
   <url>https://www.datasqrl.com/</url>
   <licenses>
@@ -54,14 +54,19 @@
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <flink.version>1.19.1</flink.version>
+    <flink.version>2.0.0</flink.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-connector-jdbc</artifactId>
-      <version>3.2.0-1.19</version>
+      <artifactId>flink-connector-jdbc-core</artifactId>
+      <version>3.3-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-jdbc-postgres</artifactId>
+      <version>3.3-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
