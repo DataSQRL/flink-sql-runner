@@ -7,8 +7,6 @@ on:
 jobs:
   delete-ghcr:
     runs-on: ubuntu-latest
-    permissions:
-      packages: admin
 
     strategy:
       matrix:
@@ -17,47 +15,50 @@ jobs:
     steps:
       - name: Delete GHCR image
         run: |
+          # Convert the repository name to lowercase for GHCR compatibility
           REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          # Our PR image tag is pr-<number>-<flink_profile>
           TAG="pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}"
           IMAGE="ghcr.io/$REPO/flink-jar-runner:$TAG"
+
           echo "Attempting to delete image: $IMAGE"
 
-          TOKEN="$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64)"
+          # Build the Basic Auth header from your PAT credentials
+          TOKEN_BASE64="$(echo -n "${{ secrets.PAT_USERNAME }}:${{ secrets.PAT_PASSWORD }}" | base64)"
 
-          # We'll do a GET request with -D -, capturing both body + headers
-          # but we only parse the headers for 'docker-content-digest'.
-          # We include multiple Accept types so that GHCR returns the correct manifest for any single or multi-arch image.
-          RAW_RESPONSE=$(curl -s \
-            -D - \
-            -H "Authorization: Basic $TOKEN" \
+          # Make a GET request (including multiple Accept types) to retrieve the Docker-Content-Digest header
+          # We use '-sD -' to capture both headers and body in RAW_RESPONSE
+          RAW_RESPONSE=$(curl -sD - \
+            -H "Authorization: Basic $TOKEN_BASE64" \
             -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json" \
             "https://ghcr.io/v2/$REPO/flink-jar-runner/manifests/$TAG")
 
           # Separate headers from body
           HEADERS=$(echo "$RAW_RESPONSE" | sed -n '/^HTTP/,$p' | sed '/^$/q')
-          BODY=$(echo "$RAW_RESPONSE" | sed -e '1,/^$/d')
 
-          # Parse the Docker-Content-Digest from the headers
+          # Extract the Docker-Content-Digest from headers
           DIGEST=$(echo "$HEADERS" | awk '/docker-content-digest:/ { print $2 }' | tr -d $'\r')
 
           if [[ -z "$DIGEST" ]]; then
-            echo "ERROR: No digest found in GHCR response headers. Image may not exist or GHCR did not return the digest."
-            echo "Response Headers:"
+            echo "ERROR: No digest found in GHCR response. The image might not exist, or GHCR didn’t return the digest."
+            echo "==== HEADERS START ===="
             echo "$HEADERS"
+            echo "==== HEADERS END ===="
             exit 1
           fi
 
           echo "Found digest: $DIGEST"
 
-          # Attempt deletion, capture HTTP status
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          # DELETE the image by digest
+          DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X DELETE \
-            -H "Authorization: Basic $TOKEN" \
+            -H "Authorization: Basic $TOKEN_BASE64" \
             "https://ghcr.io/v2/$REPO/flink-jar-runner/manifests/$DIGEST")
 
-          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]]; then
-            echo "Image deleted successfully (HTTP $HTTP_STATUS)."
+          if [[ "$DELETE_STATUS" -ge 200 && "$DELETE_STATUS" -lt 300 ]]; then
+            echo "Image deleted successfully (HTTP $DELETE_STATUS)."
           else
-            echo "ERROR: Failed to delete image. HTTP status $HTTP_STATUS"
+            echo "ERROR: Failed to delete image. HTTP status $DELETE_STATUS"
             exit 1
           fi
