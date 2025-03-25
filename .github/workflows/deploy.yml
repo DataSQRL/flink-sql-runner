@@ -59,4 +59,9 @@ jobs:
 
       - name: Run Maven Build
         run: |
-          mvn -B clean deploy
+          if [[ "${{ github.ref_name }}" == "main" || "${{ github.event_name }}" == "release" ]]; then
+            mvn -B clean deploy
+          else
+            mvn -B clean install
+          fi
+
