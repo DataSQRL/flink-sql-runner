@@ -15,7 +15,7 @@
  */
 package com.datasqrl;
 
-import com.datasqrl.function.StandardLibraryFunction;
+import com.datasqrl.function.AutoRegisterSystemFunction;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -58,8 +58,8 @@ class SqlExecutor {
 
   public void setupSystemFunctions() {
 
-    ServiceLoader<StandardLibraryFunction> standardLibraryFunctions =
-        ServiceLoader.load(StandardLibraryFunction.class);
+    ServiceLoader<AutoRegisterSystemFunction> standardLibraryFunctions =
+        ServiceLoader.load(AutoRegisterSystemFunction.class);
 
     standardLibraryFunctions.forEach(
         function -> {
@@ -74,9 +74,6 @@ class SqlExecutor {
   }
 
   static String getFunctionNameFromClass(Class clazz) {
-    //	    String fctName = clazz.getSimpleName();
-    //	    fctName = Character.toLowerCase(fctName.charAt(0)) + fctName.substring(1);
-    //	    return fctName;
     return clazz.getSimpleName().toLowerCase();
   }
 
