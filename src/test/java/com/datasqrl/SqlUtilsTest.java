@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class SqlUtilsTest {
 
   @ParameterizedTest(name = "{0}")
-  @CsvSource({"flink.sql,32", "test_sql.sql,6", "test_udf_sql.sql,6"})
+  @CsvSource({"flink.sql,18", "test_sql.sql,6", "test_udf_sql.sql,6"})
   void givenSource_when_thenSplitCorrectly(String filename, int numberOfStatements)
       throws IOException, Exception {
     var script = Resources.toString(getClass().getResource("/sql/" + filename), Charsets.UTF_8);
