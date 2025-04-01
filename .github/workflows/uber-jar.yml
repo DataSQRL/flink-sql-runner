@@ -54,7 +54,7 @@ jobs:
       - name: Download dependencies
         run: |
           mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -P${{ matrix.FLINK_PROFILE }}
-          mvn -B -f flink-jar-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:testResources com.marvinformatics:docker-compose-maven-plugin:5.0.0:pull -P${{ matrix.FLINK_PROFILE }}
+          mvn -B org.apache.maven.plugins:maven-resources-plugin:3.3.1:testResources com.marvinformatics:docker-compose-maven-plugin:5.0.0:pull -P${{ matrix.FLINK_PROFILE }}
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
@@ -73,7 +73,7 @@ jobs:
           password: ${{ github.event_name == 'pull_request' && secrets.GITHUB_TOKEN || secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        working-directory: ./flink-jar-runner/target/
+        working-directory: ./target/
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             IMAGE=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
