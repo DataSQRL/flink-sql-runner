@@ -57,20 +57,29 @@ class SqlExecutor {
   }
 
   public void setupSystemFunctions() {
+    System.out.println("Setting up automatically registered system functions");
 
-    ServiceLoader<AutoRegisterSystemFunction> standardLibraryFunctions =
-        ServiceLoader.load(AutoRegisterSystemFunction.class);
+    try {
+      ServiceLoader<AutoRegisterSystemFunction> standardLibraryFunctions =
+          ServiceLoader.load(AutoRegisterSystemFunction.class);
 
-    standardLibraryFunctions.forEach(
-        function -> {
-          String sql =
-              String.format(
-                  "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
-                  getFunctionNameFromClass(function.getClass()), function.getClass().getName());
+      standardLibraryFunctions.forEach(
+          function -> {
+            String sql =
+                String.format(
+                    "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
+                    getFunctionNameFromClass(function.getClass()), function.getClass().getName());
 
-          System.out.println(sql);
-          tableEnv.executeSql(sql);
-        });
+            System.out.println(sql);
+
+            tableEnv.executeSql(sql);
+          });
+    } catch (Throwable e) {
+      e.printStackTrace(System.out);
+      throw new RuntimeException(e);
+    }
+
+    System.out.println("Completed auto function registered system functions");
   }
 
   static String getFunctionNameFromClass(Class clazz) {
