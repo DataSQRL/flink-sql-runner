@@ -1,0 +1,26 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://www.maven.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.datasqrl</groupId>
+    <artifactId>helpers</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>udf-sample</artifactId>
+  <packaging>jar</packaging>
+  <name>UDF Function</name>
+  <description>Placeholder for myjavafunction-0.1.0-SNAPSHOT-all.jar logic</description>
+
+  <!-- If you eventually have real Java source code for your UDF, place it in
+       src/main/java and define any dependencies here. -->
+
+  <build>
+    <plugins>
+      <!-- If you want to replicate a "fat jar" approach for your UDF, add a shade plugin or similar. -->
+    </plugins>
+  </build>
+</project>

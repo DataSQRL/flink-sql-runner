@@ -1,0 +1,29 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://www.maven.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.datasqrl</groupId>
+    <artifactId>helpers</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>system-functions-sample</artifactId>
+  <packaging>jar</packaging>
+  <name>System Functions Discovery</name>
+  <description>Holds the AutoRegisterSystemFunction interface (no deps)</description>
+
+  <!-- This module has the minimal Java code for SPI, e.g. AutoRegisterSystemFunction -->
+  <dependencies>
+    <!-- none if truly no external libraries needed -->
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Typically none if it's truly minimal. Or if you want to package META-INF/services,
+           you can add the jar plugin or shade plugin here. -->
+    </plugins>
+  </build>
+</project>
