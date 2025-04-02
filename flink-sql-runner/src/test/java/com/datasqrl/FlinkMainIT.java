@@ -57,7 +57,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class FlinkMainIT extends AbstractITSupport {
@@ -286,17 +285,15 @@ class FlinkMainIT extends AbstractITSupport {
     }
   }
 
-  @ParameterizedTest(name = "{0}")
-  @CsvSource({"test_udf_sql.sql"})
-  void givenUdfSqlScript_whenExecuting_thenSuccess(String filename) {
-    String sqlFile = "/opt/flink/usrlib/sql/" + filename;
+  @Test
+  void givenUdfSqlScript_whenExecuting_thenSuccess() {
+    String sqlFile = "/opt/flink/usrlib/sql/test_udf_sql.sql";
     execute("--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 
-  @ParameterizedTest(name = "{0}")
-  @CsvSource({"compiled-plan-udf.json"})
-  void givenUdfPlansScript_whenExecuting_thenSuccess(String filename) {
-    String planFile = "/opt/flink/usrlib/plans/" + filename;
+  @Test
+  void givenUdfPlansScript_whenExecuting_thenSuccess() {
+    String planFile = "/opt/flink/usrlib/plans/compiled-plan-udf.json";
     execute("--planfile", planFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 }

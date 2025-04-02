@@ -175,6 +175,7 @@ class SqlExecutor {
       }
     } catch (Exception e) {
       log.error("Failed to set up UDF path", e);
+      e.printStackTrace(System.out);
     }
   }
 

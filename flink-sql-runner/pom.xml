@@ -17,57 +17,19 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.datasqrl</groupId>
+  <parent>
+    <groupId>com.datasqrl.flinkrunner</groupId>
+    <artifactId>flink-sql-runner-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
   <artifactId>flink-sql-runner</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-  <inceptionYear>2024</inceptionYear>
+  <name>Flink SQL Runner</name>
+  <description>Main runner module for the Flink SQL app</description>
 
-  <distributionManagement>
-    <snapshotRepository>
-      <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/flink-sql-runner</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-  <properties>
-    <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
-
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
-    <git-code-format-maven-plugin.version>5.3</git-code-format-maven-plugin.version>
-    <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
-    <surefire-plugin.version>3.5.3</surefire-plugin.version>
-
-    <slf4j.version>1.7.36</slf4j.version>
-    <log4j.version>2.24.3</log4j.version>
-    <feign.version>13.5</feign.version>
-    <picocli.version>4.7.6</picocli.version>
-    <flink.version>1.19.2</flink.version>
-    <postgres.version>42.7.5</postgres.version>
-    <testcontainers.version>1.20.6</testcontainers.version>
-  </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>2.0.17</version>
-      </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>5.12.1</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
@@ -209,40 +171,39 @@
       <artifactId>flink-s3-fs-hadoop</artifactId>
       <version>${flink.version}</version>
     </dependency>
-  </dependencies>
 
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-    </repository>
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-      <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/sqrl</url>
-    </repository>
-  </repositories>
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>system-functions-discovery</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>udf-sample</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>system-functions-sample</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <resources>
       <resource>
         <targetPath>${project.basedir}/target</targetPath>
         <filtering>true</filtering>
-        <directory>src/test/docker</directory>
+        <directory>src/main/docker</directory>
       </resource>
       <resource>
         <directory>src/main/resources</directory>
       </resource>
     </resources>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -300,116 +261,9 @@
       </plugin>
 
       <plugin>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.3.0</version>
-        <executions>
-          <execution>
-            <id>service-jar</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <classifier>service</classifier>
-              <includes>
-                <include>com/datasqrl/function/AutoRegisterSystemFunction.class</include>
-              </includes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- linter for java code, will be applied automatically when files are committed to git -->
-      <!-- alternatively, can run with -Pdev to force code format on the whole project -->
-      <plugin>
-        <groupId>com.cosium.code</groupId>
-        <artifactId>git-code-format-maven-plugin</artifactId>
-        <version>${git-code-format-maven-plugin.version}</version>
-        <dependencies>
-          <!-- Enable https://github.com/google/google-java-format -->
-          <dependency>
-            <groupId>com.cosium.code</groupId>
-            <artifactId>google-java-format</artifactId>
-            <version>${git-code-format-maven-plugin.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <!-- On commit, format the modified files -->
-          <execution>
-            <id>install-formatter-hook</id>
-            <goals>
-              <goal>install-hooks</goal>
-            </goals>
-            <inherited>false</inherited>
-          </execution>
-          <!-- On Maven verify phase, fail if any file (including
-					unmodified) is
-            badly formatted -->
-          <execution>
-            <id>validate-code-format</id>
-            <goals>
-              <goal>validate-code-format</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>com.github.ekryd.sortpom</groupId>
-        <artifactId>sortpom-maven-plugin</artifactId>
-        <version>4.0.0</version>
-        <configuration>
-          <keepBlankLines>true</keepBlankLines>
-          <lineSeparator>\n</lineSeparator>
-          <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
-          <createBackupFile>false</createBackupFile>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>com.mycila</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <version>${license-maven-plugin.version}</version>
-        <configuration>
-          <properties>
-            <owner>DataSQRL</owner>
-            <email>contact@datasqrl.com</email>
-          </properties>
-          <licenseSets>
-            <licenseSet>
-              <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
-
-              <excludes>
-                <exclude>src/test/resources/**</exclude>
-                <exclude>m2e-target/**</exclude>
-                <exclude>bin/**</exclude>
-              </excludes>
-            </licenseSet>
-          </licenseSets>
-          <strictCheck>true</strictCheck>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>com.mycila</groupId>
-            <artifactId>license-maven-plugin-git</artifactId>
-            <version>${license-maven-plugin.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <id>check</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>compile</phase>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
         <groupId>com.marvinformatics</groupId>
         <artifactId>docker-compose-maven-plugin</artifactId>
-        <version>5.0.0</version>
+        <version>${docker.compose.plugin.version}</version>
         <configuration>
           <skip>${skipTests}</skip>
           <composeFile>${project.basedir}/target/docker-compose.yml</composeFile>
@@ -447,59 +301,54 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
-        <configuration>
-          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
-          <forkCount>0.5C</forkCount>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.0</version>
         <executions>
           <execution>
+            <id>copy-udf-sample-deps</id>
             <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
+              <goal>copy-dependencies</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <id>ban-sqrl-dependencies</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
+            <phase>process-test-classes</phase>
             <configuration>
-              <rules>
-                <bannedDependencies>
-                  <searchTransitive>true</searchTransitive>
-                  <excludes>
-                    <exclude>com.datasqrl:*:*</exclude>
-                  </excludes>
-                  <message>SQRL depends on this project, so we can't have circular dependencies</message>
-                </bannedDependencies>
-              </rules>
-              <fail>true</fail>
+              <includeArtifactIds>udf-sample</includeArtifactIds>
+              <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
+
+              <outputDirectory>${project.build.testOutputDirectory}/udfs</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-system-functions-deps</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-test-classes</phase>
+            <configuration>
+              <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
+              <includeArtifactIds>system-functions-sample</includeArtifactIds>
+
+              <outputDirectory>${project.build.testOutputDirectory}/systemfunction</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-system-functions-discovery</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
+              <includeArtifactIds>system-functions-discovery</includeArtifactIds>
+
+              <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
-
   <profiles>
     <profile>
       <id>flink-2.0</id>
@@ -510,6 +359,7 @@
         <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
+
     <profile>
       <id>flink-1.20</id>
       <properties>
@@ -519,6 +369,7 @@
         <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
+
     <profile>
       <id>flink-1.19</id>
       <activation>
@@ -531,6 +382,7 @@
         <flink-base-image>1.19.2-scala_2.12-java11</flink-base-image>
       </properties>
     </profile>
+
     <profile>
       <id>flink-1.18</id>
       <properties>
@@ -541,73 +393,13 @@
       </properties>
     </profile>
     <profile>
-      <!-- useful profile for local development -->
-      <id>dev</id>
-
-      <properties>
-        <gcf.skipInstallHooks>false</gcf.skipInstallHooks>
-      </properties>
-
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.cosium.code</groupId>
-            <artifactId>git-code-format-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format-code</id>
-                <goals>
-                  <goal>format-code</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-
-          <plugin>
-            <groupId>com.github.ekryd.sortpom</groupId>
-            <artifactId>sortpom-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format</id>
-                <goals>
-                  <goal>sort</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-
-          <plugin>
-            <groupId>com.mycila</groupId>
-            <artifactId>license-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format</id>
-                <goals>
-                  <goal>format</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <!-- extra tasks only meant to be executed by CI server -->
       <id>ci</id>
-      <properties>
-        <gcf.skip>true</gcf.skip>
-      </properties>
-
       <build>
         <plugins>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>3.5.0</version>
+            <version>${exec.plugin.version}</version>
             <executions>
               <execution>
                 <goals>
@@ -615,7 +407,6 @@
                 </goals>
                 <phase>post-integration-test</phase>
                 <configuration>
-                  <!-- print logs from docker, helpful when troubleshooting -->
                   <executable>docker</executable>
                   <skip>${skipTests}</skip>
                   <arguments>
@@ -626,85 +417,7 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>3.2.7</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-                <phase>deploy</phase>
-              </execution>
-            </executions>
-          </plugin>
-
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
-            <version>3.3.1</version>
-            <executions>
-              <execution>
-                <id>attach-sources</id>
-                <goals>
-                  <goal>jar-no-fork</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.11.2</version>
-            <configuration>
-              <failOnError>false</failOnError>
-            </configuration>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-                <phase>package</phase>
-                <configuration>
-                  <show>public</show>
-                  <failOnError>false</failOnError>
-                  <detectOfflineLinks>false</detectOfflineLinks>
-                  <doclint>all,-missing</doclint>
-                  <nohelp>true</nohelp>
-                  <excludePackageNames>*.internal.*,testutil,demo</excludePackageNames>
-                  <quiet>true</quiet>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
         </plugins>
-      </build>
-    </profile>
-    <profile>
-      <!-- just compile, skip all other checks -->
-      <id>quickbuild</id>
-      <properties>
-        <skipTests>true</skipTests>
-        <enforcer.skip>true</enforcer.skip>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
-        <gcf.skip>true</gcf.skip>
-        <license.skip>true</license.skip>
-      </properties>
-    </profile>
-
-    <profile>
-      <!-- helper profile to proper configure eclipse -->
-      <id>m2e</id>
-      <activation>
-        <property>
-          <name>m2e.version</name>
-        </property>
-      </activation>
-      <build>
-        <directory>${project.basedir}/m2e-target</directory>
       </build>
     </profile>
   </profiles>

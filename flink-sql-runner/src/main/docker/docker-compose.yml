@@ -64,8 +64,8 @@ services:
       - ./test-classes/:/opt/flink/usrlib/
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
-      - ./flink-sql-runner-1.0.0-SNAPSHOT-service.jar:/opt/flink/lib/flink-sql-runner-service.jar
-      - ./test-classes/systemfunction/target/systemfunction-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
+      - ./system-functions-discovery-1.0.0-SNAPSHOT.jar:/opt/flink/lib/system-functions-discovery.jar
+      - ./test-classes/systemfunction/system-functions-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 1s
@@ -100,8 +100,8 @@ services:
       - ./test-classes/:/opt/flink/usrlib/
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
-      - ./flink-sql-runner-1.0.0-SNAPSHOT-service.jar:/opt/flink/lib/flink-sql-runner-service.jar
-      - ./test-classes/systemfunction/target/systemfunction-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
+      - ./system-functions-discovery-1.0.0-SNAPSHOT.jar:/opt/flink/lib/system-functions-discovery.jar
+      - ./test-classes/systemfunction/system-functions-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
     restart: always
     deploy:
       resources:
