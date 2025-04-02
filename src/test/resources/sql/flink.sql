@@ -114,7 +114,7 @@ WHERE `_rownum` = 1;
 CREATE VIEW `table$2`
 AS
 SELECT *
-FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
+FROM (SELECT `customerId`, `cardNo`, `timestamp`, upper(`cardType`) as cardType, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
   FROM `cardassignment_1`) AS `t1`
 WHERE `_rownum` = 1;
 
@@ -142,7 +142,7 @@ WHERE `_rownum` = 1;
 CREATE VIEW `table$6`
 AS
 SELECT *
-FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
+FROM (SELECT `customerId`, `cardNo`, `timestamp`, upper(`cardType`) as cardType, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
   FROM `cardassignment_1`) AS `t1`
 WHERE `_rownum` = 1;
 

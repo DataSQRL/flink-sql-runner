@@ -30,7 +30,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./sqrl/postgres-schema.sql:/docker-entrypoint-initdb.d/database-schema.sql:ro
+      - ./test-classes/sqrl/postgres-schema.sql:/docker-entrypoint-initdb.d/database-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 1s
@@ -61,9 +61,11 @@ services:
         condition: service_healthy
     volumes:
       - flink_conf:/opt/flink/conf
-      - ./:/opt/flink/usrlib/
-      - ./datasources/:/datasources/
+      - ./test-classes/:/opt/flink/usrlib/
+      - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
+      - ./flink-sql-runner-1.0.0-SNAPSHOT-service.jar:/opt/flink/lib/flink-sql-runner-service.jar
+      - ./test-classes/systemfunction/target/systemfunction-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 1s
@@ -95,9 +97,11 @@ services:
         condition: service_healthy
     volumes:
       - flink_conf:/opt/flink/conf
-      - ./:/opt/flink/usrlib/
-      - ./datasources/:/datasources/
+      - ./test-classes/:/opt/flink/usrlib/
+      - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
+      - ./flink-sql-runner-1.0.0-SNAPSHOT-service.jar:/opt/flink/lib/flink-sql-runner-service.jar
+      - ./test-classes/systemfunction/target/systemfunction-sample-1.0.0-SNAPSHOT.jar:/opt/flink/lib/systemfunction.jar
     restart: always
     deploy:
       resources:
