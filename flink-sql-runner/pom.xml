@@ -27,8 +27,11 @@
   </parent>
 
   <artifactId>flink-sql-runner</artifactId>
-  <name>Flink SQL Runner</name>
-  <description>Main runner module for the Flink SQL app</description>
+
+  <!--
+      Moved distributionManagement, dependencyManagement, and version declarations
+      to the parent POM.
+  -->
 
   <dependencies>
     <dependency>
@@ -107,7 +110,7 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.38</version>
+      <version>${lombok.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -148,7 +151,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.7.5</version>
+      <version>${postgres.version}</version>
     </dependency>
 
     <dependency>
@@ -301,6 +304,8 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- Copying UDF/SystemFunction JARs -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -313,9 +318,8 @@
             </goals>
             <phase>process-test-classes</phase>
             <configuration>
-              <includeArtifactIds>udf-sample</includeArtifactIds>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
-
+              <includeArtifactIds>udf-sample</includeArtifactIds>
               <outputDirectory>${project.build.testOutputDirectory}/udfs</outputDirectory>
             </configuration>
           </execution>
@@ -328,7 +332,6 @@
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>system-functions-sample</includeArtifactIds>
-
               <outputDirectory>${project.build.testOutputDirectory}/systemfunction</outputDirectory>
             </configuration>
           </execution>
@@ -341,7 +344,6 @@
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>system-functions-discovery</includeArtifactIds>
-
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
@@ -349,6 +351,7 @@
       </plugin>
     </plugins>
   </build>
+
   <profiles>
     <profile>
       <id>flink-2.0</id>
@@ -359,7 +362,6 @@
         <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
-
     <profile>
       <id>flink-1.20</id>
       <properties>
@@ -369,7 +371,6 @@
         <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
-
     <profile>
       <id>flink-1.19</id>
       <activation>
@@ -382,7 +383,6 @@
         <flink-base-image>1.19.2-scala_2.12-java11</flink-base-image>
       </properties>
     </profile>
-
     <profile>
       <id>flink-1.18</id>
       <properties>
@@ -392,6 +392,7 @@
         <flink-base-image>1.18.1-scala_2.12-java11</flink-base-image>
       </properties>
     </profile>
+
     <profile>
       <id>ci</id>
       <build>
@@ -407,6 +408,7 @@
                 </goals>
                 <phase>post-integration-test</phase>
                 <configuration>
+                  <!-- print logs from docker, helpful when troubleshooting -->
                   <executable>docker</executable>
                   <skip>${skipTests}</skip>
                   <arguments>

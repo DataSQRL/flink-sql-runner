@@ -16,16 +16,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                              http://www.maven.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner-parent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
-
-  <name>flink-sql-runner-parent</name>
-  <description>Parent aggregator for Flink SQL Runner and helper modules</description>
   <inceptionYear>2024</inceptionYear>
 
   <modules>
@@ -55,7 +52,6 @@
     <sortpom.plugin.version>4.0.0</sortpom.plugin.version>
     <exec.plugin.version>3.5.0</exec.plugin.version>
 
-    <!-- Library versions (only as properties here; submodules can reference) -->
     <slf4j.version>2.0.17</slf4j.version>
     <log4j.version>2.24.3</log4j.version>
     <feign.version>13.5</feign.version>
@@ -87,7 +83,7 @@
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-bom</artifactId>
-        <version>2.0.17</version>
+        <version>${slf4j.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -173,7 +169,6 @@
             <licenseSet>
               <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
               <excludes>
-                <!-- Example exclude patterns for resource folders -->
                 <exclude>src/test/resources/**</exclude>
                 <exclude>m2e-target/**</exclude>
                 <exclude>bin/**</exclude>
@@ -183,7 +178,6 @@
           <strictCheck>true</strictCheck>
         </configuration>
         <dependencies>
-          <!-- Git bridging for license plugin -->
           <dependency>
             <groupId>com.mycila</groupId>
             <artifactId>license-maven-plugin-git</artifactId>
@@ -242,6 +236,10 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>${surefire-plugin.version}</version>
+        <configuration>
+          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -250,12 +248,7 @@
             </goals>
           </execution>
         </executions>
-        <configuration>
-          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
-        </configuration>
       </plugin>
-
     </plugins>
   </build>
 
@@ -375,9 +368,8 @@
         </plugins>
       </build>
     </profile>
-
-    <!-- Just compile, skip all other checks -->
     <profile>
+      <!-- just compile, skip all other checks -->
       <id>quickbuild</id>
       <properties>
         <skipTests>true</skipTests>
@@ -387,9 +379,8 @@
         <license.skip>true</license.skip>
       </properties>
     </profile>
-
-    <!-- Helper profile to properly configure Eclipse -->
     <profile>
+      <!-- helper profile to proper configure eclipse -->
       <id>m2e</id>
       <activation>
         <property>
@@ -401,5 +392,4 @@
       </build>
     </profile>
   </profiles>
-
 </project>
