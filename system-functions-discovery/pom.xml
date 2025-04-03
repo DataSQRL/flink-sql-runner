@@ -26,7 +26,6 @@
   </parent>
 
   <artifactId>system-functions-discovery</artifactId>
-  <name>System Functions Discovery</name>
-  <description>Holds the AutoRegisterSystemFunction interface (no deps)</description>
+  <description>Holds the AutoRegisterSystemFunction interface that can be used to declare system functions</description>
 
 </project>

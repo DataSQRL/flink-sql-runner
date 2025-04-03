@@ -28,8 +28,6 @@
 
   <artifactId>helpers</artifactId>
   <packaging>pom</packaging>
-  <name>helpers</name>
-  <description>Aggregator for system-functions-discovery, udf-function, etc.</description>
 
   <modules>
     <module>system-functions-sample</module>

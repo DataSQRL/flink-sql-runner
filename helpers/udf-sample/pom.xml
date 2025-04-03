@@ -26,8 +26,6 @@
   </parent>
 
   <artifactId>udf-sample</artifactId>
-  <name>UDF Function</name>
-  <description>Placeholder for myjavafunction-0.1.0-SNAPSHOT-all.jar logic</description>
 
   <dependencies>
     <dependency>

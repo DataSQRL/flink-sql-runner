@@ -28,11 +28,6 @@
 
   <artifactId>flink-sql-runner</artifactId>
 
-  <!--
-      Moved distributionManagement, dependencyManagement, and version declarations
-      to the parent POM.
-  -->
-
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>

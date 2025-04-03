@@ -34,6 +34,14 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
+      - name: Import GPG Key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "default-key $(gpg --list-keys --with-colons | grep pub | cut -d':' -f5)" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+
       - name: Generate settings.xml
         run: |
           mkdir -p ~/.m2
@@ -50,8 +58,8 @@ jobs:
 
       - name: Download dependencies
         run: |
-          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
-          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources com.marvinformatics:docker-compose-maven-plugin:5.0.0:pull
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Pci,flink-1.19
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources com.marvinformatics:docker-compose-maven-plugin:5.0.0:pull -Pci,flink-1.19
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
@@ -61,10 +69,10 @@ jobs:
       - name: Run Maven Build
         run: |
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            mvn -B clean deploy -Pci,release
+            mvn -B clean deploy -Pci,release,flink-1.19
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            mvn -B clean deploy -Pci
+            mvn -B clean deploy -Pci,flink-1.19
           else
-            mvn -B clean install -Pci
+            mvn -B clean install -Pci,flink-1.19
           fi
 

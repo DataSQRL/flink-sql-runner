@@ -23,13 +23,44 @@
   <artifactId>flink-sql-runner-parent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
+  <description>Flink SQL Runner: a tool for running Flink SQL scripts easily.</description>
+  <url>https://github.com/DataSQRL/flink-sql-runner/</url>
+
   <inceptionYear>2024</inceptionYear>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Daniel Henneberger</name>
+      <email>daniel@datasqrl.com</email>
+      <url>https://github.com/henneberger</url>
+    </developer>
+    <developer>
+      <name>Marvin Froeder</name>
+      <email>marvin@datasqrl.com</email>
+      <url>https://github.com/velo</url>
+    </developer>
+  </developers>
 
   <modules>
     <module>system-functions-discovery</module>
     <module>helpers</module>
     <module>flink-sql-runner</module>
   </modules>
+
+  <scm>
+    <connection>scm:git:git://github.com/DataSQRL/flink-sql-runner.git</connection>
+    <developerConnection>scm:git:git@github.com:DataSQRL/flink-sql-runner.git</developerConnection>
+    <tag>HEAD</tag>
+    <url>https://github.com/DataSQRL/flink-sql-runner</url>
+  </scm>
 
   <distributionManagement>
     <snapshotRepository>
@@ -89,27 +120,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
-    </repository>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-    </repository>
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-      <id>github</id>
-      <url>https://maven.pkg.github.com/DataSQRL/sqrl</url>
-    </repository>
-  </repositories>
 
   <build>
     <plugins>
@@ -322,7 +332,7 @@
                 <goals>
                   <goal>sign</goal>
                 </goals>
-                <phase>deploy</phase>
+                <phase>verify</phase>
               </execution>
             </executions>
           </plugin>
@@ -336,6 +346,7 @@
                 <goals>
                   <goal>jar-no-fork</goal>
                 </goals>
+                <phase>package</phase>
               </execution>
             </executions>
           </plugin>
@@ -402,6 +413,15 @@
             <extensions>true</extensions>
             <configuration>
               <publishingServerId>central</publishingServerId>
+
+              <excludeArtifacts>
+                <!-- artifacts that only exists to support integration tests and as samples-->
+                <excludeArtifact>helpers</excludeArtifact>
+                <excludeArtifact>system-functions-sample</excludeArtifact>
+                <excludeArtifact>udf-sample</excludeArtifact>
+              </excludeArtifacts>
+              
+              <autoPublish>true</autoPublish>
             </configuration>
           </plugin>
         </plugins>
