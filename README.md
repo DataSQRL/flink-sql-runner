@@ -1,6 +1,6 @@
-# Flink jar-runner
+# Flink-sql-runner
 
-**Flink jar-runner** is a utility designed to simplify the deployment of Apache Flink applications by managing environment variables, SQL script execution, compiled plan management, and JAR dependency resolution. This tool makes it easy to deploy Flink applications without needing to manually build JAR files.
+**Flink-sql-runner** is a utility designed to simplify the deployment of Apache Flink applications by managing environment variables, SQL script execution, compiled plan management, and JAR dependency resolution. This tool makes it easy to deploy Flink applications without needing to manually build JAR files.
 
 ---
 
@@ -23,8 +23,8 @@ Add the following to your pom.xml:
 ```xml
 <dependency>
 <groupId>com.datasqrl</groupId>
-<artifactId>flink-jar-runner</artifactId>
-<version>0.0.3</version>
+<artifactId>flink-sql-runner</artifactId>
+<version>0.1</version>
 </dependency>
 ```
 
@@ -32,7 +32,7 @@ Add the following to your pom.xml:
 Pull the latest Docker image from Docker Hub:
 
 ```bash
-docker pull datasqrl/flink-jar-runner:latest
+docker pull datasqrl/flink-sql-runner:latest
 ```
 ---
 
@@ -49,7 +49,7 @@ The tool can be executed via the command line with the following arguments:
 
 Example usage:
 ```bash
-java -jar flink-jar-runner.jar \
+java -jar flink-sql-runner.jar \
 --sqlfile /path/to/schema.sql \
 --planfile /path/to/compiledplan.json \
 --udfpath /path/to/jars
@@ -82,7 +82,7 @@ kind: FlinkDeployment
 metadata:
   name: sql-example
 spec:
-  image: datasqrl/flink-jar-runner:latest
+  image: datasqrl/flink-sql-runner:latest
   flinkVersion: v1_19
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "1"
@@ -96,7 +96,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/1.0.0/flink-jar-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/1.0.0/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/schema.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiledplan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -112,7 +112,7 @@ helm install sql-example -f your-helm-values.yaml your-helm-chart
 Running Flink jar-runner locally:
 
 ```bash
-java -jar flink-jar-runner.jar \
+java -jar flink-sql-runner.jar \
 --sqlfile /path/to/schema.sql \
 --planfile /path/to/compiledplan.json \
 --udfpath /path/to/jars
@@ -127,21 +127,21 @@ You can download the JAR directly from Maven Central or Docker Hub:
 ```xml
 <dependency>
 <groupId>com.datasqrl</groupId>
-<artifactId>flink-jar-runner</artifactId>
-<version>0.0.3</version>
+<artifactId>flink-sql-runner</artifactId>
+<version>0.1</version>
 </dependency>
 ```
 - Docker:
 
 ```bash
-docker pull datasqrl/flink-jar-runner:0.0.3-sqrlv0.5.10
+docker pull datasqrl/flink-sql-runner:0.1-sqrlv0.5.10
 ```
 
 ## Contributing
-Contributions are welcome! Feel free to open an issue or submit a [pull request](https://github.com/DataSQRL/flink-jar-runner/pulls) on GitHub.
+Contributions are welcome! Feel free to open an issue or submit a [pull request](https://github.com/DataSQRL/flink-sql-runner/pulls) on GitHub.
 
 ## License
-This project is licensed under the Apache 2 License. See the [LICENSE](https://github.com/DataSQRL/flink-jar-runner/blob/main/LICENSE) file for details.
+This project is licensed under the Apache 2 License. See the [LICENSE](https://github.com/DataSQRL/flink-sql-runner/blob/main/LICENSE) file for details.
 
 ## Contact
-For any questions or support, please open an [issue](https://github.com/DataSQRL/flink-jar-runner/issues) in the GitHub repository.
+For any questions or support, please open an [issue](https://github.com/DataSQRL/flink-sql-runner/issues) in the GitHub repository.
