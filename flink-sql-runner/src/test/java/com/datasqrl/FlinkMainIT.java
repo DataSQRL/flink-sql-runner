@@ -154,12 +154,12 @@ class FlinkMainIT extends AbstractITSupport {
     // test if initial change to compilation plan took effect
     assertThat(transactionDao.getDoubleTA()).isEqualTo(3);
 
-    Path savePoint = Path.of("/tmp/flink-jar-runner/" + System.currentTimeMillis());
+    Path savePoint = Path.of("/tmp/flink-sql-runner/" + System.currentTimeMillis());
 
     // take a savepoint
     CommandLineUtil.execute(
         Path.of("."),
-        "docker exec -t flink-jar-runner-jobmanager-1 bin/flink stop "
+        "docker exec -t flink-sql-runner-jobmanager-1 bin/flink stop "
             + jobResponse.getJobid()
             + " --savepointPath "
             + savePoint);
@@ -245,7 +245,7 @@ class FlinkMainIT extends AbstractITSupport {
 
   @SneakyThrows
   JarRunResponseBody restoreAndExecute(String savepointPath, String... arguments) {
-    var jarFile = new File("target/flink-jar-runner.uber.jar");
+    var jarFile = new File("target/flink-sql-runner.uber.jar");
 
     var uploadResponse = client.uploadJar(jarFile);
 

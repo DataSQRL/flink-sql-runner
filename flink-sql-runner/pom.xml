@@ -215,7 +215,7 @@
             </goals>
             <phase>package</phase>
             <configuration>
-              <finalName>flink-jar-runner.uber</finalName>
+              <finalName>flink-sql-runner.uber</finalName>
               <shadedArtifactAttached>true</shadedArtifactAttached>
               <shadedClassifierName>flink${flink.version}</shadedClassifierName>
               <artifactSet>
@@ -433,7 +433,7 @@
                   <skip>${skipTests}</skip>
                   <arguments>
                     <argument>logs</argument>
-                    <argument>flink-jar-runner-jobmanager-1</argument>
+                    <argument>flink-sql-runner-jobmanager-1</argument>
                   </arguments>
                 </configuration>
               </execution>

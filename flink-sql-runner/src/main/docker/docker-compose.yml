@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-name: flink-jar-runner
+name: flink-sql-runner
 
 networks:
   datasqrl_network:
@@ -50,7 +50,7 @@ services:
         taskmanager.slot.timeout: 30000ms
         jobmanager.rpc.address: jobmanager
         state.savepoints-storage: filesystem
-        state.savepoints.dir: file:///tmp/flink-jar-runner
+        state.savepoints.dir: file:///tmp/flink-sql-runner
     command: jobmanager
     ports:
       - "8081:8081"  # Flink JobManager REST port
@@ -89,7 +89,7 @@ services:
         taskmanager.slot.timeout: 30000ms
         jobmanager.rpc.address: jobmanager
         state.savepoints-storage: filesystem
-        state.savepoints.dir: file:///tmp/flink-jar-runner
+        state.savepoints.dir: file:///tmp/flink-sql-runner
     command: taskmanager
     depends_on:
       jobmanager:

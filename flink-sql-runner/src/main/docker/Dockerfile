@@ -16,6 +16,6 @@
 
 FROM flink:${flink-base-image}
 
-RUN mkdir -p /opt/flink/plugins/flink-jar-runner
-COPY flink-jar-runner.uber.jar /opt/flink/plugins/flink-jar-runner
+RUN mkdir -p /opt/flink/plugins/flink-sql-runner
+COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
 COPY system-functions-discovery-${project.version}.jar /opt/flink/lib/system-functions-discovery.jar

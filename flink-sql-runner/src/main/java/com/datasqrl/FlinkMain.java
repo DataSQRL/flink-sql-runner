@@ -76,7 +76,7 @@ public class FlinkMain {
   private final String udfPath;
 
   public static void main(String[] args) throws Exception {
-    System.out.printf("\n\nExecuting flink-jar-runner: %s\n\n", Arrays.toString(args));
+    System.out.printf("\n\nExecuting flink-sql-runner: %s\n\n", Arrays.toString(args));
 
     CommandLine cl = new CommandLine(new SqlRunner());
     cl.execute(args);
@@ -88,7 +88,7 @@ public class FlinkMain {
     }
 
     new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath).run();
-    System.out.println("Finished flink-jar-runner");
+    System.out.println("Finished flink-sql-runner");
   }
 
   public int run() throws Exception {
