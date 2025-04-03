@@ -19,9 +19,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.datasqrl</groupId>
-  <artifactId>systemfunction-sample</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <parent>
+    <groupId>com.datasqrl.flinkrunner</groupId>
+    <artifactId>helpers</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>system-functions-sample</artifactId>
 
   <dependencies>
     <dependency>
@@ -31,10 +35,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.datasqrl</groupId>
-      <artifactId>flink-sql-runner</artifactId>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>system-functions-discovery</artifactId>
       <version>1.0.0-SNAPSHOT</version>
-      <classifier>service</classifier>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -43,5 +46,4 @@
       <version>1.0.1</version>
     </dependency>
   </dependencies>
-
 </project>
