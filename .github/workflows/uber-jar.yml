@@ -86,7 +86,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             IMAGE=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
           else
-            IMAGE=datasqrl/flink-jar-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
+            IMAGE=datasqrl/flink-sql-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}
           fi
 
           echo "Building image: $IMAGE"
@@ -96,12 +96,12 @@ jobs:
       - name: Rename jar file
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
-          mv target/flink-jar-runner.uber.jar target/flink-jar-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
+          mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release' && github.event.action == 'created'
         uses: softprops/action-gh-release@v1
         with:
-          files: target/flink-jar-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
+          files: flink-sql-runner/target/flink-sql-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
