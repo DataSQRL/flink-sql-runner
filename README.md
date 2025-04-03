@@ -140,6 +140,9 @@ docker pull datasqrl/flink-sql-runner:0.1-sqrlv0.5.10
 ## Contributing
 Contributions are welcome! Feel free to open an issue or submit a [pull request](https://github.com/DataSQRL/flink-sql-runner/pulls) on GitHub.
 
+### Releasing
+Release process is fully automated and driven by github release.  Just [create a new release](https://github.com/DataSQRL/flink-sql-runner/releases/new) and github action will take care of the rest.  The new release version will match the `tag`, so must use [semver](https://semver.org/) when selecting tag name.
+
 ## License
 This project is licensed under the Apache 2 License. See the [LICENSE](https://github.com/DataSQRL/flink-sql-runner/blob/main/LICENSE) file for details.
 
