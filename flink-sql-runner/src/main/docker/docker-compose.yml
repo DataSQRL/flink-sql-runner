@@ -40,7 +40,7 @@ services:
       - datasqrl_network
 
   jobmanager:
-    image: flink:${flink-base-image}
+    image: flink-sql-runner
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
@@ -64,7 +64,6 @@ services:
       - ./test-classes/:/opt/flink/usrlib/
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
-      - ./system-functions-discovery-${project.version}.jar:/opt/flink/lib/system-functions-discovery.jar
       - ./test-classes/systemfunction/system-functions-sample-${project.version}.jar:/opt/flink/lib/systemfunction.jar
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
@@ -80,7 +79,7 @@ services:
       - datasqrl_network
 
   taskmanager:
-    image: flink:${flink-base-image}
+    image: flink-sql-runner
     environment:
       - JDBC_URL=jdbc:postgresql://postgres:5432/datasqrl
       - JDBC_USERNAME=postgres
@@ -100,7 +99,6 @@ services:
       - ./test-classes/:/opt/flink/usrlib/
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
-      - ./system-functions-discovery-${project.version}.jar:/opt/flink/lib/system-functions-discovery.jar
       - ./test-classes/systemfunction/system-functions-sample-${project.version}.jar:/opt/flink/lib/systemfunction.jar
     restart: always
     deploy:

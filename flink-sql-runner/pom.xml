@@ -259,6 +259,31 @@
       </plugin>
 
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>build-docker-image</id>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <workingDirectory>${project.basedir}/target/</workingDirectory>
+              <executable>docker</executable>
+              <skip>${skipTests}</skip>
+              <arguments>
+                <argument>build</argument>
+                <argument>--tag</argument>
+                <argument>flink-sql-runner</argument>
+                <argument>.</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>com.marvinformatics</groupId>
         <artifactId>docker-compose-maven-plugin</artifactId>
         <version>${docker.compose.plugin.version}</version>

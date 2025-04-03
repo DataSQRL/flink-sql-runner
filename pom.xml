@@ -420,7 +420,7 @@
                 <excludeArtifact>system-functions-sample</excludeArtifact>
                 <excludeArtifact>udf-sample</excludeArtifact>
               </excludeArtifacts>
-              
+
               <autoPublish>true</autoPublish>
             </configuration>
           </plugin>

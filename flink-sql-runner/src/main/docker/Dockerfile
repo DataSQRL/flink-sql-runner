@@ -18,3 +18,4 @@ FROM flink:${flink-base-image}
 
 RUN mkdir -p /opt/flink/plugins/flink-jar-runner
 COPY flink-jar-runner.uber.jar /opt/flink/plugins/flink-jar-runner
+COPY system-functions-discovery-${project.version}.jar /opt/flink/lib/system-functions-discovery.jar
