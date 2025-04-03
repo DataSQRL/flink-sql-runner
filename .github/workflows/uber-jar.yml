@@ -48,6 +48,7 @@ jobs:
                     <username>${{ github.actor }}</username>
                     <password>${{ secrets.GITHUB_TOKEN }}</password>
                   </server>
+                  ${{ secrets.MAVEN_SETTINGS_SERVER_CENTRAL }}
                 </servers>
               </settings>" > ~/.m2/settings.xml
 
