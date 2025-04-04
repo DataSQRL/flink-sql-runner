@@ -15,6 +15,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import com.datasqrl.DeserFailureHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -162,6 +163,8 @@ public class KafkaDynamicSource
 
   protected final String tableIdentifier;
 
+  protected final DeserFailureHandler deserFailureHandler;
+
   public KafkaDynamicSource(
       DataType physicalDataType,
       @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -179,7 +182,8 @@ public class KafkaDynamicSource
       Map<KafkaTopicPartition, Long> specificBoundedOffsets,
       long boundedTimestampMillis,
       boolean upsertMode,
-      String tableIdentifier) {
+      String tableIdentifier,
+      DeserFailureHandler deserFailureHandler) {
     // Format attributes
     this.physicalDataType =
         Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
@@ -213,6 +217,7 @@ public class KafkaDynamicSource
     this.boundedTimestampMillis = boundedTimestampMillis;
     this.upsertMode = upsertMode;
     this.tableIdentifier = tableIdentifier;
+    this.deserFailureHandler = deserFailureHandler;
   }
 
   @Override
@@ -268,9 +273,7 @@ public class KafkaDynamicSource
         .forEach((key, value) -> metadataMap.put(VALUE_METADATA_PREFIX + key, value));
 
     // add connector metadata
-    Stream.of(
-            org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource.ReadableMetadata
-                .values())
+    Stream.of(ReadableMetadata.values())
         .forEachOrdered(m -> metadataMap.putIfAbsent(m.key, m.dataType));
 
     return metadataMap;
@@ -312,8 +315,8 @@ public class KafkaDynamicSource
 
   @Override
   public DynamicTableSource copy() {
-    final org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource copy =
-        new org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource(
+    final KafkaDynamicSource copy =
+        new KafkaDynamicSource(
             physicalDataType,
             keyDecodingFormat,
             valueDecodingFormat,
@@ -330,7 +333,8 @@ public class KafkaDynamicSource
             specificBoundedOffsets,
             boundedTimestampMillis,
             upsertMode,
-            tableIdentifier);
+            tableIdentifier,
+            deserFailureHandler);
     copy.producedDataType = producedDataType;
     copy.metadataKeys = metadataKeys;
     copy.watermarkStrategy = watermarkStrategy;
@@ -350,8 +354,7 @@ public class KafkaDynamicSource
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource that =
-        (org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource) o;
+    final KafkaDynamicSource that = (KafkaDynamicSource) o;
     return Objects.equals(producedDataType, that.producedDataType)
         && Objects.equals(metadataKeys, that.metadataKeys)
         && Objects.equals(physicalDataType, that.physicalDataType)
@@ -499,9 +502,7 @@ public class KafkaDynamicSource
         metadataKeys.stream()
             .map(
                 k ->
-                    Stream.of(
-                            org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource
-                                .ReadableMetadata.values())
+                    Stream.of(ReadableMetadata.values())
                         .filter(rm -> rm.key.equals(k))
                         .findFirst()
                         .orElseThrow(IllegalStateException::new))
@@ -523,7 +524,7 @@ public class KafkaDynamicSource
                     keyProjection.length + valueProjection.length, adjustedPhysicalArity))
             .toArray();
 
-    return new org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema(
+    return new DynamicKafkaDeserializationSchema(
         adjustedPhysicalArity,
         keyDeserialization,
         keyProjection,
@@ -532,7 +533,8 @@ public class KafkaDynamicSource
         hasMetadata,
         metadataConverters,
         producedTypeInfo,
-        upsertMode);
+        upsertMode,
+        deserFailureHandler);
   }
 
   private @Nullable DeserializationSchema<RowData> createDeserialization(

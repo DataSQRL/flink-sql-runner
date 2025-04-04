@@ -15,6 +15,9 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import static com.datasqrl.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
+import static com.datasqrl.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
+import static com.datasqrl.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -40,6 +43,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateScanBoundedMode;
 
+import com.datasqrl.DeserFailureHandler;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -107,6 +111,8 @@ public class SafeUpsertKafkaDynamicTableFactory
     options.add(SCAN_BOUNDED_MODE);
     options.add(SCAN_BOUNDED_SPECIFIC_OFFSETS);
     options.add(SCAN_BOUNDED_TIMESTAMP_MILLIS);
+    options.add(SCAN_DESER_FAILURE_HANDLER);
+    options.add(SCAN_DESER_FAILURE_TOPIC);
     options.add(DELIVERY_GUARANTEE);
     options.add(TRANSACTIONAL_ID_PREFIX);
     return options;
@@ -140,6 +146,9 @@ public class SafeUpsertKafkaDynamicTableFactory
 
     final BoundedOptions boundedOptions = getBoundedOptions(tableOptions);
 
+    final DeserFailureHandler deserFailureHandler =
+        DeserFailureHandler.of(tableOptions, properties);
+
     return new KafkaDynamicSource(
         context.getPhysicalRowDataType(),
         keyDecodingFormat,
@@ -157,7 +166,8 @@ public class SafeUpsertKafkaDynamicTableFactory
         boundedOptions.specificOffsets,
         boundedOptions.boundedTimestampMillis,
         true,
-        context.getObjectIdentifier().asSummaryString());
+        context.getObjectIdentifier().asSummaryString(),
+        deserFailureHandler);
   }
 
   @Override
@@ -234,6 +244,7 @@ public class SafeUpsertKafkaDynamicTableFactory
     validateScanBoundedMode(tableOptions);
     validateFormat(keyFormat, valueFormat, tableOptions);
     validatePKConstraints(primaryKeyIndexes);
+    validateDeserFailureHandlerOptions(tableOptions);
   }
 
   private static void validateSink(
