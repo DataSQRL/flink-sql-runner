@@ -38,14 +38,6 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Import GPG Key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          echo "default-key $(gpg --list-keys --with-colons | grep pub | cut -d':' -f5)" >> ~/.gnupg/gpg.conf
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-
       - name: Generate settings.xml
         run: |
           mkdir -p ~/.m2
