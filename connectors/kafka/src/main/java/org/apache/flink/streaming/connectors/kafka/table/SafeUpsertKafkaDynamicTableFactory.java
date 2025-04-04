@@ -149,7 +149,7 @@ public class SafeUpsertKafkaDynamicTableFactory
     final DeserFailureHandler deserFailureHandler =
         DeserFailureHandler.of(tableOptions, properties);
 
-    return new KafkaDynamicSource(
+    return new SafeKafkaDynamicSource(
         context.getPhysicalRowDataType(),
         keyDecodingFormat,
         new DecodingFormatWrapper(valueDecodingFormat),

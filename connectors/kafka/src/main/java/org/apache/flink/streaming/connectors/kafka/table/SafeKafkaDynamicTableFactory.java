@@ -98,7 +98,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Factory for creating configured instances of {@link KafkaDynamicSource} and {@link
+ * Factory for creating configured instances of {@link SafeKafkaDynamicSource} and {@link
  * KafkaDynamicSink}.
  */
 @Internal
@@ -373,7 +373,7 @@ public class SafeKafkaDynamicTableFactory
 
   // --------------------------------------------------------------------------------------------
 
-  protected KafkaDynamicSource createKafkaTableSource(
+  protected SafeKafkaDynamicSource createKafkaTableSource(
       DataType physicalDataType,
       @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
       DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -391,7 +391,7 @@ public class SafeKafkaDynamicTableFactory
       long endTimestampMillis,
       String tableIdentifier,
       DeserFailureHandler deserFailureHandler) {
-    return new KafkaDynamicSource(
+    return new SafeKafkaDynamicSource(
         physicalDataType,
         keyDecodingFormat,
         valueDecodingFormat,

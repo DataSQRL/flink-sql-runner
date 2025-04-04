@@ -48,7 +48,7 @@ import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
+import org.apache.flink.streaming.connectors.kafka.table.SafeDynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -74,7 +74,7 @@ import org.apache.kafka.common.header.Header;
 
 /** A version-agnostic Kafka {@link ScanTableSource}. */
 @Internal
-public class KafkaDynamicSource
+public class SafeKafkaDynamicSource
     implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
 
   private static final String KAFKA_TRANSFORMATION = "kafka";
@@ -165,7 +165,7 @@ public class KafkaDynamicSource
 
   protected final DeserFailureHandler deserFailureHandler;
 
-  public KafkaDynamicSource(
+  public SafeKafkaDynamicSource(
       DataType physicalDataType,
       @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
       DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -315,8 +315,8 @@ public class KafkaDynamicSource
 
   @Override
   public DynamicTableSource copy() {
-    final KafkaDynamicSource copy =
-        new KafkaDynamicSource(
+    final SafeKafkaDynamicSource copy =
+        new SafeKafkaDynamicSource(
             physicalDataType,
             keyDecodingFormat,
             valueDecodingFormat,
@@ -354,7 +354,7 @@ public class KafkaDynamicSource
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final KafkaDynamicSource that = (KafkaDynamicSource) o;
+    final SafeKafkaDynamicSource that = (SafeKafkaDynamicSource) o;
     return Objects.equals(producedDataType, that.producedDataType)
         && Objects.equals(metadataKeys, that.metadataKeys)
         && Objects.equals(physicalDataType, that.physicalDataType)
@@ -524,7 +524,7 @@ public class KafkaDynamicSource
                     keyProjection.length + valueProjection.length, adjustedPhysicalArity))
             .toArray();
 
-    return new DynamicKafkaDeserializationSchema(
+    return new SafeDynamicKafkaDeserializationSchema(
         adjustedPhysicalArity,
         keyDeserialization,
         keyProjection,

@@ -32,8 +32,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-/** A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicSource}. */
-class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
+/** A specific {@link KafkaSerializationSchema} for {@link SafeKafkaDynamicSource}. */
+class SafeDynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
 
   private static final long serialVersionUID = 1L;
 
@@ -53,7 +53,7 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
   private final DeserFailureHandler deserFailureHandler;
 
-  DynamicKafkaDeserializationSchema(
+  SafeDynamicKafkaDeserializationSchema(
       int physicalArity,
       @Nullable DeserializationSchema<RowData> keyDeserialization,
       int[] keyProjection,
