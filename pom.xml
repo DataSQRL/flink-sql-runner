@@ -51,6 +51,7 @@
 
   <modules>
     <module>system-functions-discovery</module>
+    <module>connectors</module>
     <module>helpers</module>
     <module>flink-sql-runner</module>
   </modules>
