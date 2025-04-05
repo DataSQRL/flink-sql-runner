@@ -52,7 +52,7 @@ public class DeserFailureHandler {
   }
 
   public void deserWithFailureHandling(
-      ConsumerRecord<byte[], byte[]> record, DeserializationCaller deser) throws IOException {
+      ConsumerRecord<byte[], byte[]> record, DeserializationCaller deser) throws Exception {
 
     try {
       deser.call();
@@ -80,6 +80,6 @@ public class DeserFailureHandler {
   }
 
   public interface DeserializationCaller extends Serializable {
-    void call() throws IOException;
+    void call() throws Exception;
   }
 }
