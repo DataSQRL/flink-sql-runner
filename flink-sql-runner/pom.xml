@@ -233,6 +233,13 @@
                 </excludes>
               </artifactSet>
               <filters>
+                <!-- Exclude original AvroDeserializationSchema, because for now we overwrite that class downstream. -->
+                <filter>
+                  <artifact>org.apache.flink:flink-avro</artifact>
+                  <excludes>
+                    <exclude>org/apache/flink/formats/avro/AvroDeserializationSchema**</exclude>
+                  </excludes>
+                </filter>
                 <filter>
                   <artifact>*:*</artifact>
                   <excludes>

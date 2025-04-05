@@ -173,7 +173,16 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
       ((JsonDecoder) this.decoder).configure(inputStream);
     }
 
-    return datumReader.read(null, decoder);
+    try {
+      return datumReader.read(null, decoder);
+    } catch (Exception e) {
+      /*
+       * If the deserialization fails, {@code datumReader} has to be reset, because {@code Decoder} will remain in an
+       * inconsistent state, which will make subsequent valid deserialization attempts to fail.
+       */
+      this.datumReader = null;
+      throw e;
+    }
   }
 
   void checkAvroInitialized() throws IOException {
