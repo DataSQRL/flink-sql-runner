@@ -44,6 +44,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateScanBoundedMode;
 
 import com.datasqrl.DeserFailureHandler;
+import com.google.auto.service.AutoService;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -74,12 +75,14 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
 /** Upsert-Kafka factory. */
+@AutoService(Factory.class)
 public class SafeUpsertKafkaDynamicTableFactory
     implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 

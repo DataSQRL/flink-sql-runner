@@ -94,6 +94,7 @@
     <kafka.version>3.2.0-1.19</kafka.version>
     <jdbc.version>3.2.0-1.19</jdbc.version>
     <lombok.version>1.18.38</lombok.version>
+    <auto.service.version>1.1.1</auto.service.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>11</maven.compiler.source>
@@ -118,6 +119,11 @@
         <version>${slf4j.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.auto.service</groupId>
+        <artifactId>auto-service</artifactId>
+        <version>${auto.service.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

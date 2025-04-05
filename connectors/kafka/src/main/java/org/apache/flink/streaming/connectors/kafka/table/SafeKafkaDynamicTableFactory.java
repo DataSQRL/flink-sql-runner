@@ -53,6 +53,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateTableSourceOptions;
 
 import com.datasqrl.DeserFailureHandler;
+import com.google.auto.service.AutoService;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -64,7 +65,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
@@ -89,6 +89,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FactoryUtil.TableFactoryHelper;
 import org.apache.flink.table.factories.SerializationFormatFactory;
@@ -101,7 +102,7 @@ import org.slf4j.LoggerFactory;
  * Factory for creating configured instances of {@link SafeKafkaDynamicSource} and {@link
  * KafkaDynamicSink}.
  */
-@Internal
+@AutoService(Factory.class)
 public class SafeKafkaDynamicTableFactory
     implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
