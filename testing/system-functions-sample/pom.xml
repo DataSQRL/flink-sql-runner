@@ -21,11 +21,28 @@
 
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
-    <artifactId>flink-sql-runner-parent</artifactId>
+    <artifactId>testing</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>system-functions-discovery</artifactId>
-  <description>Holds the AutoRegisterSystemFunction interface that can be used to declare system functions</description>
+  <artifactId>system-functions-sample</artifactId>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-table-common</artifactId>
+      <version>1.19.2</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>system-functions-discovery</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+    </dependency>
+  </dependencies>
 </project>
