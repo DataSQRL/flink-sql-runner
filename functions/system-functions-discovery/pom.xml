@@ -21,7 +21,7 @@
 
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
-    <artifactId>flink-sql-runner-parent</artifactId>
+    <artifactId>functions</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
 
