@@ -27,9 +27,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DeserFailureHandler {
+public class DeserFailureHandler implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(DeserFailureHandler.class);
+  private static final long serialVersionUID = 1L;
 
   private final DeserFailureHandlerType handlerType;
   private final @Nullable DeserFailureProducer producer;
