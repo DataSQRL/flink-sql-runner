@@ -188,6 +188,20 @@
       <version>1.0.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.core</artifactId>
+      <version>0.8.13</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.agent</artifactId>
+      <version>0.8.13</version>
+      <classifier>runtime</classifier>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -283,6 +297,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <groupId>com.marvinformatics</groupId>
         <artifactId>docker-compose-maven-plugin</artifactId>
@@ -364,6 +379,17 @@
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>system-functions-discovery</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-jacoco-cli</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <includeArtifactIds>org.jacoco.agent</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
