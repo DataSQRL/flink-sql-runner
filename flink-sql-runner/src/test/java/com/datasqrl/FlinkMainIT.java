@@ -257,14 +257,9 @@ class FlinkMainIT extends AbstractITSupport {
     var instrumenter = new Instrumenter(new OfflineInstrumentationAccessGenerator());
 
     dest.getParentFile().mkdirs();
-    final InputStream input = new FileInputStream(src);
-    try {
-      final OutputStream output = new FileOutputStream(dest);
-      try {
-        return instrumenter.instrumentAll(input, output, src.getAbsolutePath());
-      } finally {
-        output.close();
-      }
+    try (final InputStream input = new FileInputStream(src);
+         final OutputStream output = new FileOutputStream(dest)) {
+      return instrumenter.instrumentAll(input, output, src.getAbsolutePath());
     } catch (final IOException e) {
       dest.delete();
       throw e;
