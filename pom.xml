@@ -51,6 +51,7 @@
 
   <modules>
     <module>functions</module>
+    <module>types</module>
     <module>testing</module>
     <module>flink-sql-runner</module>
   </modules>
