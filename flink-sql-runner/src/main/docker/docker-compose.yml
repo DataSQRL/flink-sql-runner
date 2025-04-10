@@ -65,6 +65,8 @@ services:
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
       - ./test-classes/systemfunction/system-functions-sample-${project.version}.jar:/opt/flink/lib/systemfunction.jar
+      - ./org.jacoco.agent-0.8.13-runtime.jar:/opt/flink/lib/jacoco.agent.jar
+      - ./jacoco.job.exec:/opt/flink/jacoco.exec
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 1s
@@ -100,6 +102,7 @@ services:
       - ./test-classes/datasources/:/datasources/
       - /tmp:/tmp
       - ./test-classes/systemfunction/system-functions-sample-${project.version}.jar:/opt/flink/lib/systemfunction.jar
+      - ./org.jacoco.agent-0.8.13-runtime.jar:/opt/flink/lib/jacoco.agent.jar
     restart: always
     deploy:
       resources:

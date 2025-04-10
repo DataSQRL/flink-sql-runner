@@ -29,6 +29,11 @@ import com.nextbreakpoint.flink.client.model.JobStatus;
 import com.nextbreakpoint.flink.client.model.TerminationMode;
 import com.nextbreakpoint.flink.client.model.UploadStatus;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -45,6 +50,8 @@ import lombok.SneakyThrows;
 import org.apache.flink.shaded.curator5.com.google.common.base.Objects;
 import org.apache.flink.shaded.curator5.com.google.common.collect.Lists;
 import org.awaitility.core.ThrowingRunnable;
+import org.jacoco.core.instr.Instrumenter;
+import org.jacoco.core.runtime.OfflineInstrumentationAccessGenerator;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.SqlLogger;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -243,11 +250,29 @@ class FlinkMainIT extends AbstractITSupport {
     return restoreAndExecute(null, arguments);
   }
 
+  private int instrument(final File src, final File dest) throws IOException {
+    if (dest.exists()) {
+      return 0;
+    }
+    var instrumenter = new Instrumenter(new OfflineInstrumentationAccessGenerator());
+
+    dest.getParentFile().mkdirs();
+    try (final InputStream input = new FileInputStream(src);
+        final OutputStream output = new FileOutputStream(dest)) {
+      return instrumenter.instrumentAll(input, output, src.getAbsolutePath());
+    } catch (final IOException e) {
+      dest.delete();
+      throw e;
+    }
+  }
+
   @SneakyThrows
   JarRunResponseBody restoreAndExecute(String savepointPath, String... arguments) {
-    var jarFile = new File("target/flink-sql-runner.uber.jar");
+    var originalFile = new File("target/flink-sql-runner.uber.jar");
+    var instrumentedJarFile = new File("target/flink-sql-runner.jacoco.jar");
+    instrument(originalFile, instrumentedJarFile);
 
-    var uploadResponse = client.uploadJar(jarFile);
+    var uploadResponse = client.uploadJar(instrumentedJarFile);
 
     assertThat(uploadResponse.getStatus()).isEqualTo(UploadStatus.SUCCESS);
 

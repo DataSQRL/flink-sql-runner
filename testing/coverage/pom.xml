@@ -58,6 +58,8 @@
               <dataFileIncludes>
                 <dataFileInclude>**/jacoco.exec</dataFileInclude>
                 <dataFileInclude>**/jacoco-it.exec</dataFileInclude>
+                <dataFileInclude>**/jacoco.task.exec</dataFileInclude>
+                <dataFileInclude>**/jacoco.job.exec</dataFileInclude>
               </dataFileIncludes>
             </configuration>
           </execution>
