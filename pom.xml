@@ -286,19 +286,23 @@
       </plugin>
 
       <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.13</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>prepare-agent</goal>
-              <goal>prepare-agent-integration</goal>
-              <goal>report</goal>
-              <goal>report-integration</goal>
-            </goals>
-          </execution>
-        </executions>
+        <groupId>com.marvinformatics.jacoco</groupId>
+        <artifactId>easy-jacoco-maven-plugin</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <configuration>
+          <projectRules>
+            <rule>
+              <limits>
+                <limit>
+                  <counter>INSTRUCTION</counter>
+                  <value>COVEREDRATIO</value>
+                  <minimum>0.70</minimum>
+                </limit>
+              </limits>
+            </rule>
+          </projectRules>
+          <haltOnFailure>true</haltOnFailure>
+        </configuration>
       </plugin>
     </plugins>
   </build>

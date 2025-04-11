@@ -58,9 +58,21 @@
               <dataFileIncludes>
                 <dataFileInclude>**/jacoco.exec</dataFileInclude>
                 <dataFileInclude>**/jacoco-it.exec</dataFileInclude>
-                <dataFileInclude>**/jacoco.task.exec</dataFileInclude>
                 <dataFileInclude>**/jacoco.job.exec</dataFileInclude>
               </dataFileIncludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>report-flink-integration-test</id>
+            <goals>
+              <goal>report-aggregate</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <dataFileIncludes>
+                <dataFileInclude>**/jacoco.job.exec</dataFileInclude>
+              </dataFileIncludes>
+              <outputDirectory>${project.reporting.outputDirectory}/jacoco-integration</outputDirectory>
             </configuration>
           </execution>
         </executions>
