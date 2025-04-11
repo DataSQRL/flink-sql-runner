@@ -50,6 +50,7 @@
   </developers>
 
   <modules>
+    <module>formats</module>
     <module>functions</module>
     <module>types</module>
     <module>testing</module>
