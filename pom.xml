@@ -288,7 +288,7 @@
       <plugin>
         <groupId>com.marvinformatics.jacoco</groupId>
         <artifactId>easy-jacoco-maven-plugin</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.1</version>
         <configuration>
           <projectRules>
             <rule>
@@ -302,6 +302,9 @@
             </rule>
           </projectRules>
           <haltOnFailure>true</haltOnFailure>
+          <projectExtraProperties>
+            <license.skip>true</license.skip>
+          </projectExtraProperties>
         </configuration>
       </plugin>
     </plugins>
