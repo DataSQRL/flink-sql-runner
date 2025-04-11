@@ -273,6 +273,23 @@
       </plugin>
 
       <plugin>
+        <groupId>com.marvinformatics.jacoco</groupId>
+        <artifactId>easy-jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>instrument-uber-jar</id>
+            <goals>
+              <goal>instrument-jar</goal>
+            </goals>
+            <configuration>
+              <source>${project.build.directory}/flink-sql-runner.uber.jar</source>
+              <destination>${project.build.directory}/flink-sql-runner.jacoco.jar</destination>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>${exec.plugin.version}</version>

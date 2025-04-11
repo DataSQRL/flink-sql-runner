@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright © 2024 DataSQRL (contact@datasqrl.com)
@@ -16,22 +15,10 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
-  <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>com.datasqrl.flinkrunner</groupId>
-    <artifactId>flink-sql-runner-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-  </parent>
-
-  <artifactId>testing</artifactId>
-  <packaging>pom</packaging>
-
-  <modules>
-    <module>system-functions-sample</module>
-    <module>udf-sample</module>
-  </modules>
-
-</project>
+<extensions>
+  <extension>
+    <groupId>com.marvinformatics.jacoco</groupId>
+    <artifactId>easy-jacoco-maven-plugin</artifactId>
+    <version>0.1.1</version>
+  </extension>
+</extensions>
