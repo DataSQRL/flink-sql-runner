@@ -17,32 +17,28 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
-    <artifactId>testing</artifactId>
+    <artifactId>flink-sql-runner-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>system-functions-sample</artifactId>
+  <artifactId>connectors</artifactId>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>kafka-safe</module>
+  </modules>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-common</artifactId>
-      <version>1.19.2</version>
+      <artifactId>flink-connector-base</artifactId>
+      <version>${flink.version}</version>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
-      <artifactId>system-functions-discovery</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
     </dependency>
   </dependencies>
 </project>

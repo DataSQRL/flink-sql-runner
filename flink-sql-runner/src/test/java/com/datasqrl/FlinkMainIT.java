@@ -321,4 +321,10 @@ class FlinkMainIT extends AbstractITSupport {
     String planFile = "/opt/flink/usrlib/plans/compiled-plan-udf.json";
     execute("--planfile", planFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
+
+  @Test
+  void givenKafkaPlanScript_whenExecuting_thenSuccess() {
+    String planFile = "/opt/flink/usrlib/plans/kafka_plan.json";
+    execute("--planfile", planFile);
+  }
 }

@@ -39,6 +39,11 @@
       <artifactId>system-functions-discovery</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>kafka-safe</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
