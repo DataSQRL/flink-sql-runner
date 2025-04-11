@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.csv;
+package com.datasqrl.flink.format.csv;
 
 import java.io.IOException;
 import java.util.Set;
