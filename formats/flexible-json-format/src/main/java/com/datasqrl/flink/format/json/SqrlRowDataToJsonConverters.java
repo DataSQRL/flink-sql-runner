@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.format;
+package com.datasqrl.flink.format.json;
 
 import com.datasqrl.types.json.FlinkJsonType;
 import org.apache.flink.formats.common.TimestampFormat;
