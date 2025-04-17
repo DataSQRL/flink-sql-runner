@@ -1,1 +1,1 @@
-com.datasqrl.format.FlexibleJsonFormat
+com.datasqrl.flink.format.json.FlexibleJsonFormat
