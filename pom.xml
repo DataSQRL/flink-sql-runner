@@ -53,6 +53,7 @@
     <module>formats</module>
     <module>functions</module>
     <module>types</module>
+    <module>connectors</module>
     <module>testing</module>
     <module>flink-sql-runner</module>
   </modules>

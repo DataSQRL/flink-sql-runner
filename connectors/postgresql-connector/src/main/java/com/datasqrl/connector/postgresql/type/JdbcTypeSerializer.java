@@ -13,22 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.types.vector;
+package com.datasqrl.connector.postgresql.type;
 
-import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.types.logical.LogicalType;
 
-@DataTypeHint(
-    value = "RAW",
-    bridgedTo = FlinkVectorType.class,
-    rawSerializer = FlinkVectorTypeSerializer.class)
-public class FlinkVectorType {
-  public double[] value;
+public interface JdbcTypeSerializer<D, S> {
 
-  public FlinkVectorType(double[] value) {
-    this.value = value;
+  String getDialectId();
+
+  Class getConversionClass();
+
+  String dialectTypeName();
+
+  GenericDeserializationConverter<D> getDeserializerConverter();
+
+  GenericSerializationConverter<S> getSerializerConverter(LogicalType type);
+
+  interface GenericSerializationConverter<T> {
+    T create();
   }
 
-  public double[] getValue() {
-    return value;
+  interface GenericDeserializationConverter<T> {
+    T create();
   }
 }
