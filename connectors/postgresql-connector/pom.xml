@@ -57,9 +57,25 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>json-type</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vector-type</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>flexible-json-format</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>system-functions-discovery</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
