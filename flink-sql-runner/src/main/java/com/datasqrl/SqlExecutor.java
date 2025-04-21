@@ -66,9 +66,10 @@ class SqlExecutor {
       standardLibraryFunctions.forEach(
           function -> {
             String sql =
-                String.format(
-                    "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
-                    getFunctionNameFromClass(function.getClass()), function.getClass().getName());
+                "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;"
+                    .formatted(
+                        getFunctionNameFromClass(function.getClass()),
+                        function.getClass().getName());
 
             System.out.println(sql);
 

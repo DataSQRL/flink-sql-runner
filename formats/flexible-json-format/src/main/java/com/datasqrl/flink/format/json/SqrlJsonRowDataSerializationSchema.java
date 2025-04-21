@@ -31,6 +31,7 @@ package com.datasqrl.flink.format.json; /*
                                          * limitations under the License.
                                          */
 
+import java.io.Serial;
 import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -59,7 +60,7 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
  */
 @Internal
 public class SqrlJsonRowDataSerializationSchema implements SerializationSchema<RowData> {
-  private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 1L;
 
   /** RowType to generate the runtime converter. */
   private final RowType rowType;
@@ -118,7 +119,7 @@ public class SqrlJsonRowDataSerializationSchema implements SerializationSchema<R
       runtimeConverter.convert(mapper, node, row);
       return mapper.writeValueAsBytes(node);
     } catch (Throwable t) {
-      throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
+      throw new RuntimeException("Could not serialize row '%s'.".formatted(row), t);
     }
   }
 

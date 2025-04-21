@@ -15,6 +15,7 @@
  */
 package com.datasqrl.connector.postgresql.jdbc;
 
+import java.io.Serial;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -36,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType.RowField;
  */
 public class SqrlPostgresDialect extends AbstractDialect {
 
-  private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 1L;
 
   // Define MAX/MIN precision of TIMESTAMP type according to PostgreSQL docs:
   // https://www.postgresql.org/docs/12/datatype-datetime.html
@@ -93,8 +94,8 @@ public class SqrlPostgresDialect extends AbstractDialect {
 
     if (!unsupportedTypes.isEmpty()) {
       throw new ValidationException(
-          String.format(
-              "The %s dialect doesn't support type: %s.", this.dialectName(), unsupportedTypes));
+          "The %s dialect doesn't support type: %s."
+              .formatted(this.dialectName(), unsupportedTypes));
     }
 
     super.validate(rowType);

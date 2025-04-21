@@ -40,8 +40,7 @@ public class JsonArray extends ScalarFunction implements AutoRegisterSystemFunct
     ArrayNode arrayNode = mapper.createArrayNode();
 
     for (Object value : objects) {
-      if (value instanceof FlinkJsonType) {
-        FlinkJsonType type = (FlinkJsonType) value;
+      if (value instanceof FlinkJsonType type) {
         arrayNode.add(type.json);
       } else {
         arrayNode.addPOJO(value);

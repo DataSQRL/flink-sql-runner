@@ -43,7 +43,7 @@ public class EnvironmentVariablesUtils {
       String key = matcher.group(1);
       String envValue = envVariables.get(key);
       if (envValue == null) {
-        throw new IllegalStateException(String.format("Missing environment variable: %s", key));
+        throw new IllegalStateException("Missing environment variable: %s".formatted(key));
       }
       matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
     }

@@ -91,8 +91,8 @@ public class JsonArrayAgg extends AggregateFunction<FlinkJsonType, ArrayAgg> {
   public FlinkJsonType getValue(ArrayAgg accumulator) {
     ArrayNode arrayNode = mapper.createArrayNode();
     for (Object o : accumulator.getObjects()) {
-      if (o instanceof FlinkJsonType) {
-        arrayNode.add(((FlinkJsonType) o).json);
+      if (o instanceof FlinkJsonType type) {
+        arrayNode.add(type.json);
       } else {
         arrayNode.addPOJO(o);
       }

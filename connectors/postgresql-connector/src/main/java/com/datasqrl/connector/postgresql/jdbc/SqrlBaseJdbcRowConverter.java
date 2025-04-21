@@ -66,8 +66,8 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
 
     if (root == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
       return val ->
-          val instanceof LocalDateTime
-              ? TimestampData.fromLocalDateTime((LocalDateTime) val)
+          val instanceof LocalDateTime ldt
+              ? TimestampData.fromLocalDateTime(ldt)
               : TimestampData.fromTimestamp((Timestamp) val);
     } else if (root == LogicalTypeRoot.ARRAY) {
       ArrayType arrayType = (ArrayType) type;
@@ -101,10 +101,10 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
     // Scalar arrays of any dimension are one array call
     if (isScalarArray(type)) {
       Object[] boxed;
-      if (data instanceof GenericArrayData) {
-        boxed = ((GenericArrayData) data).toObjectArray();
-      } else if (data instanceof BinaryArrayData) {
-        boxed = ((BinaryArrayData) data).toObjectArray(getBaseFlinkArrayType(type));
+      if (data instanceof GenericArrayData arrayData) {
+        boxed = arrayData.toObjectArray();
+      } else if (data instanceof BinaryArrayData arrayData) {
+        boxed = arrayData.toObjectArray(getBaseFlinkArrayType(type));
       } else {
         throw new RuntimeException("Unsupported ArrayData type: " + data.getClass());
       }
