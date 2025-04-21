@@ -131,7 +131,7 @@ public class SqrlJsonRowDataSerializationSchema implements SerializationSchema<R
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SqrlJsonRowDataSerializationSchema that = (SqrlJsonRowDataSerializationSchema) o;
+    var that = (SqrlJsonRowDataSerializationSchema) o;
     return rowType.equals(that.rowType)
         && timestampFormat.equals(that.timestampFormat)
         && mapNullKeyMode.equals(that.mapNullKeyMode)

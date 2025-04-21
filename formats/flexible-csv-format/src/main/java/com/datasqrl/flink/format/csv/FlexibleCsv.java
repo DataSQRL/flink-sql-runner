@@ -51,7 +51,7 @@ public class FlexibleCsv implements DeserializationFormatFactory {
     ProjectableDecodingFormat<DeserializationSchema<RowData>> decodingFormat =
         (ProjectableDecodingFormat) csvJson.createDecodingFormat(factoryContext, formatOptions);
 
-    return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
+    return new ProjectableDecodingFormat<>() {
       @SneakyThrows
       @Override
       public DeserializationSchema<RowData> createRuntimeDecoder(

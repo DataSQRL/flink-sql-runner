@@ -16,7 +16,6 @@
 package com.datasqrl;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;

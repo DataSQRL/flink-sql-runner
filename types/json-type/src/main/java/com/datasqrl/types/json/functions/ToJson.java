@@ -21,8 +21,6 @@ import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -59,16 +57,16 @@ public class ToJson extends ScalarFunction implements AutoRegisterSystemFunction
 
   JsonNode unboxFlinkToJsonNode(Object json) {
     if (json instanceof Row row) {
-      ObjectNode objectNode = mapper.createObjectNode();
-      String[] fieldNames =
+      var objectNode = mapper.createObjectNode();
+      var fieldNames =
           row.getFieldNames(true).toArray(new String[0]); // Get field names in an array
       for (String fieldName : fieldNames) {
-        Object field = row.getField(fieldName);
+        var field = row.getField(fieldName);
         objectNode.set(fieldName, unboxFlinkToJsonNode(field)); // Recursively unbox each field
       }
       return objectNode;
     } else if (json instanceof Row[] rows) {
-      ArrayNode arrayNode = mapper.createArrayNode();
+      var arrayNode = mapper.createArrayNode();
       for (Row row : rows) {
         if (row == null) {
           arrayNode.addNull();

@@ -19,7 +19,6 @@ import com.datasqrl.types.json.FlinkJsonType;
 import java.util.ArrayList;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -89,7 +88,7 @@ public class JsonArrayAgg extends AggregateFunction<FlinkJsonType, ArrayAgg> {
 
   @Override
   public FlinkJsonType getValue(ArrayAgg accumulator) {
-    ArrayNode arrayNode = mapper.createArrayNode();
+    var arrayNode = mapper.createArrayNode();
     for (Object o : accumulator.getObjects()) {
       if (o instanceof FlinkJsonType type) {
         arrayNode.add(type.json);

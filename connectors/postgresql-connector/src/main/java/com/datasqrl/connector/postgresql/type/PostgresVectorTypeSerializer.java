@@ -15,8 +15,6 @@
  */
 package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer.GenericDeserializationConverter;
-import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer.GenericSerializationConverter;
 import com.datasqrl.types.vector.FlinkVectorType;
 import com.datasqrl.types.vector.FlinkVectorTypeSerializer;
 import java.util.Arrays;
@@ -48,7 +46,7 @@ public class PostgresVectorTypeSerializer
   public GenericDeserializationConverter<JdbcDeserializationConverter> getDeserializerConverter() {
     return () ->
         (val) -> {
-          FlinkVectorType t = (FlinkVectorType) val;
+          var t = (FlinkVectorType) val;
           return t.getValue();
         };
   }
@@ -56,15 +54,15 @@ public class PostgresVectorTypeSerializer
   @Override
   public GenericSerializationConverter<JdbcSerializationConverter> getSerializerConverter(
       LogicalType type) {
-    FlinkVectorTypeSerializer flinkVectorTypeSerializer = new FlinkVectorTypeSerializer();
+    var flinkVectorTypeSerializer = new FlinkVectorTypeSerializer();
     return () ->
         (val, index, statement) -> {
           if (val != null && !val.isNullAt(index)) {
             RawValueData<FlinkVectorType> object = val.getRawValue(index);
-            FlinkVectorType vec = object.toObject(flinkVectorTypeSerializer);
+            var vec = object.toObject(flinkVectorTypeSerializer);
 
             if (vec != null) {
-              PGobject pgObject = new PGobject();
+              var pgObject = new PGobject();
               pgObject.setType("vector");
               pgObject.setValue(Arrays.toString(vec.getValue()));
               statement.setObject(index, pgObject);

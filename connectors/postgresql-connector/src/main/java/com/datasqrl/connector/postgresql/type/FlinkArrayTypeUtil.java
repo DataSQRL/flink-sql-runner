@@ -29,34 +29,33 @@ public class FlinkArrayTypeUtil {
 
   public static boolean isScalarArray(LogicalType type) {
     if (type instanceof ArrayType arrayType) {
-      LogicalType elementType = arrayType.getElementType();
+      var elementType = arrayType.getElementType();
       return isScalar(elementType) || isScalarArray(elementType);
     }
     return false;
   }
 
   public static boolean isScalar(LogicalType type) {
-    switch (type.getTypeRoot()) {
-      case BOOLEAN:
-      case TINYINT:
-      case SMALLINT:
-      case INTEGER:
-      case BIGINT:
-      case FLOAT:
-      case DOUBLE:
-      case CHAR:
-      case VARCHAR:
-      case BINARY:
-      case VARBINARY:
-      case DATE:
-      case TIME_WITHOUT_TIME_ZONE:
-      case TIMESTAMP_WITH_TIME_ZONE:
-      case TIMESTAMP_WITHOUT_TIME_ZONE:
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-      case DECIMAL:
-        return true;
-      default:
-        return false;
-    }
+    return switch (type.getTypeRoot()) {
+      case BOOLEAN,
+              TINYINT,
+              SMALLINT,
+              INTEGER,
+              BIGINT,
+              FLOAT,
+              DOUBLE,
+              CHAR,
+              VARCHAR,
+              BINARY,
+              VARBINARY,
+              DATE,
+              TIME_WITHOUT_TIME_ZONE,
+              TIMESTAMP_WITH_TIME_ZONE,
+              TIMESTAMP_WITHOUT_TIME_ZONE,
+              TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+              DECIMAL ->
+          true;
+      default -> false;
+    };
   }
 }

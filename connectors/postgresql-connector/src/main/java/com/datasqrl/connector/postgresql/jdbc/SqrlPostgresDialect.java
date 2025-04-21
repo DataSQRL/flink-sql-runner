@@ -68,9 +68,9 @@ public class SqrlPostgresDialect extends AbstractDialect {
   @Override
   public Optional<String> getUpsertStatement(
       String tableName, String[] fieldNames, String[] uniqueKeyFields) {
-    String uniqueColumns =
+    var uniqueColumns =
         Arrays.stream(uniqueKeyFields).map(this::quoteIdentifier).collect(Collectors.joining(", "));
-    String updateClause =
+    var updateClause =
         Arrays.stream(fieldNames)
             .map(f -> quoteIdentifier(f) + "=EXCLUDED." + quoteIdentifier(f))
             .collect(Collectors.joining(", "));

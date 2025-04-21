@@ -71,15 +71,14 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
   @Override
   public DynamicTableSink createDynamicTableSink(Context context) {
-    final FactoryUtil.TableFactoryHelper helper =
-        FactoryUtil.createTableFactoryHelper(this, context);
-    final ReadableConfig config = helper.getOptions();
+    final var helper = FactoryUtil.createTableFactoryHelper(this, context);
+    final var config = helper.getOptions();
 
     helper.validate();
     validateConfigOptions(config, context.getClassLoader());
     validateDataTypeWithJdbcDialect(
         context.getPhysicalRowDataType(), config.get(URL), context.getClassLoader());
-    InternalJdbcConnectionOptions jdbcOptions = getJdbcOptions(config, context.getClassLoader());
+    var jdbcOptions = getJdbcOptions(config, context.getClassLoader());
 
     return new JdbcDynamicTableSink(
         jdbcOptions,
@@ -91,15 +90,15 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
   private static void validateDataTypeWithJdbcDialect(
       DataType dataType, String url, ClassLoader classLoader) {
-    JdbcDialect dialect = loadDialect(url, classLoader);
+    var dialect = loadDialect(url, classLoader);
 
     dialect.validate((RowType) dataType.getLogicalType());
   }
 
   private InternalJdbcConnectionOptions getJdbcOptions(
       ReadableConfig readableConfig, ClassLoader classLoader) {
-    final String url = readableConfig.get(URL);
-    final InternalJdbcConnectionOptions.Builder builder =
+    final var url = readableConfig.get(URL);
+    final var builder =
         InternalJdbcConnectionOptions.builder()
             .setClassLoader(classLoader)
             .setDBUrl(url)
@@ -116,7 +115,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   }
 
   private static JdbcDialect loadDialect(String url, ClassLoader classLoader) {
-    JdbcDialect dialect = JdbcDialectLoader.load(url, classLoader);
+    var dialect = JdbcDialectLoader.load(url, classLoader);
     // sqrl: standard postgres dialect with extended dialect
     if (dialect.dialectName().equalsIgnoreCase("PostgreSQL")) {
       return new SqrlPostgresDialect();
@@ -125,7 +124,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   }
 
   private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
-    final JdbcExecutionOptions.Builder builder = new JdbcExecutionOptions.Builder();
+    final var builder = new JdbcExecutionOptions.Builder();
     builder.withBatchSize(config.get(SINK_BUFFER_FLUSH_MAX_ROWS));
     builder.withBatchIntervalMs(config.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
     builder.withMaxRetries(config.get(SINK_MAX_RETRIES));
@@ -135,7 +134,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   private JdbcDmlOptions getJdbcDmlOptions(
       InternalJdbcConnectionOptions jdbcOptions, DataType dataType, int[] primaryKeyIndexes) {
 
-    String[] keyFields =
+    var keyFields =
         Arrays.stream(primaryKeyIndexes)
             .mapToObj(i -> DataType.getFieldNames(dataType).get(i))
             .toArray(String[]::new);
@@ -209,7 +208,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   }
 
   private void validateConfigOptions(ReadableConfig config, ClassLoader classLoader) {
-    String jdbcUrl = config.get(URL);
+    var jdbcUrl = config.get(URL);
     //        JdbcDialectLoader.load(jdbcUrl, classLoader);
 
     checkAllOrNone(config, new ConfigOption[] {USERNAME, PASSWORD});
@@ -263,14 +262,13 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   }
 
   private void checkAllOrNone(ReadableConfig config, ConfigOption<?>[] configOptions) {
-    int presentCount = 0;
+    var presentCount = 0;
     for (ConfigOption configOption : configOptions) {
       if (config.getOptional(configOption).isPresent()) {
         presentCount++;
       }
     }
-    String[] propertyNames =
-        Arrays.stream(configOptions).map(ConfigOption::key).toArray(String[]::new);
+    var propertyNames = Arrays.stream(configOptions).map(ConfigOption::key).toArray(String[]::new);
     Preconditions.checkArgument(
         configOptions.length == presentCount || presentCount == 0,
         "Either all or none of the following options should be provided:\n"

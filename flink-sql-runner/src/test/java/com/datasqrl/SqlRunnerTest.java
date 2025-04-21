@@ -52,8 +52,8 @@ class SqlRunnerTest {
     String[] args = {"-s", sqlFile.getAbsolutePath()};
 
     // Use CommandLine to parse and execute
-    CommandLine cmd = new CommandLine(new FlinkMain.SqlRunner());
-    int exitCode = cmd.execute(args); // Executes the SqlRunner logic with arguments
+    var cmd = new CommandLine(new FlinkMain.SqlRunner());
+    var exitCode = cmd.execute(args); // Executes the SqlRunner logic with arguments
 
     // Assert the exit code is as expected (0 for success)
     assertEquals(0, exitCode);

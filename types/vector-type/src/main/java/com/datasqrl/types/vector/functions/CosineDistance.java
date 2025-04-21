@@ -20,6 +20,7 @@ import com.datasqrl.types.vector.FlinkVectorType;
 /** Computes the cosine distance between two vectors */
 public class CosineDistance extends CosineSimilarity {
 
+  @Override
   public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
     return 1 - super.eval(vectorA, vectorB);
   }

@@ -27,7 +27,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatFactory;
-import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.JsonFormatOptionsUtil;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -62,7 +61,7 @@ public class FlexibleJsonFormat
       Context context, ReadableConfig formatOptions) {
     FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-    return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
+    return new ProjectableDecodingFormat<>() {
       @SneakyThrows
       @Override
       public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -97,18 +96,17 @@ public class FlexibleJsonFormat
     FactoryUtil.validateFactoryOptions(this, formatOptions);
     JsonFormatOptionsUtil.validateEncodingFormatOptions(formatOptions);
 
-    TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
-    JsonFormatOptions.MapNullKeyMode mapNullKeyMode =
-        JsonFormatOptionsUtil.getMapNullKeyMode(formatOptions);
-    String mapNullKeyLiteral = formatOptions.get(MAP_NULL_KEY_LITERAL);
+    var timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
+    var mapNullKeyMode = JsonFormatOptionsUtil.getMapNullKeyMode(formatOptions);
+    var mapNullKeyLiteral = formatOptions.get(MAP_NULL_KEY_LITERAL);
 
     final boolean encodeDecimalAsPlainNumber = formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
 
-    return new EncodingFormat<SerializationSchema<RowData>>() {
+    return new EncodingFormat<>() {
       @Override
       public SerializationSchema<RowData> createRuntimeEncoder(
           DynamicTableSink.Context context, DataType consumedDataType) {
-        final RowType rowType = (RowType) consumedDataType.getLogicalType();
+        final var rowType = (RowType) consumedDataType.getLogicalType();
         return new SqrlJsonRowDataSerializationSchema(
             rowType,
             timestampOption,

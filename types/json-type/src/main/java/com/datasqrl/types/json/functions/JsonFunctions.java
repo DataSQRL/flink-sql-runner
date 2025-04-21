@@ -43,7 +43,7 @@ public class JsonFunctions {
   }
 
   public static DataType createJsonType(DataTypeFactory typeFactory) {
-    DataType dataType = DataTypes.of(FlinkJsonType.class).toDataType(typeFactory);
+    var dataType = DataTypes.of(FlinkJsonType.class).toDataType(typeFactory);
     return dataType;
   }
 }

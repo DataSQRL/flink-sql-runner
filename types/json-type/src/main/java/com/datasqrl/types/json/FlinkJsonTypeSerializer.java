@@ -53,15 +53,15 @@ public class FlinkJsonTypeSerializer extends TypeSerializer<FlinkJsonType> {
 
   @Override
   public void serialize(FlinkJsonType record, DataOutputView target) throws IOException {
-    byte[] jsonData = mapper.writeValueAsBytes(record.getJson());
+    var jsonData = mapper.writeValueAsBytes(record.getJson());
     target.writeInt(jsonData.length);
     target.write(jsonData);
   }
 
   @Override
   public FlinkJsonType deserialize(DataInputView source) throws IOException {
-    int length = source.readInt();
-    byte[] jsonData = new byte[length];
+    var length = source.readInt();
+    var jsonData = new byte[length];
     source.readFully(jsonData);
     return new FlinkJsonType(mapper.readTree(jsonData));
   }
@@ -73,8 +73,8 @@ public class FlinkJsonTypeSerializer extends TypeSerializer<FlinkJsonType> {
 
   @Override
   public void copy(DataInputView source, DataOutputView target) throws IOException {
-    int length = source.readInt();
-    byte[] jsonData = new byte[length];
+    var length = source.readInt();
+    var jsonData = new byte[length];
     source.readFully(jsonData);
     target.writeInt(length);
     target.write(jsonData);

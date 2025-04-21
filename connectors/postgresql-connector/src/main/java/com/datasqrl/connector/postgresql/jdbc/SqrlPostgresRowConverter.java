@@ -99,8 +99,7 @@ public class SqrlPostgresRowConverter extends SqrlBaseJdbcRowConverter {
     // primitive byte arrays
     final Class<?> elementClass =
         LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-    final JdbcDeserializationConverter elementConverter =
-        createNullableInternalConverter(arrayType.getElementType());
+    final var elementConverter = createNullableInternalConverter(arrayType.getElementType());
     return val -> {
       // sqrl: check if scalar array
 
@@ -110,9 +109,8 @@ public class SqrlPostgresRowConverter extends SqrlBaseJdbcRowConverter {
       } else {
         in = (Object[]) val;
       }
-      final Object[] array =
-          (Object[]) java.lang.reflect.Array.newInstance(elementClass, in.length);
-      for (int i = 0; i < in.length; i++) {
+      final var array = (Object[]) java.lang.reflect.Array.newInstance(elementClass, in.length);
+      for (var i = 0; i < in.length; i++) {
         array[i] = elementConverter.deserialize(in[i]);
       }
       return new GenericArrayData(array);

@@ -40,7 +40,7 @@ class SqlUtils {
    * @return A list of individual SQL statements.
    */
   public static List<String> parseStatements(String script) {
-    String formatted =
+    var formatted =
         formatSqlFile(script)
             .replaceAll(BEGIN_CERTIFICATE, ESCAPED_BEGIN_CERTIFICATE)
             .replaceAll(END_CERTIFICATE, ESCAPED_END_CERTIFICATE)
@@ -51,9 +51,9 @@ class SqlUtils {
     List<String> statements = new ArrayList<>();
 
     StringBuilder current = null;
-    boolean statementSet = false;
+    var statementSet = false;
     for (String line : formatted.split("\n")) {
-      String trimmed = line.trim();
+      var trimmed = line.trim();
       if (trimmed.isBlank()) {
         continue;
       }
@@ -83,8 +83,8 @@ class SqlUtils {
    * @return Formatted SQL content.
    */
   public static String formatSqlFile(String content) {
-    String trimmed = content.trim();
-    StringBuilder formatted = new StringBuilder();
+    var trimmed = content.trim();
+    var formatted = new StringBuilder();
     formatted.append(trimmed);
     if (!trimmed.endsWith(STATEMENT_DELIMITER)) {
       formatted.append(STATEMENT_DELIMITER);
