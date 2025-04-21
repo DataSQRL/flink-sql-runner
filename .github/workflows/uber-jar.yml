@@ -23,7 +23,7 @@ jobs:
         FLINK_PROFILE: [flink-1.19, flink-1.20]
 
     env:
-      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || 'snapshot' }}
+      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || '1.0.0-SNAPSHOT' }}
 
     steps:
       - name: Checkout code
