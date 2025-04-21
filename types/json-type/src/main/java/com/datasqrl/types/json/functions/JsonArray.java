@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
-import static com.datasqrl.json.JsonFunctions.createJsonArgumentTypeStrategy;
-import static com.datasqrl.json.JsonFunctions.createJsonType;
+import static com.datasqrl.types.json.functions.JsonFunctions.createJsonArgumentTypeStrategy;
+import static com.datasqrl.types.json.functions.JsonFunctions.createJsonType;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;

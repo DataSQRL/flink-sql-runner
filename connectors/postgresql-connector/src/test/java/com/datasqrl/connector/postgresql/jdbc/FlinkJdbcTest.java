@@ -102,7 +102,7 @@ public class FlinkJdbcTest {
 
       // Register tables in the environment
       tableEnv.executeSql(
-          "CREATE TEMPORARY FUNCTION IF NOT EXISTS `tojson` AS 'com.datasqrl.json.ToJson' LANGUAGE JAVA");
+          "CREATE TEMPORARY FUNCTION IF NOT EXISTS `tojson` AS 'com.datasqrl.types.json.functions.ToJson' LANGUAGE JAVA");
       tableEnv.executeSql(createSourceTable);
       tableEnv.executeSql(createSinkTable);
 

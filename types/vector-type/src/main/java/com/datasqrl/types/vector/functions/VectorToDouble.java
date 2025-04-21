@@ -13,30 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.vector.functions;
 
-import java.util.Map;
-import lombok.Getter;
-import lombok.Value;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.table.annotation.DataTypeHint;
+import com.datasqrl.function.AutoRegisterSystemFunction;
+import com.datasqrl.types.vector.FlinkVectorType;
+import com.google.auto.service.AutoService;
+import org.apache.flink.table.functions.ScalarFunction;
 
-@Value
-public class ObjectAgg {
+/** Converts a vector to a double array */
+@AutoService(AutoRegisterSystemFunction.class)
+public class VectorToDouble extends ScalarFunction implements AutoRegisterSystemFunction {
 
-  @DataTypeHint(value = "RAW")
-  @Getter
-  Map<String, JsonNode> objects;
-
-  public void add(String key, JsonNode value) {
-    if (key != null) {
-      objects.put(key, value);
-    }
-  }
-
-  public void remove(String key) {
-    if (key != null) {
-      objects.remove(key);
-    }
+  public double[] eval(FlinkVectorType vectorType) {
+    return vectorType.getValue();
   }
 }

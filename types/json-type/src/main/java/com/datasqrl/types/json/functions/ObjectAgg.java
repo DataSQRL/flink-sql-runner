@@ -13,24 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
-import java.util.List;
+import java.util.Map;
+import lombok.Getter;
 import lombok.Value;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.table.annotation.DataTypeHint;
 
 @Value
-public class ArrayAgg {
+public class ObjectAgg {
 
   @DataTypeHint(value = "RAW")
-  private List<JsonNode> objects;
+  @Getter
+  Map<String, JsonNode> objects;
 
-  public void add(JsonNode value) {
-    objects.add(value);
+  public void add(String key, JsonNode value) {
+    if (key != null) {
+      objects.put(key, value);
+    }
   }
 
-  public void remove(JsonNode value) {
-    objects.remove(value);
+  public void remove(String key) {
+    if (key != null) {
+      objects.remove(key);
+    }
   }
 }

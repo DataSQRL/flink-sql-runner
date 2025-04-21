@@ -23,6 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datasqrl.types.json.FlinkJsonType;
+import com.datasqrl.types.json.functions.ArrayAgg;
+import com.datasqrl.types.json.functions.JsonFunctions;
+import com.datasqrl.types.json.functions.ObjectAgg;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;
@@ -21,8 +21,7 @@ import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.ScalarFunction;
 
 @AutoService(AutoRegisterSystemFunction.class)
-public class JsonToString extends ScalarFunction
-    implements /* FIXME what to do about the sqrl cast? SqrlCastFunction, */ AutoRegisterSystemFunction {
+public class JsonToString extends ScalarFunction implements AutoRegisterSystemFunction {
 
   public String eval(FlinkJsonType json) {
     if (json == null) {

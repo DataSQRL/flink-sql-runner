@@ -13,19 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.types.vector.functions;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.vector.FlinkVectorType;
 import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Converts a vector to a double array */
+/** A unuseful embedding function counts each character (modulo 256). Used for testing only. */
 @AutoService(AutoRegisterSystemFunction.class)
-public class VectorToDouble extends ScalarFunction
-    implements /* FIXME what to do about the sqrl cast?  SqrlCastFunction, */ AutoRegisterSystemFunction {
+public class AsciiTextTestEmbed extends ScalarFunction implements AutoRegisterSystemFunction {
 
-  public double[] eval(FlinkVectorType vectorType) {
-    return vectorType.getValue();
+  private static final int VECTOR_LENGTH = 256;
+
+  public FlinkVectorType eval(String text) {
+    double[] vector = new double[256];
+    for (char c : text.toCharArray()) {
+      vector[c % VECTOR_LENGTH] += 1;
+    }
+    return new FlinkVectorType(vector);
   }
 }

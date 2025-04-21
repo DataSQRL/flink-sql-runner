@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;
@@ -31,8 +31,7 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /** Parses a JSON object from string */
 @AutoService(AutoRegisterSystemFunction.class)
-public class ToJson extends ScalarFunction
-    implements /* FIXME what to do about the sqrl cast?  SqrlCastFunction, */ AutoRegisterSystemFunction {
+public class ToJson extends ScalarFunction implements AutoRegisterSystemFunction {
 
   public static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 

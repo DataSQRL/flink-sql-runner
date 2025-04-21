@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.types.vector.functions;
 
+import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.vector.FlinkVectorType;
+import com.google.auto.service.AutoService;
+import org.apache.flink.table.functions.ScalarFunction;
 
-/** Computes the cosine distance between two vectors */
-public class CosineDistance extends CosineSimilarity {
+/** Converts a double array to a vector */
+@AutoService(AutoRegisterSystemFunction.class)
+public class DoubleToVector extends ScalarFunction implements AutoRegisterSystemFunction {
 
-  public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
-    return 1 - super.eval(vectorA, vectorB);
+  public FlinkVectorType eval(double[] array) {
+    return new FlinkVectorType(array);
   }
 }

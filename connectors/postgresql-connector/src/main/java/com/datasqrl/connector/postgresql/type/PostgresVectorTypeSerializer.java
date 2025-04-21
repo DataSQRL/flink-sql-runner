@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer;
 import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer.GenericDeserializationConverter;
 import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer.GenericSerializationConverter;
 import com.datasqrl.types.vector.FlinkVectorType;

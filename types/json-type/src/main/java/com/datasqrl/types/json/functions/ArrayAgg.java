@@ -13,19 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.types.json.functions;
 
-import com.datasqrl.function.AutoRegisterSystemFunction;
-import com.datasqrl.types.vector.FlinkVectorType;
-import com.google.auto.service.AutoService;
-import org.apache.flink.table.functions.ScalarFunction;
+import java.util.List;
+import lombok.Value;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.table.annotation.DataTypeHint;
 
-/** Converts a double array to a vector */
-@AutoService(AutoRegisterSystemFunction.class)
-public class DoubleToVector extends ScalarFunction
-    implements /* FIXME what to do about the sqrl cast?  SqrlCastFunction, */ AutoRegisterSystemFunction {
+@Value
+public class ArrayAgg {
 
-  public FlinkVectorType eval(double[] array) {
-    return new FlinkVectorType(array);
+  @DataTypeHint(value = "RAW")
+  private List<JsonNode> objects;
+
+  public void add(JsonNode value) {
+    objects.add(value);
+  }
+
+  public void remove(JsonNode value) {
+    objects.remove(value);
   }
 }

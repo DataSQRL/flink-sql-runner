@@ -13,31 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;
 import com.google.auto.service.AutoService;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /**
- * Merges two JSON objects into one. If two objects share the same key, the value from the later
- * object is used.
+ * For a given JSON object, executes a JSON path query against the object and returns the result as
+ * string.
  */
 @AutoService(AutoRegisterSystemFunction.class)
-public class JsonConcat extends ScalarFunction implements AutoRegisterSystemFunction {
+public class JsonQuery extends ScalarFunction implements AutoRegisterSystemFunction {
+  static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
-  public FlinkJsonType eval(FlinkJsonType json1, FlinkJsonType json2) {
-    if (json1 == null || json2 == null) {
+  public String eval(FlinkJsonType input, String pathSpec) {
+    if (input == null) {
       return null;
     }
     try {
-      ObjectNode node1 = (ObjectNode) json1.getJson();
-      ObjectNode node2 = (ObjectNode) json2.getJson();
-
-      node1.setAll(node2);
-      return new FlinkJsonType(node1);
+      JsonNode jsonNode = input.getJson();
+      ReadContext ctx = JsonPath.parse(jsonNode.toString());
+      Object result = ctx.read(pathSpec);
+      return mapper.writeValueAsString(result); // Convert the result back to JSON string
     } catch (Exception e) {
       return null;
     }

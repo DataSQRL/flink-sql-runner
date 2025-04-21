@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.json;
+package com.datasqrl.types.json.functions;
 
 import com.datasqrl.types.json.FlinkJsonType;
 import org.apache.flink.table.api.DataTypes;

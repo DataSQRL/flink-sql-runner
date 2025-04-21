@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.types.vector.functions;
 
-import static com.datasqrl.vector.VectorFunctions.VEC_TO_DOUBLE;
+import static com.datasqrl.types.vector.functions.VectorFunctions.VEC_TO_DOUBLE;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.vector.FlinkVectorType;

@@ -13,24 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.vector;
+package com.datasqrl.types.json.functions;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
-import com.datasqrl.types.vector.FlinkVectorType;
+import com.datasqrl.types.json.FlinkJsonType;
 import com.google.auto.service.AutoService;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** A unuseful embedding function counts each character (modulo 256). Used for testing only. */
+/**
+ * Merges two JSON objects into one. If two objects share the same key, the value from the later
+ * object is used.
+ */
 @AutoService(AutoRegisterSystemFunction.class)
-public class AsciiTextTestEmbed extends ScalarFunction implements AutoRegisterSystemFunction {
+public class JsonConcat extends ScalarFunction implements AutoRegisterSystemFunction {
 
-  private static final int VECTOR_LENGTH = 256;
-
-  public FlinkVectorType eval(String text) {
-    double[] vector = new double[256];
-    for (char c : text.toCharArray()) {
-      vector[c % VECTOR_LENGTH] += 1;
+  public FlinkJsonType eval(FlinkJsonType json1, FlinkJsonType json2) {
+    if (json1 == null || json2 == null) {
+      return null;
     }
-    return new FlinkVectorType(vector);
+    try {
+      ObjectNode node1 = (ObjectNode) json1.getJson();
+      ObjectNode node2 = (ObjectNode) json2.getJson();
+
+      node1.setAll(node2);
+      return new FlinkJsonType(node1);
+    } catch (Exception e) {
+      return null;
+    }
   }
 }
