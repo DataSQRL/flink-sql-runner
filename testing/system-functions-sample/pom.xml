@@ -35,9 +35,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>system-functions-discovery</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
