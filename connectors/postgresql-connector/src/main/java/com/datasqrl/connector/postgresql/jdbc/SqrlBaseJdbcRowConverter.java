@@ -48,7 +48,7 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
   protected JdbcSerializationConverter wrapIntoNullableExternalConverter(
       JdbcSerializationConverter jdbcSerializationConverter, LogicalType type) {
     if (type.getTypeRoot() == TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
-      int timestampWithTimezone = Types.TIMESTAMP_WITH_TIMEZONE;
+      var timestampWithTimezone = Types.TIMESTAMP_WITH_TIMEZONE;
       return (val, index, statement) -> {
         if (val == null || val.isNullAt(index) || LogicalTypeRoot.NULL.equals(type.getTypeRoot())) {
           statement.setNull(index, timestampWithTimezone);
@@ -62,15 +62,15 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
 
   @Override
   public JdbcDeserializationConverter createInternalConverter(LogicalType type) {
-    LogicalTypeRoot root = type.getTypeRoot();
+    var root = type.getTypeRoot();
 
     if (root == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
       return val ->
-          val instanceof LocalDateTime
-              ? TimestampData.fromLocalDateTime((LocalDateTime) val)
+          val instanceof LocalDateTime ldt
+              ? TimestampData.fromLocalDateTime(ldt)
               : TimestampData.fromTimestamp((Timestamp) val);
     } else if (root == LogicalTypeRoot.ARRAY) {
-      ArrayType arrayType = (ArrayType) type;
+      var arrayType = (ArrayType) type;
       return createArrayConverter(arrayType);
     } else if (root == LogicalTypeRoot.ROW) {
       return val -> val;
@@ -83,16 +83,15 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
 
   @Override
   protected JdbcSerializationConverter createExternalConverter(LogicalType type) {
-    switch (type.getTypeRoot()) {
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-        final int tsPrecision = ((LocalZonedTimestampType) type).getPrecision();
-        return (val, index, statement) ->
+    return switch (type.getTypeRoot()) {
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE -> {
+        final var tsPrecision = ((LocalZonedTimestampType) type).getPrecision();
+        yield (val, index, statement) ->
             statement.setTimestamp(index, val.getTimestamp(index, tsPrecision).toTimestamp());
-      case MULTISET:
-      case RAW:
-      default:
-        return super.createExternalConverter(type);
-    }
+      }
+      case MULTISET, RAW -> super.createExternalConverter(type);
+      default -> super.createExternalConverter(type);
+    };
   }
 
   @SneakyThrows
@@ -101,10 +100,10 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
     // Scalar arrays of any dimension are one array call
     if (isScalarArray(type)) {
       Object[] boxed;
-      if (data instanceof GenericArrayData) {
-        boxed = ((GenericArrayData) data).toObjectArray();
-      } else if (data instanceof BinaryArrayData) {
-        boxed = ((BinaryArrayData) data).toObjectArray(getBaseFlinkArrayType(type));
+      if (data instanceof GenericArrayData arrayData) {
+        boxed = arrayData.toObjectArray();
+      } else if (data instanceof BinaryArrayData arrayData) {
+        boxed = arrayData.toObjectArray(getBaseFlinkArrayType(type));
       } else {
         throw new RuntimeException("Unsupported ArrayData type: " + data.getClass());
       }

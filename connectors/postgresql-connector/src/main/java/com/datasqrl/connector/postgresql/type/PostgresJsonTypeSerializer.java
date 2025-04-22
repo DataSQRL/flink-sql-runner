@@ -45,7 +45,7 @@ public class PostgresJsonTypeSerializer
   public GenericDeserializationConverter<JdbcDeserializationConverter> getDeserializerConverter() {
     return () ->
         (val) -> {
-          FlinkJsonType t = (FlinkJsonType) val;
+          var t = (FlinkJsonType) val;
           return t.getJson();
         };
   }
@@ -53,15 +53,15 @@ public class PostgresJsonTypeSerializer
   @Override
   public GenericSerializationConverter<JdbcSerializationConverter> getSerializerConverter(
       LogicalType type) {
-    FlinkJsonTypeSerializer typeSerializer = new FlinkJsonTypeSerializer();
+    var typeSerializer = new FlinkJsonTypeSerializer();
 
     return () ->
         (val, index, statement) -> {
           if (val != null && !val.isNullAt(index)) {
-            PGobject pgObject = new PGobject();
+            var pgObject = new PGobject();
             pgObject.setType("json");
             RawValueData<FlinkJsonType> object = val.getRawValue(index);
-            FlinkJsonType vec = object.toObject(typeSerializer);
+            var vec = object.toObject(typeSerializer);
             if (vec == null) {
               statement.setObject(index, null);
             } else {

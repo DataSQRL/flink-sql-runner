@@ -17,8 +17,6 @@ package com.datasqrl;
 
 import com.datasqrl.function.AutoRegisterSystemFunction;
 import java.io.File;
-import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,11 +41,9 @@ class SqlExecutor {
   private final TableEnvironment tableEnv;
 
   public SqlExecutor(Configuration configuration, String udfPath) {
-    StreamExecutionEnvironment sEnv =
-        StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+    var sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
-    EnvironmentSettings tEnvConfig =
-        EnvironmentSettings.newInstance().withConfiguration(configuration).build();
+    var tEnvConfig = EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
 
@@ -65,10 +61,11 @@ class SqlExecutor {
 
       standardLibraryFunctions.forEach(
           function -> {
-            String sql =
-                String.format(
-                    "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
-                    getFunctionNameFromClass(function.getClass()), function.getClass().getName());
+            var sql =
+                "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;"
+                    .formatted(
+                        getFunctionNameFromClass(function.getClass()),
+                        function.getClass().getName());
 
             System.out.println(sql);
 
@@ -94,7 +91,7 @@ class SqlExecutor {
    * @throws Exception If execution fails.
    */
   public TableResult executeScript(String script) throws Exception {
-    List<String> statements = SqlUtils.parseStatements(script);
+    var statements = SqlUtils.parseStatements(script);
     TableResult tableResult = null;
     for (String statement : statements) {
       tableResult = executeStatement(statement);
@@ -112,12 +109,12 @@ class SqlExecutor {
   private TableResult executeStatement(String statement) {
     TableResult tableResult = null;
     try {
-      Matcher setMatcher = SET_STATEMENT_PATTERN.matcher(statement.trim());
+      var setMatcher = SET_STATEMENT_PATTERN.matcher(statement.trim());
 
       if (setMatcher.matches()) {
         // Handle SET statements
-        String key = setMatcher.group(1);
-        String value = setMatcher.group(2);
+        var key = setMatcher.group(1);
+        var value = setMatcher.group(2);
         tableEnv.getConfig().getConfiguration().setString(key, value);
         log.info("Set configuration: {} = {}", key, value);
       } else {
@@ -133,16 +130,16 @@ class SqlExecutor {
   }
 
   public String replaceWithEnv(String command) {
-    Map<String, String> envVariables = System.getenv();
-    Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}");
+    var envVariables = System.getenv();
+    var pattern = Pattern.compile("\\$\\{(.*?)\\}");
 
-    String substitutedStr = command;
-    StringBuffer result = new StringBuffer();
+    var substitutedStr = command;
+    var result = new StringBuffer();
     // First pass to replace environment variables
-    Matcher matcher = pattern.matcher(substitutedStr);
+    var matcher = pattern.matcher(substitutedStr);
     while (matcher.find()) {
-      String key = matcher.group(1);
-      String envValue = envVariables.getOrDefault(key, "");
+      var key = matcher.group(1);
+      var envValue = envVariables.getOrDefault(key, "");
       matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
     }
     matcher.appendTail(result);
@@ -161,9 +158,9 @@ class SqlExecutor {
     // Implementation depends on how UDFs are packaged and should be loaded
     // For example, you might use a URLClassLoader to load JARs from udfPath
     try {
-      File udfDir = new File(udfPath);
+      var udfDir = new File(udfPath);
       if (udfDir.exists() && udfDir.isDirectory()) {
-        File[] jarFiles = udfDir.listFiles((dir, name) -> name.endsWith(".jar"));
+        var jarFiles = udfDir.listFiles((dir, name) -> name.endsWith(".jar"));
         if (jarFiles != null) {
           for (File jarFile : jarFiles) {
             tableEnv.executeSql("ADD JAR 'file://" + jarFile.getAbsolutePath() + "'");
@@ -189,8 +186,8 @@ class SqlExecutor {
   protected TableResult executeCompiledPlan(String planJson) throws Exception {
     log.info("Executing compiled plan from JSON.");
     try {
-      PlanReference planReference = PlanReference.fromJsonString(planJson);
-      TableResult result = tableEnv.executePlan(planReference);
+      var planReference = PlanReference.fromJsonString(planJson);
+      var result = tableEnv.executePlan(planReference);
       log.info("Compiled plan executed.");
       return result;
     } catch (Exception e) {

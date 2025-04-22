@@ -21,7 +21,6 @@ import static org.awaitility.Awaitility.await;
 
 import com.nextbreakpoint.flink.client.api.ApiException;
 import com.nextbreakpoint.flink.client.api.FlinkApi;
-import com.nextbreakpoint.flink.client.model.JobIdsWithStatusOverview;
 import com.nextbreakpoint.flink.client.model.TerminationMode;
 import java.time.Duration;
 import java.util.Optional;
@@ -39,7 +38,7 @@ public class AbstractITSupport {
     client = new FlinkApi();
     client.getApiClient().setBasePath(serverUrl());
 
-    int timeout = (int) TimeUnit.MINUTES.toMillis(2);
+    var timeout = (int) TimeUnit.MINUTES.toMillis(2);
     client
         .getApiClient()
         .setHttpClient(
@@ -62,7 +61,7 @@ public class AbstractITSupport {
               return client.getJobsOverview() != null;
             });
 
-    final JobIdsWithStatusOverview statusOverview = client.getJobIdsWithStatusesOverview();
+    final var statusOverview = client.getJobIdsWithStatusesOverview();
     statusOverview
         .getJobs()
         .forEach(

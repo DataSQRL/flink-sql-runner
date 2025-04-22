@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -37,7 +36,7 @@ class EnvironmentVariablesUtilsTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    String result = EnvironmentVariablesUtils.replaceWithEnv(command, envVariables);
+    var result = EnvironmentVariablesUtils.replaceWithEnv(command, envVariables);
     assertThat(result).isEqualTo(expected);
   }
 
@@ -80,8 +79,7 @@ class EnvironmentVariablesUtilsTest {
             "VAR2", "2",
             "USER", "admin",
             "HOME", "/home/admin");
-    Set<String> missingVars =
-        EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars).isEmpty();
   }
 
@@ -98,8 +96,7 @@ class EnvironmentVariablesUtilsTest {
             "VAR1", "1",
             "USER", "admin",
             "HOME", "/home/admin");
-    Set<String> missingVars =
-        EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars).containsExactlyInAnyOrder(expectedMissing.split(","));
   }
 
@@ -114,8 +111,7 @@ class EnvironmentVariablesUtilsTest {
         Map.of(
             "USER", "admin",
             "NAME", "admin");
-    Set<String> missingVars =
-        EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars)
         .containsExactly("USER_NAME"); // Ensure only USERNAME is reported missing
   }

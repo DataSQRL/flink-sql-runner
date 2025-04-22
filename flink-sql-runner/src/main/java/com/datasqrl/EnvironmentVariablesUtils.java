@@ -35,15 +35,15 @@ public class EnvironmentVariablesUtils {
   }
 
   public static String replaceWithEnv(String command, Map<String, String> envVariables) {
-    String substitutedStr = command;
-    StringBuffer result = new StringBuffer();
+    var substitutedStr = command;
+    var result = new StringBuffer();
     // First pass to replace environment variables
-    Matcher matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(substitutedStr);
+    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(substitutedStr);
     while (matcher.find()) {
-      String key = matcher.group(1);
-      String envValue = envVariables.get(key);
+      var key = matcher.group(1);
+      var envValue = envVariables.get(key);
       if (envValue == null) {
-        throw new IllegalStateException(String.format("Missing environment variable: %s", key));
+        throw new IllegalStateException("Missing environment variable: %s".formatted(key));
       }
       matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
     }
@@ -57,7 +57,7 @@ public class EnvironmentVariablesUtils {
   }
 
   public Set<String> validateEnvironmentVariables(Map<String, String> envVariables, String script) {
-    Matcher matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(script);
+    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(script);
 
     Set<String> scriptEnvironmentVariables = new TreeSet<>();
     while (matcher.find()) {

@@ -21,12 +21,10 @@ import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;
 import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -46,16 +44,14 @@ public class JsonObject extends ScalarFunction implements AutoRegisterSystemFunc
       throw new IllegalArgumentException("Arguments should be in key-value pairs");
     }
 
-    ObjectNode objectNode = mapper.createObjectNode();
+    var objectNode = mapper.createObjectNode();
 
-    for (int i = 0; i < objects.length; i += 2) {
-      if (!(objects[i] instanceof String)) {
+    for (var i = 0; i < objects.length; i += 2) {
+      if (!(objects[i] instanceof String key)) {
         throw new IllegalArgumentException("Key must be a string");
       }
-      String key = (String) objects[i];
-      Object value = objects[i + 1];
-      if (value instanceof FlinkJsonType) {
-        FlinkJsonType type = (FlinkJsonType) value;
+      var value = objects[i + 1];
+      if (value instanceof FlinkJsonType type) {
         objectNode.put(key, type.json);
       } else {
         objectNode.putPOJO(key, value);
@@ -67,10 +63,10 @@ public class JsonObject extends ScalarFunction implements AutoRegisterSystemFunc
 
   @Override
   public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-    InputTypeStrategy anyJsonCompatibleArg =
+    var anyJsonCompatibleArg =
         InputTypeStrategies.repeatingSequence(createJsonArgumentTypeStrategy(typeFactory));
 
-    InputTypeStrategy inputTypeStrategy =
+    var inputTypeStrategy =
         InputTypeStrategies.compositeSequence().finishWithVarying(anyJsonCompatibleArg);
 
     return TypeInference.newBuilder()

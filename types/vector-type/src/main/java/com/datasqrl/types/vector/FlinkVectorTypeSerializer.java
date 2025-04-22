@@ -58,9 +58,9 @@ public class FlinkVectorTypeSerializer extends TypeSerializer<FlinkVectorType> {
 
   @Override
   public FlinkVectorType deserialize(DataInputView source) throws IOException {
-    int length = source.readInt();
-    double[] array = new double[length];
-    for (int i = 0; i < length; i++) {
+    var length = source.readInt();
+    var array = new double[length];
+    for (var i = 0; i < length; i++) {
       array[i] = source.readDouble();
     }
     return new FlinkVectorType(array);

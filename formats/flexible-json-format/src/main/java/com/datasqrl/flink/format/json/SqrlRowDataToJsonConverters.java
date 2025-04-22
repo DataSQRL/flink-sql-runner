@@ -40,7 +40,7 @@ public class SqrlRowDataToJsonConverters extends RowDataToJsonConverters {
     switch (type.getTypeRoot()) {
       case RAW:
         // sqrl add raw type
-        RawType rawType = (RawType) type;
+        var rawType = (RawType) type;
         if (rawType.getOriginatingClass() == FlinkJsonType.class) {
           return createJsonConverter((RawType) type);
         }
@@ -53,8 +53,8 @@ public class SqrlRowDataToJsonConverters extends RowDataToJsonConverters {
       if (value == null) {
         return null;
       }
-      BinaryRawValueData binaryRawValueData = (BinaryRawValueData) value;
-      FlinkJsonType o = (FlinkJsonType) binaryRawValueData.toObject(type.getTypeSerializer());
+      var binaryRawValueData = (BinaryRawValueData) value;
+      var o = (FlinkJsonType) binaryRawValueData.toObject(type.getTypeSerializer());
       if (o == null) {
         return null;
       }

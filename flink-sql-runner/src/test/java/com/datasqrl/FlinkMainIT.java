@@ -100,7 +100,7 @@ class FlinkMainIT extends AbstractITSupport {
   @ParameterizedTest(name = "{0} {1}")
   @MethodSource("sqlScripts")
   void givenSqlScript_whenExecuting_thenSuccess(String filename, boolean config) {
-    String sqlFile = "/opt/flink/usrlib/sql/" + filename;
+    var sqlFile = "/opt/flink/usrlib/sql/" + filename;
     var args = new ArrayList<String>();
     args.add("--sqlfile");
     args.add(sqlFile);
@@ -121,7 +121,7 @@ class FlinkMainIT extends AbstractITSupport {
   @ParameterizedTest(name = "{0}")
   @MethodSource("planScripts")
   void givenPlansScript_whenExecuting_thenSuccess(String filename, boolean config) {
-    String planFile = "/opt/flink/usrlib/plans/" + filename;
+    var planFile = "/opt/flink/usrlib/plans/" + filename;
     var args = new ArrayList<String>();
     args.add("--planfile");
     args.add(planFile);
@@ -142,7 +142,7 @@ class FlinkMainIT extends AbstractITSupport {
     // change the compilation plan
     updateCompiledPlan(3);
 
-    String planFile = "/opt/flink/usrlib/sqrl/compiled-plan.json";
+    var planFile = "/opt/flink/usrlib/sqrl/compiled-plan.json";
     var args = new ArrayList<String>();
     args.add("--planfile");
     args.add(planFile);
@@ -154,7 +154,7 @@ class FlinkMainIT extends AbstractITSupport {
     // test if initial change to compilation plan took effect
     assertThat(transactionDao.getDoubleTA()).isEqualTo(3);
 
-    Path savePoint = Path.of("/tmp/flink-sql-runner/" + System.currentTimeMillis());
+    var savePoint = Path.of("/tmp/flink-sql-runner/" + System.currentTimeMillis());
 
     // take a savepoint
     CommandLineUtil.execute(
@@ -287,13 +287,13 @@ class FlinkMainIT extends AbstractITSupport {
 
   @Test
   void givenUdfSqlScript_whenExecuting_thenSuccess() {
-    String sqlFile = "/opt/flink/usrlib/sql/test_udf_sql.sql";
+    var sqlFile = "/opt/flink/usrlib/sql/test_udf_sql.sql";
     execute("--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 
   @Test
   void givenUdfPlansScript_whenExecuting_thenSuccess() {
-    String planFile = "/opt/flink/usrlib/plans/compiled-plan-udf.json";
+    var planFile = "/opt/flink/usrlib/plans/compiled-plan-udf.json";
     execute("--planfile", planFile, "--udfpath", "/opt/flink/usrlib/udfs/");
   }
 }

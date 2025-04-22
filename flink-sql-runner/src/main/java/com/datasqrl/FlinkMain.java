@@ -16,10 +16,8 @@
 package com.datasqrl;
 
 import java.io.File;
-import java.util.*;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -30,7 +28,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.Si
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.util.FileUtils;
 import picocli.CommandLine;
-import picocli.CommandLine.*;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -78,7 +75,7 @@ public class FlinkMain {
   public static void main(String[] args) throws Exception {
     System.out.printf("\n\nExecuting flink-sql-runner: %s\n\n", Arrays.toString(args));
 
-    CommandLine cl = new CommandLine(new SqlRunner());
+    var cl = new CommandLine(new SqlRunner());
     cl.execute(args);
     SqlRunner runner = cl.getCommand();
 
@@ -94,40 +91,38 @@ public class FlinkMain {
   public int run() throws Exception {
 
     // Load configuration if configDir is provided
-    Configuration configuration = new Configuration();
+    var configuration = new Configuration();
     if (configDir != null) {
       configuration = loadConfigurationFromYaml(configDir);
     }
 
     // Initialize SqlExecutor
-    SqlExecutor sqlExecutor = new SqlExecutor(configuration, udfPath);
+    var sqlExecutor = new SqlExecutor(configuration, udfPath);
     TableResult tableResult;
     // Input validation and execution logic
     if (sqlFile != null) {
       // Single SQL file mode
-      String script = FileUtils.readFileUtf8(new File(sqlFile));
+      var script = FileUtils.readFileUtf8(new File(sqlFile));
 
-      Set<String> missingEnvironmentVariables =
+      var missingEnvironmentVariables =
           EnvironmentVariablesUtils.validateEnvironmentVariables(script);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
-            String.format(
-                "Could not find the following environment variables: %s",
-                missingEnvironmentVariables));
+            "Could not find the following environment variables: %s"
+                .formatted(missingEnvironmentVariables));
       }
 
       tableResult = sqlExecutor.executeScript(script);
     } else if (planFile != null) {
       // Compiled plan JSON file
-      String planJson = FileUtils.readFileUtf8(new File(planFile));
+      var planJson = FileUtils.readFileUtf8(new File(planFile));
 
-      Set<String> missingEnvironmentVariables =
+      var missingEnvironmentVariables =
           EnvironmentVariablesUtils.validateEnvironmentVariables(planJson);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
-            String.format(
-                "Could not find the following environment variables: %s",
-                missingEnvironmentVariables));
+            "Could not find the following environment variables: %s"
+                .formatted(missingEnvironmentVariables));
       }
 
       planJson = replaceScriptWithEnv(planJson);
@@ -152,10 +147,10 @@ public class FlinkMain {
   }
 
   public static ObjectMapper getObjectMapper() {
-    ObjectMapper objectMapper = new ObjectMapper();
+    var objectMapper = new ObjectMapper();
 
     // Register the custom deserializer module
-    SimpleModule module = new SimpleModule();
+    var module = new SimpleModule();
     module.addDeserializer(String.class, new JsonEnvVarDeserializer());
     objectMapper.registerModule(module);
     return objectMapper;

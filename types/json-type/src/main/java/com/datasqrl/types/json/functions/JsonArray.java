@@ -22,11 +22,9 @@ import com.datasqrl.function.AutoRegisterSystemFunction;
 import com.datasqrl.types.json.FlinkJsonType;
 import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -37,11 +35,10 @@ public class JsonArray extends ScalarFunction implements AutoRegisterSystemFunct
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {
-    ArrayNode arrayNode = mapper.createArrayNode();
+    var arrayNode = mapper.createArrayNode();
 
     for (Object value : objects) {
-      if (value instanceof FlinkJsonType) {
-        FlinkJsonType type = (FlinkJsonType) value;
+      if (value instanceof FlinkJsonType type) {
         arrayNode.add(type.json);
       } else {
         arrayNode.addPOJO(value);
@@ -53,7 +50,7 @@ public class JsonArray extends ScalarFunction implements AutoRegisterSystemFunct
 
   @Override
   public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-    InputTypeStrategy inputTypeStrategy =
+    var inputTypeStrategy =
         InputTypeStrategies.varyingSequence(createJsonArgumentTypeStrategy(typeFactory));
 
     return TypeInference.newBuilder()

@@ -19,7 +19,6 @@ import com.datasqrl.types.json.FlinkJsonType;
 import com.datasqrl.types.json.FlinkJsonTypeSerializer;
 import java.util.LinkedHashMap;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
@@ -51,8 +50,8 @@ public class JsonObjectAgg extends AggregateFunction<Object, ObjectAgg> {
 
   public void accumulate(
       ObjectAgg accumulator, String key, @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
-    if (value instanceof FlinkJsonType) {
-      accumulateObject(accumulator, key, ((FlinkJsonType) value).getJson());
+    if (value instanceof FlinkJsonType type) {
+      accumulateObject(accumulator, key, type.getJson());
     } else {
       accumulator.add(key, mapper.getNodeFactory().pojoNode(value));
     }
@@ -105,7 +104,7 @@ public class JsonObjectAgg extends AggregateFunction<Object, ObjectAgg> {
 
   @Override
   public FlinkJsonType getValue(ObjectAgg accumulator) {
-    ObjectNode objectNode = mapper.createObjectNode();
+    var objectNode = mapper.createObjectNode();
     accumulator.getObjects().forEach(objectNode::putPOJO);
     return new FlinkJsonType(objectNode);
   }

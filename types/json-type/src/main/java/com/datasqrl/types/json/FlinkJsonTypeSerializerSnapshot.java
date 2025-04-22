@@ -43,7 +43,7 @@ public class FlinkJsonTypeSerializerSnapshot implements TypeSerializerSnapshot<F
   @Override
   public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
       throws IOException {
-    String className = in.readUTF();
+    var className = in.readUTF();
     try {
       this.serializerClass =
           (Class<FlinkJsonTypeSerializer>) Class.forName(className, true, userCodeClassLoader);

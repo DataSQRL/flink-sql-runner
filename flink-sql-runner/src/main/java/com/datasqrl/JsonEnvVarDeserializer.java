@@ -37,17 +37,17 @@ class JsonEnvVarDeserializer extends JsonDeserializer<String> {
 
   @Override
   public String deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-    String value = p.getText();
+    var value = p.getText();
     return replaceWithEnv(this.env, value);
   }
 
   public String replaceWithEnv(Map<String, String> env, String value) {
-    Pattern pattern = Pattern.compile("\\$\\{(.+?)\\}");
-    Matcher matcher = pattern.matcher(value);
-    StringBuffer result = new StringBuffer();
+    var pattern = Pattern.compile("\\$\\{(.+?)\\}");
+    var matcher = pattern.matcher(value);
+    var result = new StringBuffer();
     while (matcher.find()) {
-      String key = matcher.group(1);
-      String envVarValue = env.get(key);
+      var key = matcher.group(1);
+      var envVarValue = env.get(key);
       if (envVarValue != null) {
         matcher.appendReplacement(result, Matcher.quoteReplacement(envVarValue));
       }
