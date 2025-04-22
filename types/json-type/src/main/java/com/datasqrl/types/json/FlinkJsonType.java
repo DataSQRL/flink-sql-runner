@@ -15,6 +15,7 @@
  */
 package com.datasqrl.types.json;
 
+import java.util.Objects;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.table.annotation.DataTypeHint;
 
@@ -23,6 +24,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
     bridgedTo = FlinkJsonType.class,
     rawSerializer = FlinkJsonTypeSerializer.class)
 public class FlinkJsonType {
+
   public JsonNode json;
 
   public FlinkJsonType(JsonNode json) {
@@ -31,5 +33,17 @@ public class FlinkJsonType {
 
   public JsonNode getJson() {
     return json;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(json);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (!(obj instanceof FlinkJsonType other)) return false;
+    return Objects.equals(json, other.json);
   }
 }
