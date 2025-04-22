@@ -30,7 +30,16 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>kafka-safe-connector</module>
     <module>postgresql-connector</module>
   </modules>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-base</artifactId>
+      <version>${flink.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 </project>

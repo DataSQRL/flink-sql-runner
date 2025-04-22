@@ -203,6 +203,14 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-avro</artifactId>
+      <version>${flink.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
     <!-- project dependencies-->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -228,6 +236,11 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vector-type</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>kafka-safe-connector</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -274,6 +287,13 @@
                 </excludes>
               </artifactSet>
               <filters>
+                <!-- Exclude original AvroDeserializationSchema, because for now we overwrite that class downstream. -->
+                <filter>
+                  <artifact>org.apache.flink:flink-avro</artifact>
+                  <excludes>
+                    <exclude>org/apache/flink/formats/avro/AvroDeserializationSchema**</exclude>
+                  </excludes>
+                </filter>
                 <filter>
                   <artifact>*:*</artifact>
                   <excludes>
@@ -449,37 +469,6 @@
   </build>
 
   <profiles>
-    <profile>
-      <id>flink-2.0</id>
-      <properties>
-        <flink.version>2.0-preview1</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
-      </properties>
-    </profile>
-    <profile>
-      <id>flink-1.20</id>
-      <properties>
-        <flink.version>1.20.1</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
-      </properties>
-    </profile>
-    <profile>
-      <id>flink-1.19</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <flink.version>1.19.2</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>1.19.2-scala_2.12-java17</flink-base-image>
-      </properties>
-    </profile>
-
     <profile>
       <id>ci</id>
       <build>
