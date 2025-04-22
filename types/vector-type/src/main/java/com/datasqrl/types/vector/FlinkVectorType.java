@@ -15,6 +15,7 @@
  */
 package com.datasqrl.types.vector;
 
+import java.util.Arrays;
 import org.apache.flink.table.annotation.DataTypeHint;
 
 @DataTypeHint(
@@ -22,6 +23,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
     bridgedTo = FlinkVectorType.class,
     rawSerializer = FlinkVectorTypeSerializer.class)
 public class FlinkVectorType {
+
   public double[] value;
 
   public FlinkVectorType(double[] value) {
@@ -30,5 +32,17 @@ public class FlinkVectorType {
 
   public double[] getValue() {
     return value;
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(value);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (!(obj instanceof FlinkVectorType other)) return false;
+    return Arrays.equals(value, other.value);
   }
 }
