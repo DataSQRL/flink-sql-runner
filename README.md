@@ -83,7 +83,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/1.0.0/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.6.0/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiledplan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -122,13 +122,13 @@ the runner to suit your needs
 <dependency>
 <groupId>com.datasqrl.flinkrunner</groupId>
 <artifactId>flink-sql-runner</artifactId>
-<version>1.0.0</version>
+<version>0.6.0</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:1.0.0'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.6.0'
 ```
 ---
 
