@@ -576,6 +576,7 @@
                   <sources>
                     <source>target/generated-sources/annotations</source>
                     <source>target/generated-sources/java</source>
+                    <source>${basedir}/src/main/flink119</source>
                   </sources>
                 </configuration>
               </execution>
