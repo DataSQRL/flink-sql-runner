@@ -1,6 +1,6 @@
 # Flink SQL Runner
 
-<img src="docs/runner_logo.png" alt="Flink SQL Runner Logo" width="270" style="float: right; margin-right: 20px;" />
+<img src="docs/runner_logo.png" alt="Flink SQL Runner Logo" width="270" align="right" />
 
 Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, and formats.
 
