@@ -54,4 +54,17 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.verison}</version>
+        <executions>
+          <execution></execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>

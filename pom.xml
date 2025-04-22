@@ -85,6 +85,7 @@
     <docker.compose.plugin.version>5.0.0</docker.compose.plugin.version>
     <sortpom.plugin.version>4.0.0</sortpom.plugin.version>
     <exec.plugin.version>3.5.0</exec.plugin.version>
+    <build-helper-maven-plugin.verison>3.6.0</build-helper-maven-plugin.verison>
 
     <slf4j.version>2.0.17</slf4j.version>
     <log4j.version>2.24.3</log4j.version>
@@ -381,6 +382,29 @@
         <kafka.version>3.2.0-1.19</kafka.version>
         <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>${build-helper-maven-plugin.verison}</version>
+            <executions>
+              <execution>
+                <id>add-flink-1.20+-specific-source</id>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${basedir}/src/main/flink120+</source>
+                  </sources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>flink-1.20</id>
@@ -390,6 +414,29 @@
         <kafka.version>3.2.0-1.19</kafka.version>
         <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>${build-helper-maven-plugin.verison}</version>
+            <executions>
+              <execution>
+                <id>add-flink-1.20+-specific-source</id>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${basedir}/src/main/flink120+</source>
+                  </sources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>flink-1.19</id>
@@ -402,6 +449,29 @@
         <kafka.version>3.2.0-1.19</kafka.version>
         <flink-base-image>1.19.2-scala_2.12-java17</flink-base-image>
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>${build-helper-maven-plugin.verison}</version>
+            <executions>
+              <execution>
+                <id>add-flink-1.19-specific-source</id>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${basedir}/src/main/flink119</source>
+                  </sources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
 
     <!-- Extra tasks only meant to be executed by CI -->
@@ -494,7 +564,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>3.6.0</version>
+            <version>${build-helper-maven-plugin.verison}</version>
             <executions>
               <execution>
                 <id>add-source</id>
