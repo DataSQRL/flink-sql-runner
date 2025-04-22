@@ -49,14 +49,44 @@ The UDF path points to a directory containing JAR files. Most commonly, the jars
 
 ### Running Locally
 
-Pull the latest Docker image from Docker Hub:
+To run Flink SQL Runner locally using Docker in a self-contained cluster (JobManager and TaskManager in a single container):
+
+1. Create your SQL script
+Put your Flink SQL (e.g., flink.sql) in a local directory, such as:
 
 ```bash
-docker pull datasqrl/flink-sql-runner:latest
+./sql-scripts/flink.sql
 ```
 
-@Marvin: please add an example for how to run this locally
-Can we use the docker-compose.yml in the flink-sql-runner module?
+1. Run the Docker image
+This starts a full standalone Flink session cluster in one container:
+
+```bash
+docker run --rm -it \
+  -p 8081:8081 \
+  -v "$PWD/sql-scripts":/flink/sql \
+  --name flink \
+  datasqrl/flink-sql-runner:0.1-flink-1.19 \
+  bash -c "bin/start-cluster.sh && tail -f /dev/null"
+```
+
+1. Submit your SQL job
+In a separate terminal, run:
+
+```bash
+docker exec -it flink flink run ./plugins/flink-sql-runner/flink-sql-runner.uber.jar --sqlfile /flink/sql/flink.sql
+```
+
+The job will be submitted to the embedded JobManager and executed using the local TaskManager.
+
+1. Inspect output
+If your SQL uses the print connector as a sink, you can check logs via:
+
+```bash
+docker exec -it flink bash -c "cat /opt/flink/log/$(ls /opt/flink/log | grep 'flink--taskexecutor' | grep '.out')"
+```
+
+Or use the Flink UI at http://localhost:8081 to monitor jobs.
 
 ### Running in Kubernetes with Flink Operator
 Here's how to use the Flink Jar Runner with the Flink Operator on Kubernetes:
