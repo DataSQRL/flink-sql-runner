@@ -1,6 +1,6 @@
 # Flink SQL Runner
 
-<img src="docs/runner_logo.png" alt="Flink SQL Runner Logo" width="270" align="right" />
+<img src="docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, and formats.
 
@@ -199,7 +199,7 @@ The native vector type is supported by [these system functions](docs/system-func
 
 ### Function Libraries
 
-<img src="docs/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="270" align="right" />
+<img src="docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Implementation of FlinkSQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 

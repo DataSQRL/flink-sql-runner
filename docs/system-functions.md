@@ -1,7 +1,5 @@
 # System Functions
 
-<img src="sqrl_functions_logo.png" alt="SQRL Functions Logo" width="270" align="right" />
-
 The following system functions are added to [Flink's built-in system functions](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/functions/systemfunctions/) to support additional types and functionality.
 
 ## JSONB Functions

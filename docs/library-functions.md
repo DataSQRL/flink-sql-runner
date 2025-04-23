@@ -1,7 +1,5 @@
 # Function Libraries
 
-<img src="sqrl_functions_logo.png" alt="SQRL Functions Logo" width="270" align="right" />
-
 The following library functions can be imported for additional functionality:
 * [Advanced Math](#advanced-math)
 * [OpenAI](#openai)
