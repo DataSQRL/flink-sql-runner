@@ -17,10 +17,10 @@ This repository contains core components for running Flink SQL applications in p
 - 🌍 **Kubernetes-Friendly**: Built to run with the Flink Kubernetes Operator.
 - 🔧 **Function Infrastructure**: Utilities for writing and loading UDFs as system functions.
 - 🪄 **Flink Extensions**:
-    - Dead-letter queue support in Kafka for poison message handling.
-    - Native JSON and Vector types with JSON format and PostgreSQL connector support.
-    - Additional configuration options for CSV format.
-
+    - 💀 Dead-letter queue support in Kafka for poison message handling.
+    - 🚀 Native JSON and Vector types with JSON format and PostgreSQL connector support.
+    - 📚 Function libraries for additional functionality in FlinkSQL (advanced math, OpenAI, etc)
+    - ⚙️ Additional configuration options for CSV format.
 
 ---
 
@@ -181,26 +181,13 @@ In addition to the configuration options exposed by the original kafka connector
 | scan.deser-failure.handler        | none    | String | Use `log` to output failed messages to the logger, `kafka` to output failed messages to a kafka topic, or `none` to fail the job. |
 | scan.deser-failure.topic        | -       | String | The topic for the dead-letter-queue that failed messages are written to. Required when handler is configured to `kafka`            |
 
-### JSON Type
+### JSONB Type
 
-This project adds a native [JSON type](types/json-type) and associated functions for more efficient JSON handling that does not serialize from and to string repeatedly.
+This project adds a [binary JSON type](types/json-type) and associated functions for more efficient JSON handling that does not serialize from and to string repeatedly.
 
 Native JSON type support is also extended to the [JSON format](formats/flexible-json-format) called `flexible-json` for writing JSON data as nested documents (instead of strings) as well as the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write JSON data to JSONB columns.
 
-The native JSON type is supported by the following functions:
-
-| Function Name       | Description                                                                                          | Example Usage                                                                                     |
-|---------------------|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| `toJson`            | Parses a JSON string or Flink object (e.g., `Row`, `Row[]`) into a JSON object.                      | `toJson('{"name":"Alice"}')` → JSON object                                                        |
-| `jsonToString`      | Serializes a JSON object into a JSON string.                                                         | `jsonToString(toJson('{"a":1}'))` → `'{"a":1}'`                                                    |
-| `jsonObject`        | Constructs a JSON object from key-value pairs. Keys must be strings.                                 | `jsonObject('a', 1, 'b', 2)` → `{"a":1,"b":2}`                                                     |
-| `jsonArray`         | Constructs a JSON array from multiple values or JSON objects.                                        | `jsonArray(1, 'a', toJson('{"b":2}'))` → `[1,"a",{"b":2}]`                                         |
-| `jsonExtract`       | Extracts a value from a JSON object using a JSONPath expression. Optionally specify default value.   | `jsonExtract(toJson('{"a":1}'), '$.a')` → `1`                                                      |
-| `jsonQuery`         | Executes a JSONPath query on a JSON object and returns the result as a JSON string.                  | `jsonQuery(toJson('{"a":[1,2]}'), '$.a')` → `'[1,2]'`                                              |
-| `jsonExists`        | Returns `TRUE` if a JSONPath exists within a JSON object.                                            | `jsonExists(toJson('{"a":1}'), '$.a')` → `TRUE`                                                    |
-| `jsonConcat`        | Merges two JSON objects. If keys overlap, the second object's values are used.                       | `jsonConcat(toJson('{"a":1}'), toJson('{"b":2}'))` → `{"a":1,"b":2}`                               |
-| `jsonArrayAgg`      | Aggregate function: accumulates values into a JSON array.                                            | `SELECT jsonArrayAgg(col) FROM tbl`                                                               |
-| `jsonObjectAgg`     | Aggregate function: accumulates key-value pairs into a JSON object.                                  | `SELECT jsonObjectAgg(key_col, val_col) FROM tbl`                                                 |
+The binary JSON type is supported by [these system functions](docs/system-functions.md#jsonb-functions).
 
 ### Vector Type
 
@@ -208,21 +195,46 @@ This project adds a native [Vector type](types/vector-type) and associated funct
 
 Native Vector type support is also extended to the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write vector data to vector columns for the pgvector extension.
 
-The native vector type is supported by the following functions:
+The native vector type is supported by [these system functions](docs/system-functions.md#vector-functions).
 
-## Vector Function Reference
+### Function Libraries
 
-## Vector Function Reference
+<img src="docs/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="270" align="right" />
 
-| Function Name         | Description                                                                 | Example Usage |
-|----------------------|-----------------------------------------------------------------------------|----------------|
-| `asciiTextTestEmbed` | Returns a test vector where each character in a string is counted (mod 256). Used for testing only. | `asciiTextTestEmbed('hello')` |
-| `cosineSimilarity`   | Computes cosine similarity between two vectors.                             | `cosineSimilarity(vec1, vec2)` |
-| `cosineDistance`     | Computes cosine distance between two vectors (1 - cosine similarity).       | `cosineDistance(vec1, vec2)` |
-| `euclideanDistance`  | Computes the Euclidean distance between two vectors.                        | `euclideanDistance(vec1, vec2)` |
-| `doubleToVector`     | Converts a `DOUBLE[]` array into a `VECTOR`.                                | `doubleToVector([1.0, 2.0, 3.0])` |
-| `vectorToDouble`     | Converts a `VECTOR` into a `DOUBLE[]` array.                                | `vectorToDouble(vec)` |
-| `center`             | Computes the centroid (average) of a collection of vectors. Aggregate function. | `SELECT center(vecCol) FROM vectors` |
+Implementation of FlinkSQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
+
+* [Math](docs/library-functions.md#advanced-math): Advanced math functions
+* [OpenAI](docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
+
+## Usage
+
+### Within DataSQRL
+
+If you are using the [DataSQRL framework](https://github.com/DataSQRL/sqrl) to compile your SQRL project, you can import the function library as follows:
+
+`IMPORT functions.[library-name].*`
+
+where `[library-name]` is replaced with the name of the library.
+To import a single function:
+
+`IMPORT functions.[library-name].[function-name]`
+
+### Flink SQL Runner
+
+To use a function library with the Flink SQL Runner:
+
+1. Copy the JAR file for the function library to the UDF directory that is passed as an argument.
+2. Declare the function in your FlinkSQL script:
+```sql
+CREATE FUNCTION TheFunctionToAdd AS 'com.datasqrl.flinkrunner.[library-name].[function-name]';
+```
+
+where you replace `[library-name]` with the name of the function library and `[function-name]` with the name of the function.
+
+### Custom Flink Implementation
+
+If you are building your own FlinkSQL runner, you can depend on the function modules and load the functions into your project.
+
 
 ### CSV Format
 
