@@ -29,12 +29,12 @@ This repository contains core components for running Flink SQL applications in p
 You can use the docker image to run FlinkSQL scripts or compiled plans locally or in Kubernetes.
 The docker image contains the executable flink-sql-runner.jar file which supports the following command line arguments:
 
-| Argument	| Description                                                                                           |
- ----------- |-------------------------------------------------------------------------------------------------------|
-|--sqlfile| 	FlinkSQL script to execute                                                                           |
-|--planfile| 	Compiled plan (i.e. JSON file) to execute                                                            |
-|--config-dir| 	Directory containing Flink configuration YAML files                                                  |
-|--udfpath| 	Path to jar files that implement user defined functions (UDFs) or other runtime extensions for Flink |
+| Argument	      | Description                                                                                           |
+ ----------------|-------------------------------------------------------------------------------------------------------|
+| **--planfile** | 	Compiled plan (i.e. JSON file) to execute                                                            |
+| --sqlfile      | 	FlinkSQL script to execute                                                                           |
+| --config-dir   | 	Directory containing Flink configuration YAML files                                                  |
+| --udfpath      | 	Path to jar files that implement user defined functions (UDFs) or other runtime extensions for Flink |
 
 Note that the runner expects either a FlinkSQL script or a compiled plan - not both.
 
