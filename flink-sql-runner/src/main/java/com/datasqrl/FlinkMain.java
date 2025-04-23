@@ -37,7 +37,7 @@ public class FlinkMain {
   @Command(
       name = "SqlRunner",
       mixinStandardHelpOptions = true,
-      version = "1.0",
+      version = "0.2",
       description = "Runs SQL scripts using Flink TableEnvironment.")
   public static class SqlRunner implements Callable<Void> {
 
@@ -101,6 +101,9 @@ public class FlinkMain {
     TableResult tableResult;
     // Input validation and execution logic
     if (sqlFile != null) {
+      if (planFile != null) {
+        System.err.println("Provide either a SQL file or a compiled plan - not both.");
+      }
       // Single SQL file mode
       var script = FileUtils.readFileUtf8(new File(sqlFile));
 
