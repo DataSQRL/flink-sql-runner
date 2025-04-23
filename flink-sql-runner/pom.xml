@@ -371,7 +371,7 @@
       <plugin>
         <groupId>com.marvinformatics</groupId>
         <artifactId>docker-compose-maven-plugin</artifactId>
-        <version>${docker.compose.plugin.version}</version>
+        <version>${docker-compose-plugin.version}</version>
         <configuration>
           <skip>${skipTests}</skip>
           <composeFile>${project.basedir}/target/docker-compose.yml</composeFile>

@@ -82,7 +82,7 @@
     <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
     <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
     <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
-    <docker.compose.plugin.version>5.0.0</docker.compose.plugin.version>
+    <docker-compose-plugin.version>5.0.0</docker-compose-plugin.version>
     <sortpom.plugin.version>4.0.0</sortpom.plugin.version>
     <exec.plugin.version>3.5.0</exec.plugin.version>
     <build-helper-maven-plugin.verison>3.6.0</build-helper-maven-plugin.verison>
@@ -317,6 +317,43 @@
             <license.skip>true</license.skip>
           </projectExtraProperties>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>io.sundr</groupId>
+        <artifactId>sundr-maven-plugin</artifactId>
+        <version>0.200.3</version>
+        <inherited>false</inherited>
+        <configuration>
+          <boms>
+            <bom>
+              <artifactId>flinkrunner-bom</artifactId>
+              <name>flinkrunner-bom</name>
+
+              <properties>
+                <license.skip>true</license.skip>
+              </properties>
+
+              <modules>
+                <includes>
+                  <include>com.datasqrl.flinkrunner:*</include>
+                </includes>
+                <excludes>
+                  <exclude>*:testing</exclude>
+                  <exclude>*:*-sample</exclude>
+                </excludes>
+              </modules>
+
+            </bom>
+          </boms>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate-bom</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
