@@ -2,11 +2,11 @@
 
 <img src="docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
-Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, and formats.
+Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, function libraries, and formats.
 
 This repository contains core components for running Flink SQL applications in production using the Flink Kubernetes Operator, without manual JAR assembly or custom infrastructure.
 
-
+The individual components are modular and the project is composable to make it easy to create your own custom FlinkSQL runner.
 
 ## Features
 
