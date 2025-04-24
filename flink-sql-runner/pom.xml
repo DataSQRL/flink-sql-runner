@@ -172,7 +172,7 @@
 
     <dependency>
       <groupId>com.datasqrl.flinkrunner</groupId>
-      <artifactId>system-functions-discovery</artifactId>
+      <artifactId>functions-common</artifactId>
       <version>1.0.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
@@ -224,7 +224,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>system-functions-discovery</artifactId>
+      <artifactId>functions-common</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>
@@ -441,14 +441,14 @@
             </configuration>
           </execution>
           <execution>
-            <id>copy-system-functions-discovery</id>
+            <id>copy-functions-common</id>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
             <phase>process-resources</phase>
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
-              <includeArtifactIds>system-functions-discovery</includeArtifactIds>
+              <includeArtifactIds>functions-common</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>

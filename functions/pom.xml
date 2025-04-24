@@ -30,7 +30,7 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>system-functions-discovery</module>
+    <module>functions-common</module>
   </modules>
 
 </project>

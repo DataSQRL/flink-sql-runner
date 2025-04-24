@@ -73,7 +73,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>system-functions-discovery</artifactId>
+      <artifactId>functions-common</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
