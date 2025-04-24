@@ -93,7 +93,7 @@
     <picocli.version>4.7.7</picocli.version>
     <flink.version>1.19.2</flink.version>
     <postgres.version>42.7.5</postgres.version>
-    <testcontainers.version>1.20.6</testcontainers.version>
+    <testcontainers.version>1.21.0</testcontainers.version>
     <kafka.version>3.2.0-1.19</kafka.version>
     <jdbc.version>3.2.0-1.19</jdbc.version>
     <lombok.version>1.18.38</lombok.version>
