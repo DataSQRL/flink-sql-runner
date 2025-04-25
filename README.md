@@ -1,6 +1,6 @@
 # Flink SQL Runner
 
-<img src="docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
+<img src="function-docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, function libraries, and formats.
 
@@ -187,7 +187,7 @@ This project adds a [binary JSON type](types/json-type) and associated functions
 
 Native JSON type support is also extended to the [JSON format](formats/flexible-json-format) called `flexible-json` for writing JSON data as nested documents (instead of strings) as well as the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write JSON data to JSONB columns.
 
-The binary JSON type is supported by [these system functions](docs/system-functions.md#jsonb-functions).
+The binary JSON type is supported by [these system functions](function-docs/system-functions.md#jsonb-functions).
 
 ### Vector Type
 
@@ -195,16 +195,16 @@ This project adds a native [Vector type](types/vector-type) and associated funct
 
 Native Vector type support is also extended to the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write vector data to vector columns for the pgvector extension.
 
-The native vector type is supported by [these system functions](docs/system-functions.md#vector-functions).
+The native vector type is supported by [these system functions](function-docs/system-functions.md#vector-functions).
 
 ### Function Libraries
 
-<img src="docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
+<img src="function-docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Implementation of FlinkSQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 
-* [Math](docs/library-functions.md#advanced-math): Advanced math functions
-* [OpenAI](docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
+* [Math](function-docs/library-functions.md#advanced-math): Advanced math functions
+* [OpenAI](function-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
 
 ## Usage
 
