@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.ScalarFunction;
  * the string, or there are contiguous delimiters, then an empty string is added to the array.
  */
 @AutoService(AutoRegisterSystemFunction.class)
-public class Split extends ScalarFunction implements AutoRegisterSystemFunction {
+public class split extends ScalarFunction implements AutoRegisterSystemFunction {
 
   public String[] eval(String text, String delimiter) {
     if (text == null || delimiter == null) {

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 
 class TextSearchTest {
 
-  private TextSearch underTest = new TextSearch();
+  private text_search underTest = new text_search();
 
   @Test
   public void testSearch() {

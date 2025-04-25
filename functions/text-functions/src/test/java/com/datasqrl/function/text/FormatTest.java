@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 
 class FormatTest {
 
-  Format underTest = new Format();
+  format underTest = new format();
 
   @Test
   public void testFormat() {

@@ -350,7 +350,6 @@
                   <exclude>*:*-sample</exclude>
                 </excludes>
               </modules>
-
             </bom>
           </boms>
         </configuration>
