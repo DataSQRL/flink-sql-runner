@@ -248,6 +248,11 @@
       <artifactId>postgresql-connector</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>text-functions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
