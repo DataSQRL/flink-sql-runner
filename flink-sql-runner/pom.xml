@@ -134,7 +134,7 @@
     <dependency>
       <groupId>org.jdbi</groupId>
       <artifactId>jdbi3-core</artifactId>
-      <version>3.49.0</version>
+      <version>3.49.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -246,6 +246,26 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>postgresql-connector</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>text-functions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>text-functions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>math-functions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>openai-functions</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

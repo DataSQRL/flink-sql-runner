@@ -1,0 +1,37 @@
+"An RFC-3339 compliant DateTime Scalar"
+scalar DateTime
+
+type MathResults {
+  d: Float!
+  b: Float!
+  cbrt: Float
+  copy_sign: Float
+  expm1: Float
+  hypot: Float
+  log1p: Float
+  next_after: Float
+  scalb: Float
+  ulp: Float
+  binomial_distribution: Float
+  exponential_distribution: Float
+  normal_distribution: Float
+  poisson_distribution: Float
+}
+
+type Query {
+  math_results(d: Float, b: Float, limit: Int = 10, offset: Int = 0): [MathResults!]
+}
+
+type Mutation {
+  data(input: Data!): DataResponse!
+}
+
+input Data {
+  d: Int!
+  b: Int!
+}
+
+type DataResponse {
+  d: Int!
+  b: Int!
+}

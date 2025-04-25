@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "package": {
+    "name": "datasqrl.openai",
+    "version": "0.5.0",
+    "variant": "default",
+    "latest": true,
+    "type": "source",
+    "license": "ASFv2",
+    "repository": "https://github.com/DataSQRL/sqrl-functions/blob/main/sqrl-openai",
+    "homepage": "https://github.com/DataSQRL/sqrl-functions/blob/main/sqrl-openai/sqrl-package/README.md",
+    "description": "The com.datasqrl.openai package provides functions to interact with OpenAI's models for generating text completions, extracting structured data, and creating vector embeddings.",
+    "documentation": "https://github.com/DataSQRL/sqrl-functions/blob/main/sqrl-openai/sqrl-package/README.md",
+    "topics": ["datasqrl", "function", "openai"]
+  }
+}
