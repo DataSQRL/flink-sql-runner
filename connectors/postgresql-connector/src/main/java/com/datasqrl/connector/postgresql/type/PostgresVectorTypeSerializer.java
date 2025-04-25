@@ -15,8 +15,9 @@
  */
 package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.types.vector.FlinkVectorType;
-import com.datasqrl.types.vector.FlinkVectorTypeSerializer;
+import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
+import com.datasqrl.flinkrunner.types.vector.FlinkVectorTypeSerializer;
+import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcSerializationConverter;
@@ -24,6 +25,7 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.postgresql.util.PGobject;
 
+@AutoService(JdbcTypeSerializer.class)
 public class PostgresVectorTypeSerializer
     implements JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter> {
 

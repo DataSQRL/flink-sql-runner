@@ -1,3 +1,0 @@
-com.datasqrl.connector.postgresql.type.PostgresRowTypeSerializer
-com.datasqrl.connector.postgresql.type.PostgresJsonTypeSerializer
-com.datasqrl.connector.postgresql.type.PostgresVectorTypeSerializer

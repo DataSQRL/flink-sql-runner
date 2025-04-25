@@ -36,6 +36,7 @@ import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.TABLE_N
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.URL;
 import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.USERNAME;
 
+import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -55,6 +56,7 @@ import org.apache.flink.connector.jdbc.table.JdbcDynamicTableSource;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -65,6 +67,7 @@ import org.apache.flink.util.Preconditions;
  * JdbcDynamicTableSink}.
  */
 @Internal
+@AutoService(Factory.class)
 public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
   public static final String IDENTIFIER = "jdbc-sqrl";
