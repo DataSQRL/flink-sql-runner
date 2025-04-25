@@ -1,0 +1,23 @@
+--Uncomment the following line and comment out `IMPORT mock.data;` when running with graphql api.
+--IMPORT schema.data;
+IMPORT mock.data;
+--Uncomment the following line and comment out `IMPORT target.*;` to use the remote package.
+--IMPORT datasqrl.math.*;
+IMPORT target.*;
+
+--Uncomment the following line when running with graphql api.
+/*+test */
+math_results := SELECT d, b,
+            cbrt(d) AS cbrt,
+            copy_sign(d, d) AS copy_sign,
+            expm1(d) AS expm1,
+            hypot(d, d) AS hypot,
+            log1p(d) AS log1p,
+            next_after(d, d) AS next_after,
+            scalb(d, b) AS scalb,
+            ulp(d) AS ulp,
+            binomial_distribution(b, 1, b) AS binomial_distribution,
+            exponential_distribution(d, d) AS exponential_distribution,
+            normal_distribution(d, d, d) AS normal_distribution,
+            poisson_distribution(d, b) AS poisson_distribution
+           FROM data;

@@ -1,0 +1,25 @@
+"An RFC-3339 compliant DateTime Scalar"
+scalar DateTime
+
+type Results {
+  prompt: String
+  completions_result: String
+  extract_json_result: String
+  vector_embedd_result: String
+}
+
+type Query {
+  results(prompt: String, limit: Int = 10, offset: Int = 0): [Results!]
+}
+
+type Mutation {
+  data(input: InputData!): DataResponse!
+}
+
+input InputData {
+  prompt: String!
+}
+
+type DataResponse {
+  prompt: String!
+}
