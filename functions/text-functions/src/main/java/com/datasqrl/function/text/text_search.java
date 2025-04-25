@@ -15,9 +15,9 @@
  */
 package com.datasqrl.function.text;
 
-import com.datasqrl.function.AutoRegisterSystemFunction;
-import com.datasqrl.function.FlinkTypeUtil;
-import com.datasqrl.function.FlinkTypeUtil.VariableArguments;
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
+import com.datasqrl.flinkrunner.functions.FlinkTypeUtil;
+import com.datasqrl.flinkrunner.functions.FlinkTypeUtil.VariableArguments;
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.Arrays;

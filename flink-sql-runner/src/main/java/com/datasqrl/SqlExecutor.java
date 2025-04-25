@@ -15,7 +15,7 @@
  */
 package com.datasqrl;
 
-import com.datasqrl.function.AutoRegisterSystemFunction;
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import java.io.File;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;

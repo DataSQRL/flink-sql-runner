@@ -15,14 +15,16 @@
  */
 package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.types.json.FlinkJsonType;
-import com.datasqrl.types.json.FlinkJsonTypeSerializer;
+import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
+import com.datasqrl.flinkrunner.types.json.FlinkJsonTypeSerializer;
+import com.google.auto.service.AutoService;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcSerializationConverter;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.postgresql.util.PGobject;
 
+@AutoService(JdbcTypeSerializer.class)
 public class PostgresJsonTypeSerializer
     implements JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter> {
 

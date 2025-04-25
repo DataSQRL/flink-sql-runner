@@ -15,7 +15,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

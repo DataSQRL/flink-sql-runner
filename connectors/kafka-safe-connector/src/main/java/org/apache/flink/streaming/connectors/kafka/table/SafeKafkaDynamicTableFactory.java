@@ -15,9 +15,9 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import static com.datasqrl.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
-import static com.datasqrl.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
-import static com.datasqrl.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
+import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
+import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
+import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -52,7 +52,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateTableSinkOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateTableSourceOptions;
 
-import com.datasqrl.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.google.auto.service.AutoService;
 import java.time.Duration;
 import java.util.HashSet;

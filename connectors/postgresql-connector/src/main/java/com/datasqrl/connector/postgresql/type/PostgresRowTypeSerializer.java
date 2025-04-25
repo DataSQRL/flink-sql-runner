@@ -15,7 +15,8 @@
  */
 package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.flink.format.json.SqrlRowDataToJsonConverters;
+import com.datasqrl.flinkrunner.format.json.SqrlRowDataToJsonConverters;
+import com.google.auto.service.AutoService;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcSerializationConverter;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -26,6 +27,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 import org.postgresql.util.PGobject;
 
+@AutoService(JdbcTypeSerializer.class)
 public class PostgresRowTypeSerializer
     implements JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter> {
 
