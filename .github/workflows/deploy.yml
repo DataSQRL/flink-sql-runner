@@ -25,9 +25,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
@@ -61,8 +58,6 @@ jobs:
         run: |
           mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Pci,flink-1.19
           mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -Pci,flink-1.19
-          docker pull postgres:17
-          grep '^FROM' flink-sql-runner/target/Dockerfile | awk '{print $2}' | xargs -n1 docker pull
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
