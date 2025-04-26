@@ -1,12 +1,12 @@
 # Function Libraries
 
 The following library functions can be imported for additional functionality:
-* [Advanced Math](#advanced-math)
+* [Advanced Math](#math)
 * [OpenAI](#openai)
 
-## Advanced Math
+## Math
 
-Functions for advanced mathematics
+Functions for advanced mathematics under the `math` package.
 
 | **Function Name**                   | **Description**                                                                                                                                                         |
 |-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -26,6 +26,7 @@ Functions for advanced mathematics
 
 ## OpenAI
 
+OpenAI API function under the `openai` package.
 
 You can use these UDFs in your SQRL scripts to perform tasks such as text completion, extraction, and embedding, leveraging the power of OpenAI models.
 

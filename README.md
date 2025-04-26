@@ -203,7 +203,7 @@ The native vector type is supported by [these system functions](function-docs/sy
 
 Implementation of FlinkSQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 
-* [Math](function-docs/library-functions.md#advanced-math): Advanced math functions
+* [Math](function-docs/library-functions.md#math): Advanced math functions
 * [OpenAI](function-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
 
 ## Usage
