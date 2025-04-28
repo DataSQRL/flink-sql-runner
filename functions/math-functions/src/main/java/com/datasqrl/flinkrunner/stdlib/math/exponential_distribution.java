@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
-import org.apache.commons.math3.util.FastMath;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Returns the next floating-point number. */
+/** Calculates the cumulative probability for an exponential distribution. */
 @AutoService(ScalarFunction.class)
-public class next_after extends ScalarFunction {
-  public Double eval(Double start, Double direction) {
-    if (start == null || direction == null) return null;
-    return FastMath.nextAfter(start, direction);
+public class exponential_distribution extends ScalarFunction {
+  public Double eval(Double mean, Double x) {
+    if (mean == null || x == null) return null;
+    org.apache.commons.math3.distribution.ExponentialDistribution dist =
+        new org.apache.commons.math3.distribution.ExponentialDistribution(mean);
+    return dist.cumulativeProbability(x);
   }
 }

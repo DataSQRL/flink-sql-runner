@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Multiplies x by 2^scaleFactor. */
+/** Calculates the hypotenuse of a right-angled triangle without overflow. */
 @AutoService(ScalarFunction.class)
-public class scalb extends ScalarFunction {
-  public Double eval(Double x, Long scaleFactor) {
-    if (x == null || scaleFactor == null) return null;
-    return FastMath.scalb(x, scaleFactor.intValue());
+public class hypot extends ScalarFunction {
+  public Double eval(Double x, Double y) {
+    if (x == null || y == null) return null;
+    return FastMath.hypot(x, y);
   }
 }

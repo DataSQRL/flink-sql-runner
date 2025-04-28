@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
 import org.apache.commons.math3.util.FastMath;

@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
-import org.apache.commons.math3.util.FastMath;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Returns the first argument with the sign of the second. */
+/** Calculates the cumulative probability for a Poisson distribution. */
 @AutoService(ScalarFunction.class)
-public class copy_sign extends ScalarFunction {
-  public Double eval(Double magnitude, Double sign) {
-    if (magnitude == null || sign == null) return null;
-    return FastMath.copySign(magnitude, sign);
+public class poisson_distribution extends ScalarFunction {
+  public Double eval(Double mean, Long x) {
+    if (mean == null || x == null) return null;
+    org.apache.commons.math3.distribution.PoissonDistribution dist =
+        new org.apache.commons.math3.distribution.PoissonDistribution(mean);
+    return dist.cumulativeProbability(x.intValue());
   }
 }

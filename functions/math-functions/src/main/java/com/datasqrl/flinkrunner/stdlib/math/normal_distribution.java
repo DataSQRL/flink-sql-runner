@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.distribution;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Calculates the cumulative probability for an exponential distribution. */
+/** Calculates the cumulative distribution function for a normal distribution. */
 @AutoService(ScalarFunction.class)
-public class exponential_distribution extends ScalarFunction {
-  public Double eval(Double mean, Double x) {
-    if (mean == null || x == null) return null;
-    org.apache.commons.math3.distribution.ExponentialDistribution dist =
-        new org.apache.commons.math3.distribution.ExponentialDistribution(mean);
+public class normal_distribution extends ScalarFunction {
+  public Double eval(Double mean, Double sd, Double x) {
+    if (mean == null || sd == null || x == null) return null;
+    org.apache.commons.math3.distribution.NormalDistribution dist =
+        new org.apache.commons.math3.distribution.NormalDistribution(mean, sd);
     return dist.cumulativeProbability(x);
   }
 }
