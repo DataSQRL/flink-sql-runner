@@ -33,7 +33,7 @@ public class JsonFunctions {
   public static final jsonb_query JSON_QUERY = new jsonb_query();
   public static final jsonb_exists JSON_EXISTS = new jsonb_exists();
   public static final jsonb_array_agg JSON_ARRAYAGG = new jsonb_array_agg();
-  public static final jsonb_object_agg JSON_OBJECTAGG = new jsonb_object_agg();
+  public static final json_object_agg JSON_OBJECTAGG = new json_object_agg();
   public static final jsonb_concat JSON_CONCAT = new jsonb_concat();
 
   public static ArgumentTypeStrategy createJsonArgumentTypeStrategy(DataTypeFactory typeFactory) {

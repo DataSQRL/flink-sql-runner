@@ -35,7 +35,7 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
             value = "RAW",
             bridgedTo = FlinkJsonType.class,
             rawSerializer = FlinkJsonTypeSerializer.class))
-public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg> {
+public class json_object_agg extends AggregateFunction<Object, ObjectAgg> {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
