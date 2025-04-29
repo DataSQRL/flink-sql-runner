@@ -27,7 +27,7 @@
   <artifactId>openai-functions</artifactId>
 
   <properties>
-    <mockito.version>4.8.0</mockito.version>
+    <mockito.version>5.17.0</mockito.version>
   </properties>
 
   <dependencies>
