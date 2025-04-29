@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.openai;
+package com.datasqrl.flinkrunner.stdlib.openai;
 
-import com.datasqrl.flinkrunner.functions.openai.util.FunctionMetricTracker;
+import com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;

@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.openai;
+package com.datasqrl.flinkrunner.stdlib.math;
 
-import lombok.Builder;
-import lombok.Getter;
+import com.google.auto.service.AutoService;
+import org.apache.flink.table.functions.ScalarFunction;
 
-@Getter
-@Builder
-public class CompletionsRequest {
-  private final String prompt;
-  private final String modelName;
-  private final boolean requireJsonOutput;
-  private final String jsonSchema;
-  private final Integer maxOutputTokens;
-  private final Double temperature;
-  private final Double topP;
+/** Calculates the cumulative probability for an exponential distribution. */
+@AutoService(ScalarFunction.class)
+public class exponential_distribution extends ScalarFunction {
+  public Double eval(Double mean, Double x) {
+    if (mean == null || x == null) return null;
+    org.apache.commons.math3.distribution.ExponentialDistribution dist =
+        new org.apache.commons.math3.distribution.ExponentialDistribution(mean);
+    return dist.cumulativeProbability(x);
+  }
 }

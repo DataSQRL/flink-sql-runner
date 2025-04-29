@@ -13,17 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.openai;
 
-import com.google.auto.service.AutoService;
-import org.apache.commons.math3.util.FastMath;
-import org.apache.flink.table.functions.ScalarFunction;
-
-/** Returns the next floating-point number. */
-@AutoService(ScalarFunction.class)
-public class next_after extends ScalarFunction {
-  public Double eval(Double start, Double direction) {
-    if (start == null || direction == null) return null;
-    return FastMath.nextAfter(start, direction);
-  }
+public class OpenAIUtil {
+  public static final String API_KEY = "OPENAI_API_KEY";
+  public static final String EMBEDDING_API = "https://api.openai.com/v1/embeddings";
+  public static final String COMPLETIONS_API = "https://api.openai.com/v1/chat/completions";
 }

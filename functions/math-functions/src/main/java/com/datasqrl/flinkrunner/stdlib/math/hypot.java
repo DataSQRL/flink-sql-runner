@@ -13,10 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.openai;
+package com.datasqrl.flinkrunner.stdlib.math;
 
-public class OpenAIUtil {
-  public static final String API_KEY = "OPENAI_API_KEY";
-  public static final String EMBEDDING_API = "https://api.openai.com/v1/embeddings";
-  public static final String COMPLETIONS_API = "https://api.openai.com/v1/chat/completions";
+import com.google.auto.service.AutoService;
+import org.apache.commons.math3.util.FastMath;
+import org.apache.flink.table.functions.ScalarFunction;
+
+/** Calculates the hypotenuse of a right-angled triangle without overflow. */
+@AutoService(ScalarFunction.class)
+public class hypot extends ScalarFunction {
+  public Double eval(Double x, Double y) {
+    if (x == null || y == null) return null;
+    return FastMath.hypot(x, y);
+  }
 }

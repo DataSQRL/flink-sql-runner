@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.openai;
+package com.datasqrl.flinkrunner.stdlib.openai;
 
-import static com.datasqrl.flinkrunner.functions.openai.OpenAIUtil.API_KEY;
-import static com.datasqrl.flinkrunner.functions.openai.OpenAIUtil.COMPLETIONS_API;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.API_KEY;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.COMPLETIONS_API;
 
 import java.io.IOException;
 import java.net.URI;

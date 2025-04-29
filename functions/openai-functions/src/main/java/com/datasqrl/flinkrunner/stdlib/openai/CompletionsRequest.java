@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.openai;
 
-import com.google.auto.service.AutoService;
-import org.apache.commons.math3.util.FastMath;
-import org.apache.flink.table.functions.ScalarFunction;
+import lombok.Builder;
+import lombok.Getter;
 
-/** Multiplies x by 2^scaleFactor. */
-@AutoService(ScalarFunction.class)
-public class scalb extends ScalarFunction {
-  public Double eval(Double x, Long scaleFactor) {
-    if (x == null || scaleFactor == null) return null;
-    return FastMath.scalb(x, scaleFactor.intValue());
-  }
+@Getter
+@Builder
+public class CompletionsRequest {
+  private final String prompt;
+  private final String modelName;
+  private final boolean requireJsonOutput;
+  private final String jsonSchema;
+  private final Integer maxOutputTokens;
+  private final Double temperature;
+  private final Double topP;
 }

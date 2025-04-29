@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.functions.math.util;
+package com.datasqrl.flinkrunner.stdlib.math;
 
 import com.google.auto.service.AutoService;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.flink.table.functions.ScalarFunction;
 
-/** Returns the cube root of x. */
+/** Returns the next floating-point number. */
 @AutoService(ScalarFunction.class)
-public class cbrt extends ScalarFunction {
-  public Double eval(Double x) {
-    return x == null ? null : FastMath.cbrt(x);
+public class next_after extends ScalarFunction {
+  public Double eval(Double start, Double direction) {
+    if (start == null || direction == null) return null;
+    return FastMath.nextAfter(start, direction);
   }
 }
