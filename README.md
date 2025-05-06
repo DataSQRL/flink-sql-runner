@@ -1,3 +1,9 @@
+[![Deploy jars](https://github.com/DataSQRL/flink-sql-runner/actions/workflows/deploy.yml/badge.svg)](https://github.com/DataSQRL/flink-sql-runner/actions/workflows/deploy.yml)
+[![GitHub release](https://img.shields.io/github/v/release/DataSQRL/flink-sql-runner?sort=semver)](https://github.com/DataSQRL/flink-sql-runner/releases)
+[![Docker Image Version](https://img.shields.io/docker/v/datasqrl/flink-sql-runner?sort=semver)](https://hub.docker.com/r/datasqrl/flink-sql-runner/tags)
+[![Maven Central](https://img.shields.io/maven-central/v/com.datasqrl.flinkrunner/flink-sql-runner)](https://repo1.maven.org/maven2/com/datasqrl/flinkrunner/flink-sql-runner/)
+
+
 # Flink SQL Runner
 
 <img src="function-docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
