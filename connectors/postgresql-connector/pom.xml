@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
     <artifactId>connectors</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>postgresql-connector</artifactId>
