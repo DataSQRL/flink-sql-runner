@@ -15,7 +15,9 @@
  */
 package com.datasqrl.flinkrunner.functions.json;
 
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
+import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +25,9 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /** Aggregation function that aggregates JSON objects into a JSON array. */
-public class jsonb_array_agg extends AggregateFunction<FlinkJsonType, ArrayAgg> {
+@AutoService(AutoRegisterSystemFunction.class)
+public class jsonb_array_agg extends AggregateFunction<FlinkJsonType, ArrayAgg>
+    implements AutoRegisterSystemFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 

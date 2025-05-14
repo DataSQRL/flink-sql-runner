@@ -15,8 +15,10 @@
  */
 package com.datasqrl.flinkrunner.functions.json;
 
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
 import com.datasqrl.flinkrunner.types.json.FlinkJsonTypeSerializer;
+import com.google.auto.service.AutoService;
 import java.util.LinkedHashMap;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -35,7 +37,9 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
             value = "RAW",
             bridgedTo = FlinkJsonType.class,
             rawSerializer = FlinkJsonTypeSerializer.class))
-public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg> {
+@AutoService(AutoRegisterSystemFunction.class)
+public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg>
+    implements AutoRegisterSystemFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 

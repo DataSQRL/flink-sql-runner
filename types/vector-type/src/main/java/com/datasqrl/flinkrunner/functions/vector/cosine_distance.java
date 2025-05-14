@@ -15,9 +15,12 @@
  */
 package com.datasqrl.flinkrunner.functions.vector;
 
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
+import com.google.auto.service.AutoService;
 
 /** Computes the cosine distance between two vectors */
+@AutoService(AutoRegisterSystemFunction.class)
 public class cosine_distance extends cosine_similarity {
 
   @Override

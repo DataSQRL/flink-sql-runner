@@ -18,14 +18,18 @@ package com.datasqrl.flinkrunner.functions.vector;
 import static com.datasqrl.flinkrunner.functions.vector.VectorFunctions.VEC_TO_DOUBLE;
 import static com.datasqrl.flinkrunner.functions.vector.VectorFunctions.convert;
 
+import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
+import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.AggregateFunction;
 
 /**
  * Aggregates vectors by computing the centroid, i.e. summing up all vectors and dividing the
  * resulting vector by the number of vectors.
  */
-public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator> {
+@AutoService(AutoRegisterSystemFunction.class)
+public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator>
+    implements AutoRegisterSystemFunction {
 
   @Override
   public CenterAccumulator createAccumulator() {
