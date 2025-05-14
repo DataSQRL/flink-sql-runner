@@ -26,8 +26,8 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /** Aggregation function that aggregates JSON objects into a JSON array. */
 @AutoService(AutoRegisterSystemFunction.class)
-public class jsonb_array_agg extends AggregateFunction<FlinkJsonType, ArrayAgg> implements
-    AutoRegisterSystemFunction {
+public class jsonb_array_agg extends AggregateFunction<FlinkJsonType, ArrayAgg>
+    implements AutoRegisterSystemFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 

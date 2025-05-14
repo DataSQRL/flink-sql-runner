@@ -28,8 +28,8 @@ import org.apache.flink.table.functions.AggregateFunction;
  * resulting vector by the number of vectors.
  */
 @AutoService(AutoRegisterSystemFunction.class)
-public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator> implements
-    AutoRegisterSystemFunction {
+public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator>
+    implements AutoRegisterSystemFunction {
 
   @Override
   public CenterAccumulator createAccumulator() {

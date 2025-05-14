@@ -38,8 +38,8 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
             bridgedTo = FlinkJsonType.class,
             rawSerializer = FlinkJsonTypeSerializer.class))
 @AutoService(AutoRegisterSystemFunction.class)
-public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg> implements
-    AutoRegisterSystemFunction {
+public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg>
+    implements AutoRegisterSystemFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
