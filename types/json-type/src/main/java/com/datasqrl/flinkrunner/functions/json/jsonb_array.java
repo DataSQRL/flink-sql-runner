@@ -38,8 +38,8 @@ public class jsonb_array extends ScalarFunction implements AutoRegisterSystemFun
     var arrayNode = mapper.createArrayNode();
 
     for (Object value : objects) {
-      if (value instanceof FlinkJsonType type) {
-        arrayNode.add(type.json);
+      if (value instanceof FlinkJsonType) {
+        arrayNode.add(((FlinkJsonType) value).json);
       } else {
         arrayNode.addPOJO(value);
       }

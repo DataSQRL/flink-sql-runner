@@ -108,7 +108,7 @@ class FlinkMainIT extends AbstractITSupport {
       args.add("--config-dir");
       args.add("/opt/flink/usrlib/config/");
     }
-    execute(args.toArray(String[]::new));
+    execute(args.toArray(new String[0]));
   }
 
   static Stream<Arguments> planScripts() {
@@ -129,7 +129,7 @@ class FlinkMainIT extends AbstractITSupport {
       args.add("--config-dir");
       args.add("/opt/flink/usrlib/config/");
     }
-    execute(args.toArray(String[]::new));
+    execute(args.toArray(new String[0]));
   }
 
   @Test
@@ -148,7 +148,7 @@ class FlinkMainIT extends AbstractITSupport {
     args.add(planFile);
     args.add("--config-dir");
     args.add("/opt/flink/usrlib/config/");
-    var jobResponse = execute(args.toArray(String[]::new));
+    var jobResponse = execute(args.toArray(new String[0]));
 
     untilAssert(() -> assertThat(transactionDao.getRowCount()).isEqualTo(10));
     // test if initial change to compilation plan took effect
@@ -195,7 +195,7 @@ class FlinkMainIT extends AbstractITSupport {
             ZonedDateTime.now().withZoneSameInstant(ZoneId.of("Z")).toLocalDateTime());
 
     // restart with savepoint
-    restoreAndExecute(savePointFile.getParent().toString(), args.toArray(String[]::new));
+    restoreAndExecute(savePointFile.getParent().toString(), args.toArray(new String[0]));
 
     untilAssert(() -> assertThat(transactionDao.getRowCount(restoration)).isEqualTo(10));
     assertThat(transactionDao.getDoubleTA()).isEqualTo(5);

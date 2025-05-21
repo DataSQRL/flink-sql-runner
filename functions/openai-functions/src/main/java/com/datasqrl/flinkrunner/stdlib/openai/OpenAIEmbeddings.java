@@ -80,7 +80,8 @@ public class OpenAIEmbeddings {
     if (response.statusCode() == 200) {
       return parseEmbeddingVector(response.body());
     } else {
-      throw new IOException("Failed to get embedding: HTTP status code " + response.statusCode());
+      throw new IOException(
+          String.format("Failed to get embedding: HTTP status code %d", response.statusCode()));
     }
   }
 

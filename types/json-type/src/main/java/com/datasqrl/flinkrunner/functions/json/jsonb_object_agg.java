@@ -54,8 +54,8 @@ public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg>
 
   public void accumulate(
       ObjectAgg accumulator, String key, @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
-    if (value instanceof FlinkJsonType type) {
-      accumulateObject(accumulator, key, type.getJson());
+    if (value instanceof FlinkJsonType) {
+      accumulateObject(accumulator, key, ((FlinkJsonType) value).getJson());
     } else {
       accumulator.add(key, mapper.getNodeFactory().pojoNode(value));
     }

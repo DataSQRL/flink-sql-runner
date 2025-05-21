@@ -92,10 +92,11 @@ public class jsonb_array_agg extends AggregateFunction<FlinkJsonType, ArrayAgg>
 
   @Override
   public FlinkJsonType getValue(ArrayAgg accumulator) {
+    // Replacing var with explicit type declaration for Java 11 compatibility
     var arrayNode = mapper.createArrayNode();
     for (Object o : accumulator.getObjects()) {
-      if (o instanceof FlinkJsonType type) {
-        arrayNode.add(type.json);
+      if (o instanceof FlinkJsonType) {
+        arrayNode.add(((FlinkJsonType) o).json);
       } else {
         arrayNode.addPOJO(o);
       }

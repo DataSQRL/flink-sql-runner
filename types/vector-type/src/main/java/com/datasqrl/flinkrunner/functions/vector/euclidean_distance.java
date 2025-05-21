@@ -28,6 +28,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 @AutoService(AutoRegisterSystemFunction.class)
 public class euclidean_distance extends ScalarFunction implements AutoRegisterSystemFunction {
 
+  private static final long serialVersionUID = 5193554802773750128L;
+
   public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
     // Create RealVectors from the input arrays
     RealVector vA = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorA), false);

@@ -21,41 +21,44 @@ import org.apache.flink.table.types.logical.LogicalType;
 public class FlinkArrayTypeUtil {
 
   public static LogicalType getBaseFlinkArrayType(LogicalType type) {
-    if (type instanceof ArrayType arrayType) {
+    if (type instanceof ArrayType) {
+      ArrayType arrayType = (ArrayType) type;
       return getBaseFlinkArrayType(arrayType.getElementType());
     }
     return type;
   }
 
   public static boolean isScalarArray(LogicalType type) {
-    if (type instanceof ArrayType arrayType) {
-      var elementType = arrayType.getElementType();
+    if (type instanceof ArrayType) {
+      ArrayType arrayType = (ArrayType) type;
+      LogicalType elementType = arrayType.getElementType();
       return isScalar(elementType) || isScalarArray(elementType);
     }
     return false;
   }
 
   public static boolean isScalar(LogicalType type) {
-    return switch (type.getTypeRoot()) {
-      case BOOLEAN,
-              TINYINT,
-              SMALLINT,
-              INTEGER,
-              BIGINT,
-              FLOAT,
-              DOUBLE,
-              CHAR,
-              VARCHAR,
-              BINARY,
-              VARBINARY,
-              DATE,
-              TIME_WITHOUT_TIME_ZONE,
-              TIMESTAMP_WITH_TIME_ZONE,
-              TIMESTAMP_WITHOUT_TIME_ZONE,
-              TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-              DECIMAL ->
-          true;
-      default -> false;
-    };
+    switch (type.getTypeRoot()) {
+      case BOOLEAN:
+      case TINYINT:
+      case SMALLINT:
+      case INTEGER:
+      case BIGINT:
+      case FLOAT:
+      case DOUBLE:
+      case CHAR:
+      case VARCHAR:
+      case BINARY:
+      case VARBINARY:
+      case DATE:
+      case TIME_WITHOUT_TIME_ZONE:
+      case TIMESTAMP_WITH_TIME_ZONE:
+      case TIMESTAMP_WITHOUT_TIME_ZONE:
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+      case DECIMAL:
+        return true;
+      default:
+        return false;
+    }
   }
 }

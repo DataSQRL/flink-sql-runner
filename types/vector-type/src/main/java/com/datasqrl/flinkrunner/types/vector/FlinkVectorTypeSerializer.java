@@ -23,6 +23,8 @@ import org.apache.flink.core.memory.DataOutputView;
 
 public class FlinkVectorTypeSerializer extends TypeSerializer<FlinkVectorType> {
 
+  private static final long serialVersionUID = -8481213829625869500L;
+
   @Override
   public boolean isImmutableType() {
     return true;

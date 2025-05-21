@@ -47,12 +47,13 @@ public class jsonb_object extends ScalarFunction implements AutoRegisterSystemFu
     var objectNode = mapper.createObjectNode();
 
     for (var i = 0; i < objects.length; i += 2) {
-      if (!(objects[i] instanceof String key)) {
+      if (!(objects[i] instanceof String)) {
         throw new IllegalArgumentException("Key must be a string");
       }
+      var key = (String) objects[i];
       var value = objects[i + 1];
-      if (value instanceof FlinkJsonType type) {
-        objectNode.put(key, type.json);
+      if (value instanceof FlinkJsonType) {
+        objectNode.put(key, ((FlinkJsonType) value).json);
       } else {
         objectNode.putPOJO(key, value);
       }

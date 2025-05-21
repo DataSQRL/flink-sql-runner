@@ -70,11 +70,9 @@ public class DeserFailureHandler implements Serializable {
 
       } else if (DeserFailureHandlerType.KAFKA == handlerType) {
         LOG.warn(
-            "Deserialization failure occurred, sending the record to the configured topic ({}). Topic: {}, Partition: {}, Offset: {}",
-            producer.getTopic(),
-            record.topic(),
-            record.partition(),
-            record.offset());
+            String.format(
+                "Deserialization failure occurred, sending the record to the configured topic (%s). Topic: %s, Partition: %d, Offset: %s",
+                producer.getTopic(), record.topic(), record.partition(), record.offset()));
         producer.send(record);
       }
 

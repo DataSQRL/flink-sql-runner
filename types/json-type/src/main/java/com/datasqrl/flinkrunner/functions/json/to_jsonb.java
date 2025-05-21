@@ -48,15 +48,16 @@ public class to_jsonb extends ScalarFunction implements AutoRegisterSystemFuncti
     if (json == null) {
       return null;
     }
-    if (json instanceof FlinkJsonType type) {
-      return type;
+    if (json instanceof FlinkJsonType) {
+      return (FlinkJsonType) json;
     }
 
     return new FlinkJsonType(unboxFlinkToJsonNode(json));
   }
 
   JsonNode unboxFlinkToJsonNode(Object json) {
-    if (json instanceof Row row) {
+    if (json instanceof Row) {
+      var row = (Row) json;
       var objectNode = mapper.createObjectNode();
       var fieldNames =
           row.getFieldNames(true).toArray(new String[0]); // Get field names in an array
@@ -65,7 +66,8 @@ public class to_jsonb extends ScalarFunction implements AutoRegisterSystemFuncti
         objectNode.set(fieldName, unboxFlinkToJsonNode(field)); // Recursively unbox each field
       }
       return objectNode;
-    } else if (json instanceof Row[] rows) {
+    } else if (json instanceof Row[]) {
+      var rows = (Row[]) json;
       var arrayNode = mapper.createArrayNode();
       for (Row row : rows) {
         if (row == null) {

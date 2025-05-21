@@ -42,7 +42,8 @@ public class FlinkVectorType {
   @Override
   public boolean equals(Object obj) {
     if (this == obj) return true;
-    if (!(obj instanceof FlinkVectorType other)) return false;
+    if (!(obj instanceof FlinkVectorType)) return false;
+    var other = (FlinkVectorType) obj;
     return Arrays.equals(value, other.value);
   }
 }

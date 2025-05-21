@@ -66,8 +66,8 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
 
     if (root == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
       return val ->
-          val instanceof LocalDateTime ldt
-              ? TimestampData.fromLocalDateTime(ldt)
+          val instanceof LocalDateTime
+              ? TimestampData.fromLocalDateTime((LocalDateTime) val)
               : TimestampData.fromTimestamp((Timestamp) val);
     } else if (root == LogicalTypeRoot.ARRAY) {
       var arrayType = (ArrayType) type;
@@ -83,15 +83,18 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
 
   @Override
   protected JdbcSerializationConverter createExternalConverter(LogicalType type) {
-    return switch (type.getTypeRoot()) {
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE -> {
+    switch (type.getTypeRoot()) {
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
         final var tsPrecision = ((LocalZonedTimestampType) type).getPrecision();
-        yield (val, index, statement) ->
+        return (val, index, statement) ->
             statement.setTimestamp(index, val.getTimestamp(index, tsPrecision).toTimestamp());
-      }
-      case MULTISET, RAW -> super.createExternalConverter(type);
-      default -> super.createExternalConverter(type);
-    };
+
+      case MULTISET:
+      case RAW:
+        return super.createExternalConverter(type);
+      default:
+        return super.createExternalConverter(type);
+    }
   }
 
   @SneakyThrows
@@ -100,10 +103,10 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter 
     // Scalar arrays of any dimension are one array call
     if (isScalarArray(type)) {
       Object[] boxed;
-      if (data instanceof GenericArrayData arrayData) {
-        boxed = arrayData.toObjectArray();
-      } else if (data instanceof BinaryArrayData arrayData) {
-        boxed = arrayData.toObjectArray(getBaseFlinkArrayType(type));
+      if (data instanceof GenericArrayData) {
+        boxed = ((GenericArrayData) data).toObjectArray();
+      } else if (data instanceof BinaryArrayData) {
+        boxed = ((BinaryArrayData) data).toObjectArray(getBaseFlinkArrayType(type));
       } else {
         throw new RuntimeException("Unsupported ArrayData type: " + data.getClass());
       }

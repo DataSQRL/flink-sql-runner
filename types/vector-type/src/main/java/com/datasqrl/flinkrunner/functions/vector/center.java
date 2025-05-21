@@ -31,6 +31,8 @@ import org.apache.flink.table.functions.AggregateFunction;
 public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator>
     implements AutoRegisterSystemFunction {
 
+  private static final long serialVersionUID = 5356025229584544698L;
+
   @Override
   public CenterAccumulator createAccumulator() {
     return new CenterAccumulator();

@@ -111,8 +111,9 @@ public class FlinkMain {
           EnvironmentVariablesUtils.validateEnvironmentVariables(script);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
-            "Could not find the following environment variables: %s"
-                .formatted(missingEnvironmentVariables));
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
       }
 
       tableResult = sqlExecutor.executeScript(script);
@@ -124,8 +125,9 @@ public class FlinkMain {
           EnvironmentVariablesUtils.validateEnvironmentVariables(planJson);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
-            "Could not find the following environment variables: %s"
-                .formatted(missingEnvironmentVariables));
+            String.format(
+                "Could not find the following environment variables: %s",
+                missingEnvironmentVariables));
       }
 
       planJson = replaceScriptWithEnv(planJson);
@@ -144,8 +146,8 @@ public class FlinkMain {
 
   @SneakyThrows
   private String replaceScriptWithEnv(String script) {
-    ObjectMapper objectMapper = getObjectMapper();
-    Map map = objectMapper.readValue(script, Map.class);
+    var objectMapper = getObjectMapper();
+    var map = objectMapper.readValue(script, Map.class);
     return objectMapper.writeValueAsString(map);
   }
 

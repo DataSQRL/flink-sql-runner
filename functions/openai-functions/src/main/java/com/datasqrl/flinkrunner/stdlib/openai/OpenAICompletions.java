@@ -75,10 +75,9 @@ public class OpenAICompletions {
       return extractContent(response.body());
     } else {
       throw new IOException(
-          "Failed to get completion: HTTP status code "
-              + response.statusCode()
-              + " Message: "
-              + response.body());
+          String.format(
+              "Failed to get completion: HTTP status code %d Message: %s",
+              response.statusCode(), response.body()));
     }
   }
 

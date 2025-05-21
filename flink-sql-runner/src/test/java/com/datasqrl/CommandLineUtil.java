@@ -65,7 +65,8 @@ public class CommandLineUtil {
     } catch (IOException e) {
       var result = new String(output.toByteArray());
       log.error("Error while executing command:\n{}\noutput:\n{}", command, result);
-      if (e instanceof ExecuteException ee) {
+      if (e instanceof ExecuteException) {
+        ExecuteException ee = (ExecuteException) e;
         throw new ExecuteException(result, ee.getExitValue(), ee);
       }
       throw new RuntimeException(e);

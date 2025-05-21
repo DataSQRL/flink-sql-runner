@@ -231,12 +231,12 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
       long upperBound = config.get(SCAN_PARTITION_UPPER_BOUND);
       if (lowerBound > upperBound) {
         throw new IllegalArgumentException(
-            "'%s'='%s' must not be larger than '%s'='%s'."
-                .formatted(
-                    SCAN_PARTITION_LOWER_BOUND.key(),
-                    lowerBound,
-                    SCAN_PARTITION_UPPER_BOUND.key(),
-                    upperBound));
+            String.format(
+                "'%s'='%s' must not be larger than '%s'='%s'.",
+                SCAN_PARTITION_LOWER_BOUND.key(),
+                lowerBound,
+                SCAN_PARTITION_UPPER_BOUND.key(),
+                upperBound));
       }
     }
 
@@ -244,23 +244,25 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
     if (config.get(LOOKUP_MAX_RETRIES) < 0) {
       throw new IllegalArgumentException(
-          "The value of '%s' option shouldn't be negative, but is %s."
-              .formatted(LOOKUP_MAX_RETRIES.key(), config.get(LOOKUP_MAX_RETRIES)));
+          String.format(
+              "The value of '%s' option shouldn't be negative, but is %s.",
+              LOOKUP_MAX_RETRIES.key(), config.get(LOOKUP_MAX_RETRIES)));
     }
 
     if (config.get(SINK_MAX_RETRIES) < 0) {
       throw new IllegalArgumentException(
-          "The value of '%s' option shouldn't be negative, but is %s."
-              .formatted(SINK_MAX_RETRIES.key(), config.get(SINK_MAX_RETRIES)));
+          String.format(
+              "The value of '%s' option shouldn't be negative, but is %s.",
+              SINK_MAX_RETRIES.key(), config.get(SINK_MAX_RETRIES)));
     }
 
     if (config.get(MAX_RETRY_TIMEOUT).getSeconds() <= 0) {
       throw new IllegalArgumentException(
-          "The value of '%s' option must be in second granularity and shouldn't be smaller than 1 second, but is %s."
-              .formatted(
-                  MAX_RETRY_TIMEOUT.key(),
-                  config.get(
-                      ConfigOptions.key(MAX_RETRY_TIMEOUT.key()).stringType().noDefaultValue())));
+          String.format(
+              "The value of '%s' option must be in second granularity and shouldn't be smaller than 1 second, but is %s.",
+              MAX_RETRY_TIMEOUT.key(),
+              config.get(
+                  ConfigOptions.key(MAX_RETRY_TIMEOUT.key()).stringType().noDefaultValue())));
     }
   }
 
