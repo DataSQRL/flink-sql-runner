@@ -21,7 +21,7 @@
 
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner-parent</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>0.6.2-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Flink SQL Runner: a tool for running Flink SQL scripts easily.</description>
   <url>https://github.com/DataSQRL/flink-sql-runner/</url>
