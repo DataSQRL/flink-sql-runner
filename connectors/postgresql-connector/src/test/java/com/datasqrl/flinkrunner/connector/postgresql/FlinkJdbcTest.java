@@ -63,11 +63,7 @@ public class FlinkJdbcTest {
               DriverManager.getConnection(
                   postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
           var stmt = conn.createStatement()) {
-        var createTableSQL =
-            """
-            CREATE TABLE test_table (
-                "arrayOfRows" JSONB
-            )""";
+        var createTableSQL = "CREATE TABLE test_table (\n" + "\"arrayOfRows\" JSONB\n" + ")";
         stmt.executeUpdate(createTableSQL);
       }
 
@@ -77,13 +73,12 @@ public class FlinkJdbcTest {
 
       // Define the schema
       var createSourceTable =
-          """
-        CREATE TABLE datagen_source (
-            arrayOfRows ARRAY<ROW<field1 INT, field2 STRING>>
-        ) WITH (
-            'connector' = 'datagen',
-            'number-of-rows' = '10'
-        )""";
+          "CREATE TABLE datagen_source ("
+              + "arrayOfRows ARRAY<ROW<field1 INT, field2 STRING>>"
+              + ") WITH ("
+              + "'connector' = 'datagen',"
+              + "'number-of-rows' = '10'"
+              + ")";
 
       var createSinkTable =
           "CREATE TABLE jdbc_sink ("
@@ -130,11 +125,7 @@ public class FlinkJdbcTest {
                   postgresContainer.getUsername(),
                   postgresContainer.getPassword());
           var stmt = conn.createStatement()) {
-        var createTableSQL =
-            """
-            CREATE TABLE test_table (
-                id BIGINT, name VARCHAR
-            )""";
+        var createTableSQL = "CREATE TABLE test_table (" + "id BIGINT, name VARCHAR" + ")";
         stmt.executeUpdate(createTableSQL);
       }
 
@@ -164,18 +155,17 @@ public class FlinkJdbcTest {
 
       // Create a DataGen source to generate 10 rows of data
       tEnv.executeSql(
-          """
-            CREATE TABLE datagen_source (
-            id BIGINT,
-            name STRING
-            ) WITH (
-            'connector' = 'datagen',
-            'rows-per-second' = '1',
-            'fields.id.kind' = 'sequence',
-            'fields.id.start' = '1',
-            'fields.id.end' = '10',
-            'fields.name.length' = '10'
-            )""");
+          "CREATE TABLE datagen_source ("
+              + "id BIGINT,"
+              + "name STRING"
+              + ") WITH ("
+              + "'connector' = 'datagen',"
+              + "'rows-per-second' = '1',"
+              + "'fields.id.kind' = 'sequence',"
+              + "'fields.id.start' = '1',"
+              + "'fields.id.end' = '10',"
+              + "'fields.name.length' = '10'"
+              + ")");
 
       // Insert data from the DataGen source into the PostgreSQL table
       tEnv.executeSql("INSERT INTO test_table SELECT * FROM datagen_source").await();

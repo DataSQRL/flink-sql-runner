@@ -24,6 +24,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 @AutoService(AutoRegisterSystemFunction.class)
 public class double_to_vector extends ScalarFunction implements AutoRegisterSystemFunction {
 
+  private static final long serialVersionUID = 3241713829394296591L;
+
   public FlinkVectorType eval(double[] array) {
     return new FlinkVectorType(array);
   }

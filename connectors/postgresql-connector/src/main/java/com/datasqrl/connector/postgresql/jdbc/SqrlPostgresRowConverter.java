@@ -16,7 +16,6 @@
 package com.datasqrl.connector.postgresql.jdbc;
 
 import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer;
-import java.io.Serial;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -36,8 +35,7 @@ import org.postgresql.jdbc.PgArray;
  */
 public class SqrlPostgresRowConverter extends SqrlBaseJdbcRowConverter {
 
-  @Serial private static final long serialVersionUID = 1L;
-
+  private static final long serialVersionUID = -2288415615268814183L;
   public static final Map<
           Type, JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter>>
       sqrlSerializers = discoverSerializers();
@@ -104,8 +102,8 @@ public class SqrlPostgresRowConverter extends SqrlBaseJdbcRowConverter {
       // sqrl: check if scalar array
 
       Object[] in;
-      if (val instanceof PgArray pgArray) {
-        in = (Object[]) pgArray.getArray();
+      if (val instanceof PgArray) {
+        in = (Object[]) ((PgArray) val).getArray();
       } else {
         in = (Object[]) val;
       }

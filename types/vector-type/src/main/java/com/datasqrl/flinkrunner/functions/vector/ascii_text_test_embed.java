@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 @AutoService(AutoRegisterSystemFunction.class)
 public class ascii_text_test_embed extends ScalarFunction implements AutoRegisterSystemFunction {
 
+  private static final long serialVersionUID = -6540980574407921967L;
   private static final int VECTOR_LENGTH = 256;
 
   public FlinkVectorType eval(String text) {

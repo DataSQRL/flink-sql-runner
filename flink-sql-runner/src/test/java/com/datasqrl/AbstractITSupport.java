@@ -75,6 +75,6 @@ public class AbstractITSupport {
 
   protected static String serverUrl() {
     var serverPort = Optional.ofNullable(System.getProperty("server.port")).orElse("8081");
-    return "http://localhost:" + serverPort;
+    return String.format("http://localhost:%s", serverPort);
   }
 }

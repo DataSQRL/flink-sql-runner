@@ -43,7 +43,8 @@ public class FlinkJsonType {
   @Override
   public boolean equals(Object obj) {
     if (this == obj) return true;
-    if (!(obj instanceof FlinkJsonType other)) return false;
+    if (!(obj instanceof FlinkJsonType)) return false;
+    var other = (FlinkJsonType) obj;
     return Objects.equals(json, other.json);
   }
 }

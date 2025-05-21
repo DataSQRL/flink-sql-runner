@@ -19,7 +19,6 @@ import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
 import com.google.auto.service.AutoService;
 import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.ReadContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -38,7 +37,7 @@ public class jsonb_query extends ScalarFunction implements AutoRegisterSystemFun
     }
     try {
       var jsonNode = input.getJson();
-      ReadContext ctx = JsonPath.parse(jsonNode.toString());
+      var ctx = JsonPath.parse(jsonNode.toString());
       var result = ctx.read(pathSpec);
       return mapper.writeValueAsString(result); // Convert the result back to JSON string
     } catch (Exception e) {

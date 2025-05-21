@@ -23,6 +23,8 @@ import com.google.auto.service.AutoService;
 @AutoService(AutoRegisterSystemFunction.class)
 public class cosine_distance extends cosine_similarity {
 
+  private static final long serialVersionUID = -7136217222147264375L;
+
   @Override
   public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
     return 1 - super.eval(vectorA, vectorB);

@@ -48,7 +48,7 @@ class SqlUtils {
             .replaceAll(ESCAPED_BEGIN_CERTIFICATE, BEGIN_CERTIFICATE)
             .replaceAll(ESCAPED_END_CERTIFICATE, END_CERTIFICATE);
 
-    List<String> statements = new ArrayList<>();
+    var statements = new ArrayList<String>();
 
     StringBuilder current = null;
     var statementSet = false;
