@@ -21,7 +21,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
@@ -34,12 +36,20 @@ import picocli.CommandLine.Option;
 @RequiredArgsConstructor
 public class FlinkMain {
 
+  @SuppressWarnings("unused")
   @Command(
       name = "SqlRunner",
       mixinStandardHelpOptions = true,
       version = "0.2",
       description = "Runs SQL scripts using Flink TableEnvironment.")
   public static class SqlRunner implements Callable<Void> {
+
+    @Option(
+        names = {"-m", "--mode"},
+        defaultValue = "STREAMING",
+        description =
+            "Flink runtime execution mode to apply to the given SQL program. Valid values: ${COMPLETION-CANDIDATES}.")
+    private RuntimeExecutionMode mode;
 
     @Option(
         names = {"-s", "--sqlfile"},
@@ -62,11 +72,12 @@ public class FlinkMain {
     private String udfPath;
 
     @Override
-    public Void call() throws Exception {
+    public Void call() {
       return null;
     }
   }
 
+  private final RuntimeExecutionMode mode;
   private final String sqlFile;
   private final String planFile;
   private final String configDir;
@@ -76,7 +87,15 @@ public class FlinkMain {
     System.out.printf("\n\nExecuting flink-sql-runner: %s\n\n", Arrays.toString(args));
 
     var cl = new CommandLine(new SqlRunner());
-    cl.execute(args);
+    var resCode = cl.execute(args);
+    if (resCode != 0) {
+      System.exit(resCode);
+    }
+
+    if (cl.isUsageHelpRequested()) {
+      return;
+    }
+
     SqlRunner runner = cl.getCommand();
 
     // Determine UDF path
@@ -84,16 +103,23 @@ public class FlinkMain {
       runner.udfPath = System.getenv("UDF_PATH");
     }
 
-    new FlinkMain(runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath).run();
+    new FlinkMain(runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath)
+        .run();
+
     System.out.println("Finished flink-sql-runner");
   }
 
-  public int run() throws Exception {
+  public void run() throws Exception {
 
     // Load configuration if configDir is provided
     var configuration = new Configuration();
     if (configDir != null) {
       configuration = loadConfigurationFromYaml(configDir);
+    }
+
+    // Do not overwrite runtime given in YAML
+    if (!configuration.contains(ExecutionOptions.RUNTIME_MODE)) {
+      configuration.set(ExecutionOptions.RUNTIME_MODE, mode);
     }
 
     // Initialize SqlExecutor
@@ -138,10 +164,9 @@ public class FlinkMain {
       System.err.println("Invalid input. Please provide one of the following combinations:");
       System.err.println("- A single SQL file (--sqlfile)");
       System.err.println("- A plan JSON file (--planfile)");
-      return 1;
-    }
 
-    return 0;
+      System.exit(1);
+    }
   }
 
   @SneakyThrows
