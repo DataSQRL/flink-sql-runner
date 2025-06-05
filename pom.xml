@@ -47,6 +47,11 @@
       <email>marvin@datasqrl.com</email>
       <url>https://github.com/velo</url>
     </developer>
+    <developer>
+      <name>Ferenc Csaky</name>
+      <email>ferenc@datasqrl.com</email>
+      <url>https://github.com/ferenc-csaky</url>
+    </developer>
   </developers>
 
   <modules>
