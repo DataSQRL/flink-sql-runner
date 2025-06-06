@@ -17,9 +17,11 @@ package com.datasqrl;
 
 import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import java.io.File;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -27,6 +29,7 @@ import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,26 +63,17 @@ class SqlExecutor {
           ServiceLoader.load(AutoRegisterSystemFunction.class);
 
       standardLibraryFunctions.forEach(
-          function -> {
-            var sql =
-                String.format(
-                    "CREATE TEMPORARY FUNCTION IF NOT EXISTS `%s` AS '%s' LANGUAGE JAVA;",
-                    getFunctionNameFromClass(function.getClass()), function.getClass().getName());
-
-            System.out.println(sql);
-
-            tableEnv.executeSql(sql);
-          });
+          function ->
+              getFunctionNameAndClass(function.getClass())
+                  .ifPresent(
+                      funcParts ->
+                          tableEnv.createTemporarySystemFunction(funcParts.f0, funcParts.f1)));
     } catch (Throwable e) {
       e.printStackTrace(System.out);
       throw new RuntimeException(e);
     }
 
     System.out.println("Completed auto function registered system functions");
-  }
-
-  static String getFunctionNameFromClass(Class clazz) {
-    return clazz.getSimpleName().toLowerCase();
   }
 
   /**
@@ -193,5 +187,23 @@ class SqlExecutor {
       log.error("Failed to execute compiled plan", e);
       throw e;
     }
+  }
+
+  static Optional<Tuple2<String, Class<? extends UserDefinedFunction>>> getFunctionNameAndClass(
+      Class<?> clazz) {
+    Tuple2<String, Class<? extends UserDefinedFunction>> res = null;
+
+    if (UserDefinedFunction.class.isAssignableFrom(clazz)) {
+      var funcName = clazz.getSimpleName().toLowerCase();
+      res = Tuple2.of(funcName, (Class<? extends UserDefinedFunction>) clazz);
+
+      log.info("Registering '{}' ...", funcName);
+
+    } else {
+      log.warn(
+          "Skip registering '{}' as it does not extend '{}'", clazz, UserDefinedFunction.class);
+    }
+
+    return Optional.ofNullable(res);
   }
 }
