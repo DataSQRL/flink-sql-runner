@@ -17,6 +17,7 @@ package com.datasqrl.flinkrunner.stdlib.openai;
 
 import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.*;
 
+import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -37,14 +38,14 @@ public class OpenAIEmbeddings {
   private final HttpClient httpClient;
 
   public OpenAIEmbeddings() {
-    this.httpClient = HttpClient.newHttpClient();
+    this(HttpClient.newHttpClient());
   }
 
   public OpenAIEmbeddings(HttpClient httpClient) {
     this.httpClient = httpClient;
   }
 
-  public double[] vectorEmbed(String text, String modelName)
+  public FlinkVectorType vectorEmbed(String text, String modelName)
       throws IOException, InterruptedException {
     if (text == null || modelName == null) {
       return null;
@@ -53,7 +54,7 @@ public class OpenAIEmbeddings {
     return vectorEmbed(text, modelName, TOKEN_LIMIT);
   }
 
-  public double[] vectorEmbed(String text, String modelName, int tokenLimit)
+  public FlinkVectorType vectorEmbed(String text, String modelName, int tokenLimit)
       throws IOException, InterruptedException {
     // Truncate text to fit the maximum token limit
     text = truncateText(text, tokenLimit);
@@ -85,7 +86,7 @@ public class OpenAIEmbeddings {
     }
   }
 
-  private double[] parseEmbeddingVector(String responseBody) throws IOException {
+  private FlinkVectorType parseEmbeddingVector(String responseBody) throws IOException {
     // Parse JSON response
     JsonNode jsonResponse = objectMapper.readTree(responseBody);
     ArrayNode embeddingArray = (ArrayNode) jsonResponse.get("data").get(0).get("embedding");
@@ -95,7 +96,7 @@ public class OpenAIEmbeddings {
     for (int i = 0; i < embeddingArray.size(); i++) {
       embeddingVector[i] = embeddingArray.get(i).asDouble();
     }
-    return embeddingVector;
+    return new FlinkVectorType(embeddingVector);
   }
 
   // Method to truncate the text if it exceeds the token limit (adjust as needed)
