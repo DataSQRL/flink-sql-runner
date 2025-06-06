@@ -103,7 +103,7 @@
     <jdbc.version>3.2.0-1.19</jdbc.version>
     <lombok.version>1.18.38</lombok.version>
     <auto.service.version>1.1.1</auto.service.version>
-    <mockito.version>5.17.0</mockito.version>
+    <mockito.version>5.18.0</mockito.version>
     <assertj.version>3.27.3</assertj.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
