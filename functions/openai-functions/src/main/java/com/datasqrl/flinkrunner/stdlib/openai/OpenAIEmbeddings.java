@@ -44,16 +44,16 @@ public class OpenAIEmbeddings {
     this.httpClient = httpClient;
   }
 
-  public double[] vectorEmbedd(String text, String modelName)
+  public double[] vectorEmbed(String text, String modelName)
       throws IOException, InterruptedException {
     if (text == null || modelName == null) {
       return null;
     }
 
-    return vectorEmbedd(text, modelName, TOKEN_LIMIT);
+    return vectorEmbed(text, modelName, TOKEN_LIMIT);
   }
 
-  public double[] vectorEmbedd(String text, String modelName, int tokenLimit)
+  public double[] vectorEmbed(String text, String modelName, int tokenLimit)
       throws IOException, InterruptedException {
     // Truncate text to fit the maximum token limit
     text = truncateText(text, tokenLimit);
