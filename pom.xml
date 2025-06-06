@@ -89,7 +89,7 @@
     <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
     <docker-compose-plugin.version>5.0.0</docker-compose-plugin.version>
     <sortpom.plugin.version>4.0.0</sortpom.plugin.version>
-    <exec.plugin.version>3.5.0</exec.plugin.version>
+    <exec.plugin.version>3.5.1</exec.plugin.version>
     <build-helper-maven-plugin.verison>3.6.0</build-helper-maven-plugin.verison>
 
     <slf4j.version>2.0.17</slf4j.version>
