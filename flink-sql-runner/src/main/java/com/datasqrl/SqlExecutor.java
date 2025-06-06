@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -50,7 +51,7 @@ class SqlExecutor {
 
     this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
 
-    if (udfPath != null) {
+    if (StringUtils.isNotBlank(udfPath)) {
       setupUdfPath(udfPath);
     }
   }
