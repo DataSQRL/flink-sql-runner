@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.datasqrl.flinkrunner.stdlib.openai.OpenAIEmbeddings;
-import com.datasqrl.flinkrunner.stdlib.openai.vector_embedd;
+import com.datasqrl.flinkrunner.stdlib.openai.vector_embed;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -42,7 +42,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class VectorEmbeddTest {
+class VectorEmbedTest {
 
   @Mock private HttpClient httpClient;
 
@@ -58,18 +58,18 @@ class VectorEmbeddTest {
 
   @Mock private Counter errorCounter;
 
-  private vector_embedd function;
+  private vector_embed function;
 
   @BeforeEach
   void setUp() throws Exception {
-    final String functionName = vector_embedd.class.getSimpleName();
+    final String functionName = vector_embed.class.getSimpleName();
 
     when(functionContext.getMetricGroup()).thenReturn(metricGroup);
     when(metricGroup.counter(eq(format(CALL_COUNT, functionName)))).thenReturn(callCounter);
     when(metricGroup.counter(eq(format(ERROR_COUNT, functionName)))).thenReturn(errorCounter);
 
     function =
-        new vector_embedd() {
+        new vector_embed() {
           @Override
           protected OpenAIEmbeddings createOpenAIEmbeddings() {
             return openAIEmbeddings;
@@ -109,7 +109,7 @@ class VectorEmbeddTest {
     when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenThrow(exception);
 
-    // Attempt to call vectorEmbedd, expecting retries
+    // Attempt to call vectorEmbed, expecting retries
     CompletableFuture<double[]> future = new CompletableFuture<>();
     function.eval(future, "some text", "model-name");
 

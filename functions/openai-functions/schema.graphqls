@@ -5,7 +5,7 @@ type Results {
   prompt: String
   completions_result: String
   extract_json_result: String
-  vector_embedd_result: String
+  vector_embed_result: String
 }
 
 type Query {
