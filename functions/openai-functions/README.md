@@ -39,7 +39,7 @@ To view the results, execute the following query:
         prompt
         completions_result
         extract_json_result
-        vector_embedd_result
+        vector_embed_result
     }
 }
 ```

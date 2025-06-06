@@ -22,7 +22,7 @@ import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 
 @AutoService(AsyncScalarFunction.class)
-public class vector_embedd extends AsyncScalarFunction {
+public class vector_embed extends AsyncScalarFunction {
 
   private transient OpenAIEmbeddings openAIEmbeddings;
   private transient FunctionExecutor executor;
@@ -30,7 +30,7 @@ public class vector_embedd extends AsyncScalarFunction {
   @Override
   public void open(FunctionContext context) throws Exception {
     this.openAIEmbeddings = createOpenAIEmbeddings();
-    this.executor = new FunctionExecutor(context, vector_embedd.class.getSimpleName());
+    this.executor = new FunctionExecutor(context, vector_embed.class.getSimpleName());
   }
 
   protected OpenAIEmbeddings createOpenAIEmbeddings() {
@@ -44,7 +44,7 @@ public class vector_embedd extends AsyncScalarFunction {
 
   public void eval(CompletableFuture<double[]> result, String text, String modelName) {
     executor
-        .executeAsync(() -> openAIEmbeddings.vectorEmbedd(text, modelName))
+        .executeAsync(() -> openAIEmbeddings.vectorEmbed(text, modelName))
         .thenAccept(result::complete)
         .exceptionally(
             ex -> {

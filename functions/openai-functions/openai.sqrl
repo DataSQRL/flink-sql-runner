@@ -4,5 +4,5 @@ IMPORT target.*;
 results := SELECT prompt,
             completions(prompt, 'gpt-4o') AS completions_result,
             extract_json(prompt, 'gpt-4o') AS extract_json_result,
-            CAST(vector_embedd(prompt, 'text-embedding-ada-002') AS STRING) AS vector_embedd_result
+            CAST(vector_embed(prompt, 'text-embedding-ada-002') AS STRING) AS vector_embed_result
            FROM data;
