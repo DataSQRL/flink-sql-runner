@@ -17,11 +17,13 @@ package com.datasqrl.flinkrunner.functions.openai;
 
 import static com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker.*;
 import static java.lang.String.format;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.datasqrl.flinkrunner.stdlib.openai.OpenAIEmbeddings;
 import com.datasqrl.flinkrunner.stdlib.openai.vector_embed;
+import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -89,16 +91,16 @@ class VectorEmbedTest {
         .thenReturn(httpResponse);
 
     // Execute function
-    CompletableFuture<double[]> future = new CompletableFuture<>();
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
     function.eval(future, "some text", "model-name");
 
-    double[] result = future.join();
+    FlinkVectorType result = future.join();
 
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
 
     // Verify the result
-    assertArrayEquals(new double[] {0.1, 0.2, 0.3}, result);
+    assertThat(result.getValue()).containsExactly(0.1, 0.2, 0.3);
   }
 
   @Test
@@ -110,16 +112,10 @@ class VectorEmbedTest {
         .thenThrow(exception);
 
     // Attempt to call vectorEmbed, expecting retries
-    CompletableFuture<double[]> future = new CompletableFuture<>();
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
     function.eval(future, "some text", "model-name");
 
-    try {
-      future.join();
-      fail("Expected an exception to be thrown");
-    } catch (Exception e) {
-      // expected
-      assertEquals(exception, e.getCause());
-    }
+    assertThatThrownBy(future::join).hasRootCause(exception);
 
     verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
 
@@ -131,13 +127,12 @@ class VectorEmbedTest {
   @MethodSource("provideInvalidTestArguments")
   void testEvalWhenInputIsInvalid(String prompt, String modelName)
       throws IOException, InterruptedException {
-    CompletableFuture<double[]> future = new CompletableFuture<>();
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
     function.eval(future, prompt, modelName);
 
-    double[] result = future.join();
+    FlinkVectorType result = future.join();
 
-    assertNull(result);
-
+    assertThat(result).isNull();
     verify(httpClient, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
   }
 
