@@ -39,8 +39,8 @@ jobs:
             .[] | select(.metadata.container.tags[]? == $TAG) | .id' | head -n 1)
 
           if [[ -z "$PACKAGE_VERSION_ID" || "$PACKAGE_VERSION_ID" == "null" ]]; then
-            echo "❌ Package version with tag $TAG not found."
-            exit 1
+            echo "⚠ Package version with tag $TAG not found, skip deletion."
+            exit 0
           fi
 
           echo "🗑️ Deleting package version ID: $PACKAGE_VERSION_ID..."
