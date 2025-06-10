@@ -16,6 +16,7 @@
 package com.datasqrl.flinkrunner.stdlib.openai;
 
 import com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker;
+import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
 import com.google.auto.service.AutoService;
 import java.util.concurrent.CompletableFuture;
 import org.apache.flink.table.functions.AsyncScalarFunction;
@@ -42,7 +43,7 @@ public class vector_embed extends AsyncScalarFunction {
     return new FunctionMetricTracker(context, functionName);
   }
 
-  public void eval(CompletableFuture<double[]> result, String text, String modelName) {
+  public void eval(CompletableFuture<FlinkVectorType> result, String text, String modelName) {
     executor
         .executeAsync(() -> openAIEmbeddings.vectorEmbed(text, modelName))
         .thenAccept(result::complete)
