@@ -111,9 +111,6 @@
     <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
     <spotless-maven-plugin>2.44.5</spotless-maven-plugin>
     <sundr-maven-plugin.version>0.200.4</sundr-maven-plugin.version>
-
-    <!-- Example: skip install hooks, etc. -->
-    <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
   </properties>
 
   <dependencyManagement>
@@ -244,6 +241,11 @@
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
         <configuration>
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+            </sortPom>
+          </pom>
           <!-- DataSQRL code style -->
           <java>
             <excludes>
@@ -267,13 +269,6 @@
             </importOrder>
             <removeUnusedImports/>
           </java>
-          <pom>
-            <sortPom>
-              <expandEmptyElements>false</expandEmptyElements>
-              <lineSeparator>\n</lineSeparator>
-              <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
-            </sortPom>
-          </pom>
         </configuration>
         <executions>
           <execution>
@@ -396,6 +391,7 @@
           </projectRules>
           <projectExtraProperties>
             <license.skip>true</license.skip>
+            <spotless.check.skip>true</spotless.check.skip>
           </projectExtraProperties>
         </configuration>
       </plugin>
