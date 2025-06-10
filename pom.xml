@@ -408,6 +408,7 @@
 
               <properties>
                 <license.skip>true</license.skip>
+                <spotless.check.skip>true</spotless.check.skip>
               </properties>
 
               <modules>
