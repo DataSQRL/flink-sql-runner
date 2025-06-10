@@ -78,37 +78,39 @@
   </distributionManagement>
 
   <properties>
-    <!-- Plugin versions -->
-    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
-    <git-code-format-maven-plugin.version>5.3</git-code-format-maven-plugin.version>
-    <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
-    <surefire-plugin.version>3.5.3</surefire-plugin.version>
-    <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
-    <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
-    <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
-    <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
-    <docker-compose-plugin.version>5.0.0</docker-compose-plugin.version>
-    <sortpom.plugin.version>4.0.0</sortpom.plugin.version>
-    <exec.plugin.version>3.5.1</exec.plugin.version>
-    <build-helper-maven-plugin.verison>3.6.1</build-helper-maven-plugin.verison>
-
-    <slf4j.version>2.0.17</slf4j.version>
-    <log4j.version>2.24.3</log4j.version>
-    <feign.version>13.5</feign.version>
-    <picocli.version>4.7.7</picocli.version>
-    <flink.version>1.19.2</flink.version>
-    <postgres.version>42.7.6</postgres.version>
-    <testcontainers.version>1.21.1</testcontainers.version>
-    <kafka.version>3.2.0-1.19</kafka.version>
-    <jdbc.version>3.2.0-1.19</jdbc.version>
-    <lombok.version>1.18.38</lombok.version>
-    <auto.service.version>1.1.1</auto.service.version>
-    <mockito.version>5.18.0</mockito.version>
-    <assertj.version>3.27.3</assertj.version>
-
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
+
+    <!-- Dependency versions -->
+    <assertj.version>3.27.3</assertj.version>
+    <auto.service.version>1.1.1</auto.service.version>
+    <feign.version>13.5</feign.version>
+    <flink.version>1.19.2</flink.version>
+    <jdbc.version>3.2.0-1.19</jdbc.version>
+    <junit.version>5.13.1</junit.version>
+    <kafka.version>3.2.0-1.19</kafka.version>
+    <log4j.version>2.24.3</log4j.version>
+    <lombok.version>1.18.38</lombok.version>
+    <mockito.version>5.18.0</mockito.version>
+    <picocli.version>4.7.7</picocli.version>
+    <postgres.version>42.7.6</postgres.version>
+    <slf4j.version>2.0.17</slf4j.version>
+    <testcontainers.version>1.21.1</testcontainers.version>
+
+    <!-- Plugin versions -->
+    <build-helper-maven-plugin.verison>3.6.1</build-helper-maven-plugin.verison>
+    <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
+    <docker-compose-maven-plugin.version>5.0.0</docker-compose-maven-plugin.version>
+    <exec-maven-plugin.version>3.5.1</exec-maven-plugin.version>
+    <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
+    <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+    <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+    <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+    <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+    <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+    <spotless-maven-plugin>2.44.5</spotless-maven-plugin>
+    <sundr-maven-plugin.version>0.200.4</sundr-maven-plugin.version>
 
     <!-- Example: skip install hooks, etc. -->
     <gcf.skipInstallHooks>true</gcf.skipInstallHooks>
@@ -119,7 +121,7 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>5.13.0</version>
+        <version>${junit.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -139,7 +141,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- General Dependencies -->
+    <!-- General dependencies -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
@@ -147,7 +149,7 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- common test infra-->
+    <!-- Common test dependencies-->
     <dependency>
       <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-launcher</artifactId>
@@ -177,54 +179,116 @@
   </dependencies>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless-maven-plugin}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.mycila</groupId>
+          <artifactId>license-maven-plugin</artifactId>
+          <version>${license-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>io.sundr</groupId>
+          <artifactId>sundr-maven-plugin</artifactId>
+          <version>${sundr-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>${maven-enforcer-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${maven-surefire-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-gpg-plugin</artifactId>
+          <version>${maven-gpg-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>${maven-javadoc-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>${maven-source-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>${maven-surefire-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.verison}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.sonatype.central</groupId>
+          <artifactId>central-publishing-maven-plugin</artifactId>
+          <version>${central-publishing-maven-plugin.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
-        <groupId>com.cosium.code</groupId>
-        <artifactId>git-code-format-maven-plugin</artifactId>
-        <version>${git-code-format-maven-plugin.version}</version>
-        <dependencies>
-          <dependency>
-            <groupId>com.cosium.code</groupId>
-            <artifactId>google-java-format</artifactId>
-            <version>${git-code-format-maven-plugin.version}</version>
-          </dependency>
-        </dependencies>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <!-- DataSQRL code style -->
+          <java>
+            <excludes>
+              <exclude>**/org/apache/flink/**/*.java</exclude>
+            </excludes>
+            <googleJavaFormat/>
+            <removeUnusedImports/>
+          </java>
+          <!-- Apache Flink code style -->
+          <java>
+            <includes>
+              <include>**/org/apache/flink/**/*.java</include>
+            </includes>
+            <googleJavaFormat>
+              <version>1.8</version>
+              <style>AOSP</style>
+            </googleJavaFormat>
+            <!-- \# refers to the static imports -->
+            <importOrder>
+              <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
+            </importOrder>
+            <removeUnusedImports/>
+          </java>
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <lineSeparator>\n</lineSeparator>
+              <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
+            </sortPom>
+          </pom>
+        </configuration>
         <executions>
-          <!-- On commit, format the modified files -->
           <execution>
-            <id>install-formatter-hook</id>
+            <id>spotless-check</id>
             <goals>
-              <goal>install-hooks</goal>
+              <goal>check</goal>
             </goals>
-            <!-- inherited = false means it won't re-run in submodules if not desired -->
-            <inherited>false</inherited>
-          </execution>
-          <!-- On Maven verify, fail if code is not formatted -->
-          <execution>
-            <id>validate-code-format</id>
-            <goals>
-              <goal>validate-code-format</goal>
-            </goals>
+            <phase>validate</phase>
           </execution>
         </executions>
       </plugin>
 
       <plugin>
-        <groupId>com.github.ekryd.sortpom</groupId>
-        <artifactId>sortpom-maven-plugin</artifactId>
-        <version>${sortpom.plugin.version}</version>
-        <configuration>
-          <keepBlankLines>true</keepBlankLines>
-          <lineSeparator>\n</lineSeparator>
-          <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
-          <createBackupFile>false</createBackupFile>
-        </configuration>
-      </plugin>
-
-      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>${license-maven-plugin.version}</version>
         <configuration>
           <properties>
             <owner>DataSQRL</owner>
@@ -264,7 +328,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>ban-sqrl-dependencies</id>
@@ -290,7 +353,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
         <configuration>
           <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -301,7 +363,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
+        <version>${maven-surefire-plugin.version}</version>
         <configuration>
           <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -341,7 +403,6 @@
       <plugin>
         <groupId>io.sundr</groupId>
         <artifactId>sundr-maven-plugin</artifactId>
-        <version>0.200.4</version>
         <inherited>false</inherited>
         <configuration>
           <boms>
@@ -390,26 +451,13 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>com.cosium.code</groupId>
-            <artifactId>git-code-format-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format-code</id>
-                <goals>
-                  <goal>format-code</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>com.github.ekryd.sortpom</groupId>
-            <artifactId>sortpom-maven-plugin</artifactId>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>format</id>
                 <goals>
-                  <goal>sort</goal>
+                  <goal>apply</goal>
                 </goals>
                 <phase>initialize</phase>
               </execution>
@@ -446,7 +494,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>${build-helper-maven-plugin.verison}</version>
             <executions>
               <execution>
                 <id>add-flink-1.20+-specific-source</id>
@@ -498,7 +545,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
-            <version>${maven-gpg-plugin.version}</version>
             <executions>
               <execution>
                 <id>sign-artifacts</id>
@@ -512,7 +558,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
-            <version>${maven-source-plugin.version}</version>
             <executions>
               <execution>
                 <id>attach-sources</id>
@@ -577,7 +622,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>${build-helper-maven-plugin.verison}</version>
             <executions>
               <execution>
                 <id>add-source</id>
@@ -634,7 +678,6 @@
           <plugin>
             <groupId>org.sonatype.central</groupId>
             <artifactId>central-publishing-maven-plugin</artifactId>
-            <version>0.7.0</version>
             <extensions>true</extensions>
             <configuration>
               <publishingServerId>central</publishingServerId>

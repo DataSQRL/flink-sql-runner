@@ -15,59 +15,61 @@
  */
 package org.apache.flink.formats.avro;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-
-import java.io.IOException;
-import java.util.Random;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
+
+import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.Random;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 class AvroDeserializationSchemaTest {
 
-  private static final Address ADDRESS = TestDataGenerator.generateRandomAddress(new Random());
-  private static final byte[] CORRUPT_BYTES = {0x0, 0x1, 0x2, 0x3, 0x4};
+    private static final Address ADDRESS = TestDataGenerator.generateRandomAddress(new Random());
+    private static final byte[] CORRUPT_BYTES = {0x0, 0x1, 0x2, 0x3, 0x4};
 
-  @Test
-  void testGenericRecordFailureRecovery() throws IOException {
-    AvroDeserializationSchema<GenericRecord> deserSchema =
-        AvroDeserializationSchema.forGeneric(ADDRESS.getSchema());
+    @Test
+    void testGenericRecordFailureRecovery() throws IOException {
+        AvroDeserializationSchema<GenericRecord> deserSchema =
+                AvroDeserializationSchema.forGeneric(ADDRESS.getSchema());
 
-    byte[] msgBytes = AvroTestUtils.writeRecord(ADDRESS, Address.getClassSchema());
-    deserSchema.deserialize(msgBytes);
+        byte[] msgBytes = AvroTestUtils.writeRecord(ADDRESS, Address.getClassSchema());
+        deserSchema.deserialize(msgBytes);
 
-    try {
-      deserSchema.deserialize(CORRUPT_BYTES);
-      fail("Should fail when deserializing corrupt bytes.");
-    } catch (Exception ignored) {
+        try {
+            deserSchema.deserialize(CORRUPT_BYTES);
+            fail("Should fail when deserializing corrupt bytes.");
+        } catch (Exception ignored) {
+        }
+
+        GenericRecord result = deserSchema.deserialize(msgBytes);
+        assertThat(result).isNotNull();
+        assertThat(result.get("num")).isEqualTo(ADDRESS.getNum());
+        assertThat(result.get("state").toString()).isEqualTo(ADDRESS.getState());
+        assertThat(result.get("city").toString()).isEqualTo(ADDRESS.getCity());
+        assertThat(result.get("street").toString()).isEqualTo(ADDRESS.getStreet());
     }
 
-    GenericRecord result = deserSchema.deserialize(msgBytes);
-    assertThat(result).isNotNull();
-    assertThat(result.get("num")).isEqualTo(ADDRESS.getNum());
-    assertThat(result.get("state").toString()).isEqualTo(ADDRESS.getState());
-    assertThat(result.get("city").toString()).isEqualTo(ADDRESS.getCity());
-    assertThat(result.get("street").toString()).isEqualTo(ADDRESS.getStreet());
-  }
+    @Test
+    void testSpecificRecordFailureRecovery() throws IOException {
+        AvroDeserializationSchema<Address> deserSchema =
+                AvroDeserializationSchema.forSpecific(Address.class);
 
-  @Test
-  void testSpecificRecordFailureRecovery() throws IOException {
-    AvroDeserializationSchema<Address> deserSchema =
-        AvroDeserializationSchema.forSpecific(Address.class);
+        byte[] msgBytes = AvroTestUtils.writeRecord(ADDRESS, Address.getClassSchema());
+        deserSchema.deserialize(msgBytes);
 
-    byte[] msgBytes = AvroTestUtils.writeRecord(ADDRESS, Address.getClassSchema());
-    deserSchema.deserialize(msgBytes);
+        try {
+            deserSchema.deserialize(CORRUPT_BYTES);
+            fail("Should fail when deserializing corrupt bytes.");
+        } catch (Exception ignored) {
+        }
 
-    try {
-      deserSchema.deserialize(CORRUPT_BYTES);
-      fail("Should fail when deserializing corrupt bytes.");
-    } catch (Exception ignored) {
+        Address result = deserSchema.deserialize(msgBytes);
+        assertThat(result).isEqualTo(ADDRESS);
     }
-
-    Address result = deserSchema.deserialize(msgBytes);
-    assertThat(result).isEqualTo(ADDRESS);
-  }
 }
