@@ -15,48 +15,50 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
-import javax.annotation.Nullable;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
+
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+
+import javax.annotation.Nullable;
 
 /** A specific {@link KafkaSerializationSchema} for {@link SafeKafkaDynamicSource}. */
 public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeserializationSchema {
 
-  private final DeserFailureHandler deserFailureHandler;
+    private final DeserFailureHandler deserFailureHandler;
 
-  SafeDynamicKafkaDeserializationSchema(
-      int physicalArity,
-      @Nullable DeserializationSchema<RowData> keyDeserialization,
-      int[] keyProjection,
-      DeserializationSchema<RowData> valueDeserialization,
-      int[] valueProjection,
-      boolean hasMetadata,
-      MetadataConverter[] metadataConverters,
-      TypeInformation<RowData> producedTypeInfo,
-      boolean upsertMode,
-      DeserFailureHandler deserFailureHandler) {
-    super(
-        physicalArity,
-        keyDeserialization,
-        keyProjection,
-        valueDeserialization,
-        valueProjection,
-        hasMetadata,
-        metadataConverters,
-        producedTypeInfo,
-        upsertMode);
-    this.deserFailureHandler = deserFailureHandler;
-  }
+    SafeDynamicKafkaDeserializationSchema(
+            int physicalArity,
+            @Nullable DeserializationSchema<RowData> keyDeserialization,
+            int[] keyProjection,
+            DeserializationSchema<RowData> valueDeserialization,
+            int[] valueProjection,
+            boolean hasMetadata,
+            MetadataConverter[] metadataConverters,
+            TypeInformation<RowData> producedTypeInfo,
+            boolean upsertMode,
+            DeserFailureHandler deserFailureHandler) {
+        super(
+                physicalArity,
+                keyDeserialization,
+                keyProjection,
+                valueDeserialization,
+                valueProjection,
+                hasMetadata,
+                metadataConverters,
+                producedTypeInfo,
+                upsertMode);
+        this.deserFailureHandler = deserFailureHandler;
+    }
 
-  @Override
-  public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector)
-      throws Exception {
-    deserFailureHandler.deserWithFailureHandling(
-        record, () -> super.deserialize(record, collector));
-  }
+    @Override
+    public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector)
+            throws Exception {
+        deserFailureHandler.deserWithFailureHandling(
+                record, () -> super.deserialize(record, collector));
+    }
 }
