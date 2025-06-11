@@ -94,7 +94,7 @@
     <lombok.version>1.18.38</lombok.version>
     <mockito.version>5.18.0</mockito.version>
     <picocli.version>4.7.7</picocli.version>
-    <postgres.version>42.7.6</postgres.version>
+    <postgres.version>42.7.7</postgres.version>
     <slf4j.version>2.0.17</slf4j.version>
     <testcontainers.version>1.21.1</testcontainers.version>
 
