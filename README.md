@@ -35,15 +35,17 @@ The individual components are modular and the project is composable to make it e
 You can use the docker image to run Flink SQL scripts or compiled plans locally or in Kubernetes.
 The docker image contains the executable flink-sql-runner.jar file which supports the following command line arguments:
 
-| Argument	      | Description                                                                                                                                   |
- ----------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| **--planfile** | 	Compiled plan (i.e. JSON file) to execute                                                                                                    |
-| --sqlfile      | 	Flink SQL script to execute                                                                                                                   |
-| --config-dir   | 	Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/config/) |
-| --udfpath      | 	Path to jar files that implement user defined functions (UDFs) or other runtime extensions for Flink                                         |
+| Argument           | Description                                                                                                                                   |
+ --------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `-p, --planfile`   | 	Compiled plan (i.e. JSON file) to execute                                                                                                    |
+| `-s, --sqlfile`    | 	Flink SQL script to execute                                                                                                                  |
+| `-c, --config-dir` | 	Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/config/) |
+| `-u, --udfpath`    | 	Path to JAR files that implement user defined functions (UDFs) or other runtime extensions for Flink                                         |
+| `-m, --mode`       | 	Optional argument to specify [Flink execution mode](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/datastream/execution_mode/) (`STREAMING` (default), `BATCH`, or `AUTOMATIC`)                                       |
 
 > [!WARNING]
 > The runner expects either a Flink SQL script or a compiled plan - not both.
+> The `--mode` argument, even if it is explicitly set, will be ignored if the Flink YAML configuration set via `--config-dir` contains `execution.runtime-mode`.
 
 We strongly recommend to run compiled plans for production Flink SQL applications since they support
 lifecycle management of applications, are stable across Flink versions, and provide more control over
@@ -69,7 +71,7 @@ docker run --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name flink \
-  datasqrl/flink-sql-runner:0.6.0-flink-1.19 \
+  datasqrl/flink-sql-runner:0.6.2-flink-1.19 \
   bash -c "bin/start-cluster.sh && tail -f /dev/null"
 ```
 
@@ -119,7 +121,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.6.0/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.6.2/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -159,13 +161,13 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.6.0</version>
+  <version>0.6.2</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.6.0'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.6.2'
 ```
 ---
 

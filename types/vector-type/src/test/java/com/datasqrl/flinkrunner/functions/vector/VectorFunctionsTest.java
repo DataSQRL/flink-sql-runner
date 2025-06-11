@@ -15,7 +15,8 @@
  */
 package com.datasqrl.flinkrunner.functions.vector;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
 import java.util.List;
@@ -23,8 +24,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class VectorFunctionsTest {
+class VectorFunctionsTest {
 
+  private static final double DELTA = 1e-7;
   private static final double[][] VECTORS = {
     {
       -0.5585908660044273,
@@ -1200,23 +1202,20 @@ public class VectorFunctionsTest {
       for (var j = 0; j < i; j++) {
         similarities[i][j] = VectorFunctions.COSINE_SIMILARITY.eval(results[i], results[j]);
         euclidDist[i][j] = VectorFunctions.EUCLIDEAN_DISTANCE.eval(results[i], results[j]);
-        //        System.out.println(i + ":" + j + " = "  + euclidDist[i][j]);
       }
     }
-    assertEquals(similarities[1][0], 0.9026232695106989, 0.0000001);
-    assertEquals(similarities[2][0], 0.030318433205579004, 0.0000001);
-    assertEquals(similarities[2][1], 0.018290961759306813, 0.0000001);
-    assertEquals(
-        VectorFunctions.COSINE_SIMILARITY.eval(results[0], results[1]),
-        similarities[1][0],
-        0.0000001);
-    assertEquals(euclidDist[1][0], 1.5302227431135083, 0.0000001);
-    assertEquals(euclidDist[2][0], 5.257065238717278, 0.0000001);
-    assertEquals(euclidDist[2][1], 5.120142257793784, 0.0000001);
-    assertEquals(
-        VectorFunctions.EUCLIDEAN_DISTANCE.eval(results[0], results[1]),
-        euclidDist[1][0],
-        0.0000001);
+
+    assertThat(similarities[1][0]).isCloseTo(0.9026232695106989, within(DELTA));
+    assertThat(similarities[2][0]).isCloseTo(0.030318433205579004, within(DELTA));
+    assertThat(similarities[2][1]).isCloseTo(0.018290961759306813, within(DELTA));
+    assertThat(similarities[1][0])
+        .isCloseTo(VectorFunctions.COSINE_SIMILARITY.eval(results[0], results[1]), within(DELTA));
+
+    assertThat(euclidDist[1][0]).isCloseTo(1.5302227431135083, within(DELTA));
+    assertThat(euclidDist[2][0]).isCloseTo(5.257065238717278, within(DELTA));
+    assertThat(euclidDist[2][1]).isCloseTo(5.120142257793784, within(DELTA));
+    assertThat(euclidDist[1][0])
+        .isCloseTo(VectorFunctions.EUCLIDEAN_DISTANCE.eval(results[0], results[1]), within(DELTA));
 
     var acc = VectorFunctions.CENTER.createAccumulator();
     for (FlinkVectorType result : results) {
@@ -1224,10 +1223,11 @@ public class VectorFunctionsTest {
     }
     VectorFunctions.CENTER.retract(acc, results[2]);
     var center = VectorFunctions.CENTER.getValue(acc);
-    assertEquals(
-        VectorFunctions.COSINE_SIMILARITY.eval(results[0], center), 0.9772371038888683, 0.0000001);
-    assertEquals(
-        VectorFunctions.COSINE_SIMILARITY.eval(results[1], center), 0.9733930025393428, 0.0000001);
+
+    assertThat(VectorFunctions.COSINE_SIMILARITY.eval(results[0], center))
+        .isCloseTo(0.9772371038888683, within(DELTA));
+    assertThat(VectorFunctions.COSINE_SIMILARITY.eval(results[1], center))
+        .isCloseTo(0.9733930025393428, within(DELTA));
 
     var combined = VectorFunctions.CENTER.createAccumulator();
     List<CenterAccumulator> individuals =
@@ -1239,10 +1239,12 @@ public class VectorFunctionsTest {
                   return individual;
                 })
             .collect(Collectors.toList());
+
     VectorFunctions.CENTER.merge(combined, individuals);
-    assertEquals(
-        VectorFunctions.COSINE_SIMILARITY.eval(VectorFunctions.CENTER.getValue(combined), center),
-        1.0,
-        0.0000001);
+
+    assertThat(
+            VectorFunctions.COSINE_SIMILARITY.eval(
+                VectorFunctions.CENTER.getValue(combined), center))
+        .isCloseTo(1.0, within(DELTA));
   }
 }

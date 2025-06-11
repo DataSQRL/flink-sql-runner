@@ -17,43 +17,25 @@ package com.datasqrl;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonDeserializer;
 
 class JsonEnvVarDeserializer extends JsonDeserializer<String> {
 
-  private Map<String, String> env;
+  private final Map<String, String> envVars;
 
-  public JsonEnvVarDeserializer() {
-    env = System.getenv();
+  JsonEnvVarDeserializer() {
+    this(System.getenv());
   }
 
-  public JsonEnvVarDeserializer(Map<String, String> env) {
-    this.env = env;
+  JsonEnvVarDeserializer(Map<String, String> envVars) {
+    this.envVars = envVars;
   }
 
   @Override
-  public String deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-    var value = p.getText();
-    return replaceWithEnv(this.env, value);
-  }
-
-  public String replaceWithEnv(Map<String, String> env, String value) {
-    var pattern = Pattern.compile("\\$\\{(.+?)\\}");
-    var matcher = pattern.matcher(value);
-    var result = new StringBuffer();
-    while (matcher.find()) {
-      var key = matcher.group(1);
-      var envVarValue = env.get(key);
-      if (envVarValue != null) {
-        matcher.appendReplacement(result, Matcher.quoteReplacement(envVarValue));
-      }
-    }
-    matcher.appendTail(result);
-
-    return result.toString();
+  public String deserialize(JsonParser parser, DeserializationContext ctx) throws IOException {
+    var value = parser.getText();
+    return EnvVarUtils.resolveEnvVars(value, envVars);
   }
 }

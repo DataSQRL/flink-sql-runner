@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
-import java.io.IOException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -28,7 +27,7 @@ class SqlUtilsTest {
   @ParameterizedTest(name = "{0}")
   @CsvSource({"flink.sql,18", "test_sql.sql,6", "test_udf_sql.sql,6"})
   void givenSource_when_thenSplitCorrectly(String filename, int numberOfStatements)
-      throws IOException, Exception {
+      throws Exception {
     var script = Resources.toString(getClass().getResource("/sql/" + filename), Charsets.UTF_8);
     var stmts = SqlUtils.parseStatements(script);
     assertThat(stmts).isNotNull().isNotEmpty().hasSize(numberOfStatements);

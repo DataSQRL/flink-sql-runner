@@ -268,7 +268,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
   private void checkAllOrNone(ReadableConfig config, ConfigOption<?>[] configOptions) {
     var presentCount = 0;
-    for (ConfigOption configOption : configOptions) {
+    for (ConfigOption<?> configOption : configOptions) {
       if (config.getOptional(configOption).isPresent()) {
         presentCount++;
       }

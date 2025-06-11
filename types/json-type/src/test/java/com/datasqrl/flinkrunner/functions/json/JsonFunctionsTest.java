@@ -15,12 +15,8 @@
  */
 package com.datasqrl.flinkrunner.functions.json;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
 import lombok.SneakyThrows;
@@ -34,7 +30,7 @@ class JsonFunctionsTest {
   ObjectMapper mapper = new ObjectMapper();
 
   @SneakyThrows
-  JsonNode readTree(String val) {
+  private JsonNode readTree(String val) {
     return mapper.readTree(val);
   }
 
@@ -47,28 +43,28 @@ class JsonFunctionsTest {
       row.setField("key", "”value”");
       var rows = new Row[] {row};
       var result = JsonFunctions.TO_JSON.eval(rows);
-      assertNotNull(result);
-      assertEquals("[{\"key\":\"”value”\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[{\"key\":\"”value”\"}]");
     }
 
     @Test
     void testValidJson() {
       var json = "{\"key\":\"value\"}";
       var result = JsonFunctions.TO_JSON.eval(json);
-      assertNotNull(result);
-      assertEquals(json, result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo(json);
     }
 
     @Test
     void testInvalidJson() {
       var json = "Not a JSON";
       var result = JsonFunctions.TO_JSON.eval(json);
-      assertNull(result);
+      assertThat(result).isNull();
     }
 
     @Test
     void testNullInput() {
-      assertNull(JsonFunctions.TO_JSON.eval(null));
+      assertThat(JsonFunctions.TO_JSON.eval(null)).isNull();
     }
   }
 
@@ -79,13 +75,13 @@ class JsonFunctionsTest {
     void testNonNullJson() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_TO_STRING.eval(json);
-      assertEquals("{\"key\":\"value\"}", result);
+      assertThat(result).isEqualTo("{\"key\":\"value\"}");
     }
 
     @Test
     void testNullJson() {
       var result = JsonFunctions.JSON_TO_STRING.eval(null);
-      assertNull(result);
+      assertThat(result).isNull();
     }
   }
 
@@ -95,22 +91,22 @@ class JsonFunctionsTest {
     @Test
     void testValidKeyValuePairs() {
       var result = JsonFunctions.JSON_OBJECT.eval("key1", "value1", "key2", "value2");
-      assertNotNull(result);
-      assertEquals("{\"key1\":\"value1\",\"key2\":\"value2\"}", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key1\":\"value1\",\"key2\":\"value2\"}");
     }
 
     @Test
     void testInvalidNumberOfArguments() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> JsonFunctions.JSON_OBJECT.eval("key1", "value1", "key2"));
+      assertThatThrownBy(() -> JsonFunctions.JSON_OBJECT.eval("key1", "value1", "key2"))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testNullKeyOrValue() {
       var resultWithNullValue = JsonFunctions.JSON_OBJECT.eval("key1", null);
-      assertNotNull(resultWithNullValue);
-      assertEquals("{\"key1\":null}", resultWithNullValue.getJson().toString());
+      assertThat(resultWithNullValue).isNotNull();
+      assertThat(resultWithNullValue.getJson().toString()).isEqualTo("{\"key1\":null}");
     }
   }
 
@@ -122,22 +118,23 @@ class JsonFunctionsTest {
       var json1 = new FlinkJsonType(readTree("{\"key1\": \"value1\"}"));
       var json2 = new FlinkJsonType(readTree("{\"key2\": \"value2\"}"));
       var result = JsonFunctions.JSON_ARRAY.eval(json1, json2);
-      assertNotNull(result);
-      assertEquals("[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]");
     }
 
     @Test
     void testArrayWithMixedTypes() {
       var result = JsonFunctions.JSON_ARRAY.eval("stringValue", 123, true);
-      assertNotNull(result);
-      assertEquals("[\"stringValue\",123,true]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[\"stringValue\",123,true]");
     }
 
     @Test
     void testArrayWithNullValues() {
       var result = JsonFunctions.JSON_ARRAY.eval((Object) null);
-      assertNotNull(result);
-      assertEquals("[null]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[null]");
     }
   }
 
@@ -148,14 +145,14 @@ class JsonFunctionsTest {
     void testValidPath() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.key");
-      assertEquals("value", result);
+      assertThat(result).isEqualTo("value");
     }
 
     @Test
     void testValidPathBoolean() {
       var json = new FlinkJsonType(readTree("{\"key\": true}"));
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.key");
-      assertEquals("true", result);
+      assertThat(result).isEqualTo("true");
     }
 
     // Testing eval method with a default value for String
@@ -164,7 +161,7 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var defaultValue = "default";
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.nonexistentKey", defaultValue);
-      assertEquals(defaultValue, result);
+      assertThat(result).isEqualTo(defaultValue);
     }
 
     // Testing eval method with a default value for boolean
@@ -173,7 +170,7 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": true}"));
       var defaultValue = false;
       boolean result = JsonFunctions.JSON_EXTRACT.eval(json, "$.key", defaultValue);
-      assertTrue(result);
+      assertThat(result).isTrue();
     }
 
     @Test
@@ -181,7 +178,7 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": true}"));
       var defaultValue = false;
       boolean result = JsonFunctions.JSON_EXTRACT.eval(json, "$.nonexistentKey", defaultValue);
-      assertFalse(result);
+      assertThat(result).isFalse();
     }
 
     // Testing eval method with a default value for boolean:false
@@ -190,7 +187,7 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": true}"));
       var defaultValue = true;
       boolean result = JsonFunctions.JSON_EXTRACT.eval(json, "$.nonexistentKey", defaultValue);
-      assertTrue(result);
+      assertThat(result).isTrue();
     }
 
     // Testing eval method with a default value for Double
@@ -199,7 +196,7 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": 1.23}"));
       Double defaultValue = 4.56;
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.key", defaultValue);
-      assertEquals(1.23, result);
+      assertThat(result).isEqualTo(1.23);
     }
 
     // Testing eval method with a default value for Integer
@@ -208,14 +205,14 @@ class JsonFunctionsTest {
       var json = new FlinkJsonType(readTree("{\"key\": 123}"));
       Integer defaultValue = 456;
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.key", defaultValue);
-      assertEquals(123, result);
+      assertThat(result).isEqualTo(123);
     }
 
     @Test
     void testInvalidPath() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_EXTRACT.eval(json, "$.nonexistentKey");
-      assertNull(result);
+      assertThat(result).isNull();
     }
   }
 
@@ -226,7 +223,7 @@ class JsonFunctionsTest {
     void testValidQuery() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_QUERY.eval(json, "$.key");
-      assertEquals("\"value\"", result); // Note the JSON representation of a string value
+      assertThat(result).isEqualTo("\"value\""); // Note the JSON representation of a string value
     }
 
     // Test for a more complex JSON path query
@@ -234,7 +231,7 @@ class JsonFunctionsTest {
     void testComplexQuery() {
       var json = new FlinkJsonType(readTree("{\"key1\": {\"key2\": \"value\"}}"));
       var result = JsonFunctions.JSON_QUERY.eval(json, "$.key1.key2");
-      assertEquals("\"value\"", result); // JSON representation of the result
+      assertThat(result).isEqualTo("\"value\""); // JSON representation of the result
     }
 
     // Test for an invalid query
@@ -242,7 +239,7 @@ class JsonFunctionsTest {
     void testInvalidQuery() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_QUERY.eval(json, "$.invalidKey");
-      assertNull(result);
+      assertThat(result).isNull();
     }
   }
 
@@ -253,7 +250,7 @@ class JsonFunctionsTest {
     void testPathExists() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_EXISTS.eval(json, "$.key");
-      assertTrue(result);
+      assertThat(result).isTrue();
     }
 
     // Test for a path that exists
@@ -261,27 +258,27 @@ class JsonFunctionsTest {
     void testPathExistsComplex() {
       var json = new FlinkJsonType(readTree("{\"key1\": {\"key2\": \"value\"}}"));
       var result = JsonFunctions.JSON_EXISTS.eval(json, "$.key1.key2");
-      assertTrue(result);
+      assertThat(result).isTrue();
     }
 
     @Test
     void testPathDoesNotExistComplex() {
       var json = new FlinkJsonType(readTree("{\"key1\": {\"key2\": \"value\"}}"));
       var result = JsonFunctions.JSON_EXISTS.eval(json, "$.key1.nonexistentKey");
-      assertFalse(result);
+      assertThat(result).isFalse();
     }
 
     @Test
     void testPathDoesNotExist() {
       var json = new FlinkJsonType(readTree("{\"key\": \"value\"}"));
       var result = JsonFunctions.JSON_EXISTS.eval(json, "$.nonexistentKey");
-      assertFalse(result);
+      assertThat(result).isFalse();
     }
 
     @Test
     void testNullInput() {
       var result = JsonFunctions.JSON_EXISTS.eval(null, "$.key");
-      assertNull(result);
+      assertThat(result).isNull();
     }
   }
 
@@ -293,7 +290,8 @@ class JsonFunctionsTest {
       var json1 = new FlinkJsonType(readTree("{\"key1\": \"value1\"}"));
       var json2 = new FlinkJsonType(readTree("{\"key2\": \"value2\"}"));
       var result = JsonFunctions.JSON_CONCAT.eval(json1, json2);
-      assertEquals("{\"key1\":\"value1\",\"key2\":\"value2\"}", result.getJson().toString());
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key1\":\"value1\",\"key2\":\"value2\"}");
     }
 
     @Test
@@ -301,21 +299,21 @@ class JsonFunctionsTest {
       var json1 = new FlinkJsonType(readTree("{\"key\": \"value1\"}"));
       var json2 = new FlinkJsonType(readTree("{\"key\": \"value2\"}"));
       var result = JsonFunctions.JSON_CONCAT.eval(json1, json2);
-      assertEquals("{\"key\":\"value2\"}", result.getJson().toString());
+      assertThat(result.getJson().toString()).isEqualTo("{\"key\":\"value2\"}");
     }
 
     @Test
     void testNullInput() {
       var json1 = new FlinkJsonType(readTree("{\"key1\": \"value1\"}"));
       var result = JsonFunctions.JSON_CONCAT.eval(json1, null);
-      assertNull(result);
+      assertThat(result).isNull();
     }
 
     @Test
     void testNullInput2() {
       var json1 = new FlinkJsonType(readTree("{\"key1\": \"value1\"}"));
       var result = JsonFunctions.JSON_CONCAT.eval(null, json1);
-      assertNull(result);
+      assertThat(result).isNull();
     }
   }
 
@@ -331,8 +329,9 @@ class JsonFunctionsTest {
           accumulator, new FlinkJsonType(readTree("{\"key2\": \"value2\"}")));
 
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]");
     }
 
     @Test
@@ -342,8 +341,8 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_ARRAYAGG.accumulate(accumulator, 123);
 
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("[\"stringValue\",123]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[\"stringValue\",123]");
     }
 
     @Test
@@ -351,7 +350,7 @@ class JsonFunctionsTest {
       var accumulator = JsonFunctions.JSON_ARRAYAGG.createAccumulator();
       JsonFunctions.JSON_ARRAYAGG.accumulate(accumulator, (FlinkJsonType) null);
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertEquals("[null]", result.getJson().toString());
+      assertThat(result.getJson().toString()).isEqualTo("[null]");
     }
 
     @Test
@@ -359,9 +358,9 @@ class JsonFunctionsTest {
       var json1 = new FlinkJsonType(readTree("{\"key1\": \"value1\"}"));
       FlinkJsonType json2 = null; // null JSON object
       var result = JsonFunctions.JSON_ARRAY.eval(json1, json2);
-      assertNotNull(result);
+      assertThat(result).isNotNull();
       // Depending on implementation, the result might include the null or ignore it
-      assertEquals("[{\"key1\":\"value1\"},null]", result.getJson().toString());
+      assertThat(result.getJson().toString()).isEqualTo("[{\"key1\":\"value1\"},null]");
     }
 
     @Test
@@ -376,8 +375,8 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_ARRAYAGG.retract(accumulator, json1);
 
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("[{\"key\":\"value2\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[{\"key\":\"value2\"}]");
     }
 
     @Test
@@ -391,8 +390,8 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_ARRAYAGG.retract(accumulator, (FlinkJsonType) null);
 
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("[{\"key\":\"value1\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[{\"key\":\"value1\"}]");
     }
 
     @Test
@@ -405,8 +404,8 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_ARRAYAGG.retract(accumulator, (FlinkJsonType) null);
 
       var result = JsonFunctions.JSON_ARRAYAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("[{\"key\":\"value1\"}]", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("[{\"key\":\"value1\"}]");
     }
   }
 
@@ -422,10 +421,10 @@ class JsonFunctionsTest {
           accumulator, "key2", new FlinkJsonType(readTree("{\"nestedKey2\": \"nestedValue2\"}")));
 
       var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals(
-          "{\"key1\":{\"nestedKey1\":\"nestedValue1\"},\"key2\":{\"nestedKey2\":\"nestedValue2\"}}",
-          result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo(
+              "{\"key1\":{\"nestedKey1\":\"nestedValue1\"},\"key2\":{\"nestedKey2\":\"nestedValue2\"}}");
     }
 
     @Test
@@ -435,37 +434,36 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_OBJECTAGG.accumulate(accumulator, "key", "value2");
 
       var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals(
-          "{\"key\":\"value2\"}",
-          result.getJson().toString()); // The last value for the same key should be retained
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key\":\"value2\"}"); // The last value for the same key should be retained
     }
 
     @Test
     void testNullKey() {
-      assertThrows(
-          IllegalArgumentException.class, () -> JsonFunctions.JSON_OBJECT.eval(null, "value1"));
+      assertThatThrownBy(() -> JsonFunctions.JSON_OBJECT.eval(null, "value1"))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testNullValue() {
       var result = JsonFunctions.JSON_OBJECT.eval("key1", null);
-      assertNotNull(result);
-      assertEquals("{\"key1\":null}", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("{\"key1\":null}");
     }
 
     @Test
     void testNullKeyValue() {
-      assertThrows(
-          IllegalArgumentException.class, () -> JsonFunctions.JSON_OBJECT.eval(null, null));
+      assertThatThrownBy(() -> JsonFunctions.JSON_OBJECT.eval(null, null))
+          .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testArrayOfNullValues() {
       var result = JsonFunctions.JSON_OBJECT.eval("key1", new Object[] {null, null, null});
-      assertNotNull(result);
+      assertThat(result).isNotNull();
       // The expected output might vary based on how the function is designed to handle this case
-      assertEquals("{\"key1\":[null,null,null]}", result.getJson().toString());
+      assertThat(result.getJson().toString()).isEqualTo("{\"key1\":[null,null,null]}");
     }
 
     @Test
@@ -481,8 +479,9 @@ class JsonFunctionsTest {
           accumulator, "key1", new FlinkJsonType(readTree("{\"nestedKey1\": \"nestedValue1\"}")));
 
       var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("{\"key2\":{\"nestedKey2\":\"nestedValue2\"}}", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key2\":{\"nestedKey2\":\"nestedValue2\"}}");
     }
 
     @Test
@@ -496,8 +495,9 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_OBJECTAGG.retract(accumulator, "key2", (FlinkJsonType) null);
 
       var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("{\"key1\":{\"nestedKey1\":\"nestedValue1\"}}", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key1\":{\"nestedKey1\":\"nestedValue1\"}}");
     }
 
     @Test
@@ -511,8 +511,9 @@ class JsonFunctionsTest {
       JsonFunctions.JSON_OBJECTAGG.retract(accumulator, null, "someValue");
 
       var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
-      assertNotNull(result);
-      assertEquals("{\"key1\":{\"nestedKey1\":\"nestedValue1\"}}", result.getJson().toString());
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString())
+          .isEqualTo("{\"key1\":{\"nestedKey1\":\"nestedValue1\"}}");
     }
   }
 }

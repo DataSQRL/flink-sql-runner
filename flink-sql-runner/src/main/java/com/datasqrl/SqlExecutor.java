@@ -19,7 +19,6 @@ import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
 import java.io.File;
 import java.util.Optional;
 import java.util.ServiceLoader;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -82,9 +81,8 @@ class SqlExecutor {
    *
    * @param script The SQL script content.
    * @return
-   * @throws Exception If execution fails.
    */
-  public TableResult executeScript(String script) throws Exception {
+  public TableResult executeScript(String script) {
     var statements = SqlUtils.parseStatements(script);
     TableResult tableResult = null;
     for (String statement : statements) {
@@ -114,31 +112,13 @@ class SqlExecutor {
       } else {
         System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
-        tableResult = tableEnv.executeSql(EnvVarUtils.replaceWithEnv(statement));
+        tableResult = tableEnv.executeSql(EnvVarUtils.resolveEnvVars(statement));
       }
     } catch (Exception e) {
       e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
       throw e;
     }
     return tableResult;
-  }
-
-  public String replaceWithEnv(String command) {
-    var envVariables = System.getenv();
-    var pattern = Pattern.compile("\\$\\{(.*?)\\}");
-
-    var substitutedStr = command;
-    var result = new StringBuffer();
-    // First pass to replace environment variables
-    var matcher = pattern.matcher(substitutedStr);
-    while (matcher.find()) {
-      var key = matcher.group(1);
-      var envValue = envVariables.getOrDefault(key, "");
-      matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
-    }
-    matcher.appendTail(result);
-
-    return result.toString();
   }
 
   /**
@@ -175,9 +155,8 @@ class SqlExecutor {
    *
    * @param planJson The JSON content of the compiled plan.
    * @return
-   * @throws Exception If execution fails.
    */
-  protected TableResult executeCompiledPlan(String planJson) throws Exception {
+  protected TableResult executeCompiledPlan(String planJson) {
     log.info("Executing compiled plan from JSON.");
     try {
       var planReference = PlanReference.fromJsonString(planJson);

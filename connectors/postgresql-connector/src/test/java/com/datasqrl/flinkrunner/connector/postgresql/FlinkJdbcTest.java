@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.connector.postgresql;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datasqrl.flinkrunner.functions.json.to_jsonb;
 import com.datasqrl.flinkrunner.types.json.FlinkJsonTypeSerializerSnapshot;
@@ -111,7 +111,7 @@ public class FlinkJdbcTest {
               "INSERT INTO jdbc_sink SELECT to_json(arrayOfRows) AS arrayOfRows FROM datagen_source");
       tableResult.print();
 
-      assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind());
+      assertThat(tableResult.getResultKind()).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT);
     }
   }
 
@@ -180,8 +180,7 @@ public class FlinkJdbcTest {
         count = resultSet.getInt(1);
       }
 
-      // Validate that 10 rows were inserted
-      assertEquals(10, count);
+      assertThat(count).isEqualTo(10);
 
       connection.close();
     }

@@ -15,7 +15,7 @@
  */
 package com.datasqrl.function.text;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +26,8 @@ class FormatTest {
   @Test
   public void testFormat() {
     var format = "Hello, %s";
-    assertEquals("Hello, World", underTest.eval(format, "World"));
+    assertThat(underTest.eval(format, "World")).isEqualTo("Hello, World");
     format = "Count: %s, %s, %s, %s";
-    assertEquals("Count: 1, 2, 3, 4", underTest.eval(format, "1", "2", "3", "4"));
+    assertThat(underTest.eval(format, "1", "2", "3", "4")).isEqualTo("Count: 1, 2, 3, 4");
   }
 }

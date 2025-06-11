@@ -17,7 +17,8 @@ package com.datasqrl.flinkrunner.functions.openai;
 
 import static com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker.*;
 import static java.lang.String.format;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.datasqrl.flinkrunner.stdlib.openai.OpenAICompletions;
@@ -107,7 +108,7 @@ class ExtractJsonTest {
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
 
-    assertEquals(expectedResponse, result);
+    assertThat(result).isEqualTo(expectedResponse);
   }
 
   @Test
@@ -139,7 +140,7 @@ class ExtractJsonTest {
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
 
-    assertEquals(expectedResponse, result);
+    assertThat(result).isEqualTo(expectedResponse);
   }
 
   @Test
@@ -153,13 +154,7 @@ class ExtractJsonTest {
     CompletableFuture<String> future = new CompletableFuture<>();
     function.eval(future, "prompt", "model");
 
-    try {
-      future.join();
-      fail("Expected an exception to be thrown");
-    } catch (Exception e) {
-      // expected
-      assertEquals(exception, e.getCause());
-    }
+    assertThatThrownBy(future::join).hasRootCause(exception);
 
     verify(mockHttpClient, times(1))
         .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
@@ -177,7 +172,7 @@ class ExtractJsonTest {
 
     String result = future.join();
 
-    assertNull(result);
+    assertThat(result).isNull();
 
     verify(mockHttpClient, never())
         .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
