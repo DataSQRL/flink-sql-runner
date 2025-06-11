@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.Singular;
 import lombok.SneakyThrows;
-import lombok.Value;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
@@ -74,14 +74,14 @@ public class FlinkTypeUtil {
     }
   }
 
-  @Value
   @Builder
-  public static class VariableArguments implements InputTypeStrategy {
+  @Getter
+  public static final class VariableArguments implements InputTypeStrategy {
 
-    @Singular List<DataType> staticTypes;
-    DataType variableType;
-    int minVariableArguments;
-    int maxVariableArguments;
+    @Singular private final List<DataType> staticTypes;
+    private final DataType variableType;
+    private final int minVariableArguments;
+    private final int maxVariableArguments;
 
     @Override
     public ArgumentCount getArgumentCount() {

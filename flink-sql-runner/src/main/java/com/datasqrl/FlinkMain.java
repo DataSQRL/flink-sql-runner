@@ -138,8 +138,7 @@ public class FlinkMain {
       // Single SQL file mode
       var script = FileUtils.readFileUtf8(new File(sqlFile));
 
-      var missingEnvironmentVariables =
-          EnvironmentVariablesUtils.validateEnvironmentVariables(script);
+      var missingEnvironmentVariables = EnvVarUtils.validateEnvironmentVariables(script);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
             String.format(
@@ -154,8 +153,7 @@ public class FlinkMain {
       // Compiled plan JSON file
       var planJson = FileUtils.readFileUtf8(new File(planFile));
 
-      var missingEnvironmentVariables =
-          EnvironmentVariablesUtils.validateEnvironmentVariables(planJson);
+      var missingEnvironmentVariables = EnvVarUtils.validateEnvironmentVariables(planJson);
       if (!missingEnvironmentVariables.isEmpty()) {
         throw new IllegalStateException(
             String.format(

@@ -114,7 +114,7 @@ class SqlExecutor {
       } else {
         System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
-        tableResult = tableEnv.executeSql(EnvironmentVariablesUtils.replaceWithEnv(statement));
+        tableResult = tableEnv.executeSql(EnvVarUtils.replaceWithEnv(statement));
       }
     } catch (Exception e) {
       e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));

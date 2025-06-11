@@ -19,7 +19,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -28,7 +27,6 @@ import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.PumpStreamHandler;
 
 @Slf4j
-@UtilityClass
 public class CommandLineUtil {
 
   public static String execute(String command) throws ExecuteException {
@@ -71,5 +69,9 @@ public class CommandLineUtil {
       }
       throw new RuntimeException(e);
     }
+  }
+
+  private CommandLineUtil() {
+    throw new UnsupportedOperationException();
   }
 }

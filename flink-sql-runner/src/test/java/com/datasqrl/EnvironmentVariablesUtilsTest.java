@@ -36,7 +36,7 @@ class EnvironmentVariablesUtilsTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    var result = EnvironmentVariablesUtils.replaceWithEnv(command, envVariables);
+    var result = EnvVarUtils.replaceWithEnv(command, envVariables);
     assertThat(result).isEqualTo(expected);
   }
 
@@ -48,7 +48,7 @@ class EnvironmentVariablesUtilsTest {
   })
   void givenMissingEnvVariables_whenReplaceWithEnv_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of(); // Empty map to simulate missing variables
-    assertThatThrownBy(() -> EnvironmentVariablesUtils.replaceWithEnv(command, envVariables))
+    assertThatThrownBy(() -> EnvVarUtils.replaceWithEnv(command, envVariables))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("Missing environment variable");
   }
@@ -64,7 +64,7 @@ class EnvironmentVariablesUtilsTest {
         Map.of(
             "USER", "John",
             "NAME", "exists");
-    assertThatThrownBy(() -> EnvironmentVariablesUtils.replaceWithEnv(command, envVariables))
+    assertThatThrownBy(() -> EnvVarUtils.replaceWithEnv(command, envVariables))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("Missing environment variable: USER_NAME");
   }
@@ -79,7 +79,7 @@ class EnvironmentVariablesUtilsTest {
             "VAR2", "2",
             "USER", "admin",
             "HOME", "/home/admin");
-    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvVarUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars).isEmpty();
   }
 
@@ -96,7 +96,7 @@ class EnvironmentVariablesUtilsTest {
             "VAR1", "1",
             "USER", "admin",
             "HOME", "/home/admin");
-    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvVarUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars).containsExactlyInAnyOrder(expectedMissing.split(","));
   }
 
@@ -111,7 +111,7 @@ class EnvironmentVariablesUtilsTest {
         Map.of(
             "USER", "admin",
             "NAME", "admin");
-    var missingVars = EnvironmentVariablesUtils.validateEnvironmentVariables(envVariables, script);
+    var missingVars = EnvVarUtils.validateEnvironmentVariables(envVariables, script);
     assertThat(missingVars)
         .containsExactly("USER_NAME"); // Ensure only USERNAME is reported missing
   }

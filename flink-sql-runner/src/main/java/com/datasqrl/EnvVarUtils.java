@@ -21,42 +21,39 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@UtilityClass
-public class EnvironmentVariablesUtils {
+class EnvVarUtils {
 
   private static final Pattern ENVIRONMENT_VARIABLE_PATTERN = Pattern.compile("\\$\\{(.*?)\\}");
 
-  public static String replaceWithEnv(String command) {
+  static String replaceWithEnv(String command) {
     return replaceWithEnv(command, System.getenv());
   }
 
-  public static String replaceWithEnv(String command, Map<String, String> envVariables) {
-    var substitutedStr = command;
-    var result = new StringBuffer();
+  static String replaceWithEnv(String command, Map<String, String> envVariables) {
+    var res = new StringBuffer();
     // First pass to replace environment variables
-    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(substitutedStr);
+    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(command);
     while (matcher.find()) {
       var key = matcher.group(1);
       var envValue = envVariables.get(key);
       if (envValue == null) {
         throw new IllegalStateException(String.format("Missing environment variable: %s", key));
       }
-      matcher.appendReplacement(result, Matcher.quoteReplacement(envValue));
+      matcher.appendReplacement(res, Matcher.quoteReplacement(envValue));
     }
-    matcher.appendTail(result);
+    matcher.appendTail(res);
 
-    return result.toString();
+    return res.toString();
   }
 
-  public Set<String> validateEnvironmentVariables(String script) {
+  static Set<String> validateEnvironmentVariables(String script) {
     return validateEnvironmentVariables(System.getenv(), script);
   }
 
-  public Set<String> validateEnvironmentVariables(Map<String, String> envVariables, String script) {
+  static Set<String> validateEnvironmentVariables(Map<String, String> envVariables, String script) {
     var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(script);
 
     Set<String> scriptEnvironmentVariables = new TreeSet<>();
@@ -71,5 +68,9 @@ public class EnvironmentVariablesUtils {
 
     scriptEnvironmentVariables.removeAll(envVariables.keySet());
     return Collections.unmodifiableSet(scriptEnvironmentVariables);
+  }
+
+  private EnvVarUtils() {
+    throw new UnsupportedOperationException();
   }
 }

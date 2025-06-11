@@ -17,10 +17,8 @@ package com.datasqrl;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.experimental.UtilityClass;
 
 /** Utility class for parsing SQL scripts. */
-@UtilityClass
 class SqlUtils {
 
   private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
@@ -39,7 +37,7 @@ class SqlUtils {
    * @param script The SQL script content.
    * @return A list of individual SQL statements.
    */
-  public static List<String> parseStatements(String script) {
+  static List<String> parseStatements(String script) {
     var formatted =
         formatSqlFile(script)
             .replaceAll(BEGIN_CERTIFICATE, ESCAPED_BEGIN_CERTIFICATE)
@@ -82,7 +80,7 @@ class SqlUtils {
    * @param content The SQL file content.
    * @return Formatted SQL content.
    */
-  public static String formatSqlFile(String content) {
+  static String formatSqlFile(String content) {
     var trimmed = content.trim();
     var formatted = new StringBuilder();
     formatted.append(trimmed);
@@ -91,5 +89,9 @@ class SqlUtils {
     }
     formatted.append(LINE_DELIMITER);
     return formatted.toString();
+  }
+
+  private SqlUtils() {
+    throw new UnsupportedOperationException();
   }
 }
