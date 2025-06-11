@@ -45,7 +45,8 @@ The docker image contains the executable flink-sql-runner.jar file which support
 
 > [!WARNING]
 > The runner expects either a Flink SQL script or a compiled plan - not both.
-> The `--mode` argument, even if it is explicitly set, will be ignored if the Flink YAML configuration set via `--config-dir` contains `execution.runtime-mode`.
+> 
+> The `--mode` argument - even if it is explicitly set - will be ignored if the Flink YAML configuration set via `--config-dir` contains `execution.runtime-mode`.
 
 We strongly recommend to run compiled plans for production Flink SQL applications since they support
 lifecycle management of applications, are stable across Flink versions, and provide more control over
