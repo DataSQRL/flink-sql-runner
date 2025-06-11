@@ -16,15 +16,17 @@
 package com.datasqrl.flinkrunner.functions.json;
 
 import java.util.List;
-import lombok.Value;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.table.annotation.DataTypeHint;
 
-@Value
-public class ArrayAgg {
+@AllArgsConstructor
+@Getter
+public final class ArrayAgg {
 
-  @DataTypeHint(value = "RAW")
-  private List<JsonNode> objects;
+  @DataTypeHint("RAW")
+  private final List<JsonNode> objects;
 
   public void add(JsonNode value) {
     objects.add(value);
