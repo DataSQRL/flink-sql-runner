@@ -252,7 +252,6 @@
               <expandEmptyElements>false</expandEmptyElements>
             </sortPom>
           </pom>
-          <!-- DataSQRL code style -->
           <java>
             <excludes>
               <exclude>**/org/apache/flink/**/*.java</exclude>
@@ -260,29 +259,37 @@
             <googleJavaFormat/>
             <removeUnusedImports/>
           </java>
-          <!-- Apache Flink code style -->
-          <java>
-            <includes>
-              <include>**/org/apache/flink/**/*.java</include>
-            </includes>
-            <googleJavaFormat>
-              <version>1.8</version>
-              <style>AOSP</style>
-            </googleJavaFormat>
-            <!-- \# refers to the static imports -->
-            <importOrder>
-              <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
-            </importOrder>
-            <removeUnusedImports/>
-          </java>
         </configuration>
         <executions>
           <execution>
-            <id>spotless-check</id>
+            <id>spotless-default</id>
             <goals>
               <goal>check</goal>
             </goals>
             <phase>validate</phase>
+          </execution>
+          <execution>
+            <id>spotless-flink</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <java>
+                <includes>
+                  <include>**/org/apache/flink/**/*.java</include>
+                </includes>
+                <googleJavaFormat>
+                  <version>1.8</version>
+                  <style>AOSP</style>
+                </googleJavaFormat>
+                <!-- \# refers to the static imports -->
+                <importOrder>
+                  <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
+                </importOrder>
+                <removeUnusedImports/>
+              </java>
+            </configuration>
           </execution>
         </executions>
       </plugin>
