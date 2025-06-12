@@ -17,7 +17,6 @@ package com.datasqrl.flinkrunner.functions.openai.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.datasqrl.flinkrunner.stdlib.openai.util.P99LatencyTracker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

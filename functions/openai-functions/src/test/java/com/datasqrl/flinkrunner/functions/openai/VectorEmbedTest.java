@@ -15,14 +15,13 @@
  */
 package com.datasqrl.flinkrunner.functions.openai;
 
-import static com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker.*;
+import static com.datasqrl.flinkrunner.functions.openai.util.FunctionMetricTracker.CALL_COUNT;
+import static com.datasqrl.flinkrunner.functions.openai.util.FunctionMetricTracker.ERROR_COUNT;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
-import com.datasqrl.flinkrunner.stdlib.openai.OpenAIEmbeddings;
-import com.datasqrl.flinkrunner.stdlib.openai.vector_embed;
 import com.datasqrl.flinkrunner.types.vector.FlinkVectorType;
 import java.io.IOException;
 import java.net.http.HttpClient;

@@ -223,7 +223,7 @@ Implementation of Flink SQL and SQRL functions that can be added as user-defined
 
 If you are using the [DataSQRL framework](https://github.com/DataSQRL/sqrl) to compile your SQRL project, you can import the function library as follows:
 
-`IMPORT stdlib.[library-name].*`
+`IMPORT functions.[library-name].*`
 
 where `[library-name]` is replaced with the name of the library.
 
