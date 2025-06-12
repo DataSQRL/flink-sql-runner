@@ -15,7 +15,7 @@
  */
 package com.datasqrl.function.text;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,16 +25,17 @@ class TextSearchTest {
 
   @Test
   public void testSearch() {
-    assertEquals(1.0 / 2, underTest.eval("Hello World", "hello john"));
-    assertEquals(1.0 / 2, underTest.eval("Hello World", "what a world we live in, john"));
-    assertEquals(1.0, underTest.eval("Hello World", "what a world we live in, john! Hello john"));
-    assertEquals(
-        2.0 / 3, underTest.eval("one two THREE", "we are counting", "one two four five six"));
-    assertEquals(
-        1.0,
-        underTest.eval(
-            "one two THREE", "we are counting", "one two four five six", "three forty fiv"));
-    assertEquals(
-        0, underTest.eval("one two THREE", "what a world we live in, john!", " Hello john"));
+    assertThat(underTest.eval("Hello World", "hello john")).isEqualTo(1.0 / 2);
+    assertThat(underTest.eval("Hello World", "what a world we live in, john")).isEqualTo(1.0 / 2);
+    assertThat(underTest.eval("Hello World", "what a world we live in, john! Hello john"))
+        .isEqualTo(1.0);
+    assertThat(underTest.eval("one two THREE", "we are counting", "one two four five six"))
+        .isEqualTo(2.0 / 3);
+    assertThat(
+            underTest.eval(
+                "one two THREE", "we are counting", "one two four five six", "three forty fiv"))
+        .isOne();
+    assertThat(underTest.eval("one two THREE", "what a world we live in, john!", " Hello john"))
+        .isZero();
   }
 }

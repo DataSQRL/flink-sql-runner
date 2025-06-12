@@ -15,18 +15,15 @@
  */
 package com.datasqrl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.io.Resources;
 import java.io.File;
 import java.net.URISyntaxException;
-import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import picocli.CommandLine;
 
-@ExtendWith(MiniClusterExtension.class)
 class SqlRunnerTest {
 
   private File sqlFile;
@@ -41,9 +38,6 @@ class SqlRunnerTest {
     sqlUdfFile = new File(Resources.getResource("sql/test_udf_sql.sql").toURI());
     planFile = new File(Resources.getResource("plans/test_plan.json").toURI());
     configDir = new File(Resources.getResource("config").toURI());
-
-    // Set UDF path to the 'udfs' directory in resources
-    udfPath = new File(Resources.getResource("udfs").toURI()).getAbsolutePath();
   }
 
   @Test
@@ -56,6 +50,6 @@ class SqlRunnerTest {
     var exitCode = cmd.execute(args); // Executes the SqlRunner logic with arguments
 
     // Assert the exit code is as expected (0 for success)
-    assertEquals(0, exitCode);
+    assertThat(exitCode).isZero();
   }
 }

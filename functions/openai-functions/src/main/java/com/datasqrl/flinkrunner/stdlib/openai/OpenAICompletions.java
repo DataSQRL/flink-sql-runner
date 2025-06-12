@@ -40,7 +40,7 @@ public class OpenAICompletions {
   private final HttpClient httpClient;
 
   public OpenAICompletions() {
-    httpClient = HttpClient.newHttpClient();
+    this(HttpClient.newHttpClient());
   }
 
   public OpenAICompletions(HttpClient httpClient) {

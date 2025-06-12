@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.functions.openai.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datasqrl.flinkrunner.stdlib.openai.util.P99LatencyTracker;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +40,7 @@ public class P99LatencyTrackerTest {
     tracker.recordLatency(500);
 
     // The P99 latency should be the maximum value since we have less than 100 entries
-    assertEquals(500, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isEqualTo(500);
   }
 
   @Test
@@ -50,7 +50,7 @@ public class P99LatencyTrackerTest {
     }
 
     // The P99 latency should be the 99th largest value, which is 99 in this case
-    assertEquals(99, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isEqualTo(99);
   }
 
   @Test
@@ -60,13 +60,13 @@ public class P99LatencyTrackerTest {
     }
 
     // The P99 latency should reflect the highest 99% of the last 100 records
-    assertEquals(119, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isEqualTo(119);
   }
 
   @Test
   public void testP99LatencyWithEmptyTracker() {
     // When no latencies have been recorded, P99 should return 0
-    assertEquals(0, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isZero();
   }
 
   @Test
@@ -79,7 +79,7 @@ public class P99LatencyTrackerTest {
     tracker.recordLatency(500);
 
     // Initial P99 should be 500
-    assertEquals(500, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isEqualTo(500);
 
     // Now add more latencies to exceed the max size (e.g., 101)
     for (int i = 600; i <= 700; i++) {
@@ -88,6 +88,6 @@ public class P99LatencyTrackerTest {
 
     // The oldest latencies (100-500) should have been removed,
     // Now the highest 99% of the new list should be considered
-    assertEquals(699, tracker.getP99Latency());
+    assertThat(tracker.getP99Latency()).isEqualTo(699);
   }
 }

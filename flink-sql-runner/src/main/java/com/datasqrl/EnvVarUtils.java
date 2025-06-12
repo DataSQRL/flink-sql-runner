@@ -15,59 +15,91 @@
  */
 package com.datasqrl;
 
-import java.util.Collections;
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+/** Environment variable handling utilities. */
 @Slf4j
 class EnvVarUtils {
 
   private static final Pattern ENVIRONMENT_VARIABLE_PATTERN = Pattern.compile("\\$\\{(.*?)\\}");
+  private static final ObjectMapper OBJECT_MAPPER = initObjectMapper();
 
-  static String replaceWithEnv(String command) {
-    return replaceWithEnv(command, System.getenv());
+  /** See {@link EnvVarUtils#resolveEnvVars(String, Map)}. */
+  static String resolveEnvVars(String src) {
+    return resolveEnvVars(src, System.getenv());
   }
 
-  static String replaceWithEnv(String command, Map<String, String> envVariables) {
+  /**
+   * Resolves environment variables referenced in a given source string. Searches for environment
+   * variable references based on {@link EnvVarUtils#ENVIRONMENT_VARIABLE_PATTERN}. If a blank
+   * source string is passed, it will be returned as is.
+   *
+   * @param src given source string that may contain environment variable references
+   * @param envVars available environment variables
+   * @return a new string with the resolved environment variables
+   * @throws IllegalStateException if any referenced environment variable are not available
+   */
+  static String resolveEnvVars(String src, Map<String, String> envVars) {
+    if (StringUtils.isBlank(src)) {
+      return src;
+    }
+
     var res = new StringBuffer();
     // First pass to replace environment variables
-    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(command);
+    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(src);
+    var missingEnvVars = new HashSet<String>();
     while (matcher.find()) {
       var key = matcher.group(1);
-      var envValue = envVariables.get(key);
-      if (envValue == null) {
-        throw new IllegalStateException(String.format("Missing environment variable: %s", key));
+      if (envVars.containsKey(key)) {
+        var envValue = envVars.get(key);
+        matcher.appendReplacement(res, Matcher.quoteReplacement(envValue));
+      } else {
+        missingEnvVars.add(key);
       }
-      matcher.appendReplacement(res, Matcher.quoteReplacement(envValue));
     }
     matcher.appendTail(res);
+
+    if (!missingEnvVars.isEmpty()) {
+      throw new IllegalStateException(
+          String.format(
+              "The following environment variables were referenced, but not found: %s",
+              missingEnvVars));
+    }
 
     return res.toString();
   }
 
-  static Set<String> validateEnvironmentVariables(String script) {
-    return validateEnvironmentVariables(System.getenv(), script);
+  /**
+   * Resolves environment variables referenced in a given JSON source string.Searches for
+   * environment variable references in any string leaf nodes based on {@link
+   * EnvVarUtils#ENVIRONMENT_VARIABLE_PATTERN}.
+   *
+   * @param jsonSrc given JSON source string that may contain environment variable references
+   * @return JSON string with the resolved environment variables
+   * @throws IOException if the JSON processing fails in any way
+   */
+  static String resolveEnvVarsInJson(String jsonSrc) throws IOException {
+    var res = OBJECT_MAPPER.readValue(jsonSrc, Map.class);
+
+    return OBJECT_MAPPER.writeValueAsString(res);
   }
 
-  static Set<String> validateEnvironmentVariables(Map<String, String> envVariables, String script) {
-    var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(script);
+  private static ObjectMapper initObjectMapper() {
+    var objectMapper = new ObjectMapper();
 
-    Set<String> scriptEnvironmentVariables = new TreeSet<>();
-    while (matcher.find()) {
-      scriptEnvironmentVariables.add(matcher.group(1));
-    }
+    var module = new SimpleModule();
+    module.addDeserializer(String.class, new JsonEnvVarDeserializer());
+    objectMapper.registerModule(module);
 
-    if (envVariables.keySet().containsAll(scriptEnvironmentVariables)) {
-      log.info("All environment variables are available: {}", scriptEnvironmentVariables);
-      return Collections.emptySet();
-    }
-
-    scriptEnvironmentVariables.removeAll(envVariables.keySet());
-    return Collections.unmodifiableSet(scriptEnvironmentVariables);
+    return objectMapper;
   }
 
   private EnvVarUtils() {

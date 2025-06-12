@@ -19,8 +19,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.common.collect.MoreCollectors;
 import com.nextbreakpoint.flink.client.model.JarRunResponseBody;

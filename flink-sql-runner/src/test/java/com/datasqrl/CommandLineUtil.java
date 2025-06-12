@@ -59,9 +59,9 @@ public class CommandLineUtil {
           executor.execute(cmdLine);
       log.info("Installation completed successfully with exit code: {}", exitValue);
 
-      return new String(output.toByteArray());
+      return output.toString();
     } catch (IOException e) {
-      var result = new String(output.toByteArray());
+      var result = output.toString();
       log.error("Error while executing command:\n{}\noutput:\n{}", command, result);
       if (e instanceof ExecuteException) {
         ExecuteException ee = (ExecuteException) e;
