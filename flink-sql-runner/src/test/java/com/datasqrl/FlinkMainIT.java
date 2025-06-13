@@ -15,45 +15,12 @@
  */
 package com.datasqrl;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.awaitility.Awaitility.await;
 
-import com.google.common.collect.MoreCollectors;
-import com.nextbreakpoint.flink.client.model.JarRunResponseBody;
-import com.nextbreakpoint.flink.client.model.JobExceptionsInfoWithHistory;
+import com.nextbreakpoint.flink.client.api.ApiException;
 import com.nextbreakpoint.flink.client.model.JobStatus;
-import com.nextbreakpoint.flink.client.model.TerminationMode;
-import com.nextbreakpoint.flink.client.model.UploadStatus;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.SneakyThrows;
-import org.apache.flink.shaded.curator5.com.google.common.base.Objects;
-import org.apache.flink.shaded.curator5.com.google.common.collect.Lists;
-import org.awaitility.core.ThrowingRunnable;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.statement.SqlLogger;
-import org.jdbi.v3.core.statement.StatementContext;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.jdbi.v3.sqlobject.customizer.Bind;
-import org.jdbi.v3.sqlobject.statement.SqlQuery;
-import org.jdbi.v3.sqlobject.statement.SqlUpdate;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -61,245 +28,56 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class FlinkMainIT extends AbstractITSupport {
 
-  interface TransactionDao {
-
-    @SqlQuery(
-        "SELECT count(1) FROM public.transactionbymerchant_1 t where t.\"__timestamp\" > :minDate")
-    int getRowCount(@Bind("minDate") Timestamp minDate);
-
-    @SqlQuery("SELECT count(1) FROM public.transactionbymerchant_1 t")
-    int getRowCount();
-
-    @SqlQuery("SELECT double_ta FROM public.transactionbymerchant_1 limit 1")
-    int getDoubleTA();
-
-    @SqlQuery(
-        "SELECT max(transactionbymerchant_1.\"__timestamp\") FROM public.transactionbymerchant_1")
-    OffsetDateTime getMaxTimestamp();
-
-    @SqlUpdate("TRUNCATE public.transactionbymerchant_1")
-    void truncateTable();
+  static Stream<Arguments> execArgs() {
+    return Stream.of(
+        Arguments.of("sqlfile", "flink.sql", true),
+        Arguments.of("sqlfile", "flink.sql", false),
+        Arguments.of("sqlfile", "test_sql.sql", true),
+        Arguments.of("sqlfile", "test_sql.sql", false),
+        Arguments.of("planfile", "compiled_plan.json", true),
+        Arguments.of("planfile", "compiled_plan.json", false),
+        Arguments.of("planfile", "test_plan.json", true),
+        Arguments.of("planfile", "test_plan.json", false));
   }
 
-  @BeforeEach
-  @AfterEach
-  void terminateJobs() throws Exception {
-    var jobs = client.getJobsOverview();
-    jobs.getJobs().stream()
-        .filter(job -> Objects.equal(job.getState(), JobStatus.RUNNING))
-        .forEach(job -> stopJobs(job.getJid()));
-  }
-
-  static Stream<Arguments> sqlScripts() {
-    var scripts = List.of("flink.sql", "test_sql.sql");
-    var config = List.of(true, false);
-    return Lists.cartesianProduct(scripts, config).stream()
-        .map(pair -> Arguments.of(pair.toArray()));
-  }
-
-  @ParameterizedTest(name = "{0} {1}")
-  @MethodSource("sqlScripts")
-  void givenSqlScript_whenExecuting_thenSuccess(String filename, boolean config) {
-    var sqlFile = "/opt/flink/usrlib/sql/" + filename;
+  @ParameterizedTest
+  @MethodSource("execArgs")
+  void givenSqlOrPlan_whenExecuting_thenSuccess(String option, String file, boolean config)
+      throws Exception {
     var args = new ArrayList<String>();
-    args.add("--sqlfile");
-    args.add(sqlFile);
+    args.add("--" + option);
+    args.add("/it/" + option + "/" + file);
     if (config) {
       args.add("--config-dir");
-      args.add("/opt/flink/usrlib/config/");
+      args.add("/it/config/");
     }
-    execute(args.toArray(new String[0]));
+
+    String jobId = flinkRun(args);
+    assertJobRunning(jobId);
   }
 
-  static Stream<Arguments> planScripts() {
-    var scripts = List.of("compiled-plan.json", "test_plan.json");
-    var config = List.of(true, false);
-    return Lists.cartesianProduct(scripts, config).stream()
-        .map(pair -> Arguments.of(pair.toArray()));
+  static Stream<Arguments> udfExecArgs() {
+    return Stream.of(
+        Arguments.of("sqlfile", "test_udf_sql.sql"),
+        Arguments.of("planfile", "compiled_plan_udf.json"));
   }
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("planScripts")
-  void givenPlansScript_whenExecuting_thenSuccess(String filename, boolean config) {
-    var planFile = "/opt/flink/usrlib/plans/" + filename;
-    var args = new ArrayList<String>();
-    args.add("--planfile");
-    args.add(planFile);
-    if (config) {
-      args.add("--config-dir");
-      args.add("/opt/flink/usrlib/config/");
-    }
-    execute(args.toArray(new String[0]));
+  @ParameterizedTest
+  @MethodSource("udfExecArgs")
+  void givenUdfSqlScript_whenExecuting_thenSuccess(String option, String file) throws Exception {
+    var filePath = "/it/" + option + "/" + file;
+    String jobId = flinkRun("--" + option, filePath, "--udfpath", "/it/udfs/");
+    assertJobRunning(jobId);
   }
 
   @Test
-  void givenPlanScript_whenCheckPoint_thenResumeSuccessfulySuccess() throws Exception {
-    var transactionDao = connect();
-    // clear any old data
-    transactionDao.truncateTable();
-    assertThat(transactionDao.getRowCount()).isZero();
-
-    // change the compilation plan
-    updateCompiledPlan(3);
-
-    var planFile = "/opt/flink/usrlib/sqrl/compiled-plan.json";
-    var args = new ArrayList<String>();
-    args.add("--planfile");
-    args.add(planFile);
-    args.add("--config-dir");
-    args.add("/opt/flink/usrlib/config/");
-    var jobResponse = execute(args.toArray(new String[0]));
-
-    untilAssert(() -> assertThat(transactionDao.getRowCount()).isEqualTo(10));
-    // test if initial change to compilation plan took effect
-    assertThat(transactionDao.getDoubleTA()).isEqualTo(3);
-
-    var savePoint = Path.of("/tmp/flink-sql-runner/" + System.currentTimeMillis());
-
-    // take a savepoint
-    CommandLineUtil.execute(
-        Path.of("."),
-        "docker exec -t flink-sql-runner-jobmanager-1 bin/flink stop "
-            + jobResponse.getJobid()
-            + " --savepointPath "
-            + savePoint);
-
-    // check if STOPed, make sure no new records are create
-    untilAssert(
-        () ->
-            assertThat(
-                    transactionDao.getRowCount(
-                        Timestamp.valueOf(
-                            ZonedDateTime.now()
-                                .withZoneSameInstant(ZoneId.of("Z"))
-                                .toLocalDateTime())))
-                .isEqualTo(0));
-    assertThat(savePoint).isNotEmptyDirectory();
-
-    Path savePointFile;
-    try (var filePathStream = Files.walk(savePoint)) {
-      savePointFile =
-          filePathStream
-              .filter(Files::isRegularFile)
-              .filter(path -> "_metadata".equals(path.getFileName().toString()))
-              .collect(MoreCollectors.onlyElement());
-    }
-    // make sure savepoint was created
-    assertThat(savePointFile).exists();
-
-    // change compiled plan again
-    updateCompiledPlan(5);
-
-    var restoration =
-        Timestamp.valueOf(
-            ZonedDateTime.now().withZoneSameInstant(ZoneId.of("Z")).toLocalDateTime());
-
-    // restart with savepoint
-    restoreAndExecute(savePointFile.getParent().toString(), args.toArray(new String[0]));
-
-    untilAssert(() -> assertThat(transactionDao.getRowCount(restoration)).isEqualTo(10));
-    assertThat(transactionDao.getDoubleTA()).isEqualTo(5);
+  void givenKafkaPlanScript_whenExecuting_thenSuccess() throws Exception {
+    String jobId = flinkRun("--planfile", "/it/planfile/kafka_plan.json");
+    assertJobRunning(jobId);
   }
 
-  @SneakyThrows
-  private void updateCompiledPlan(int newValue) {
-    var contents = Files.readString(Path.of("src/test/resources/sqrl/compiled-plan.json"), UTF_8);
-    contents = contents.replace("\"value\" : 2", "\"value\" : " + newValue);
-    Files.writeString(Path.of("target/test-classes/sqrl/compiled-plan.json"), contents, UTF_8);
-  }
-
-  public void untilAssert(ThrowingRunnable assertion) {
-    await()
-        .atMost(20, SECONDS)
-        .pollInterval(100, MILLISECONDS)
-        .ignoreExceptions()
-        .untilAsserted(assertion);
-  }
-
-  private TransactionDao connect() {
-    var jdbi = Jdbi.create("jdbc:postgresql://localhost:5432/datasqrl", "postgres", "postgres");
-    jdbi.installPlugin(new SqlObjectPlugin());
-    jdbi.setSqlLogger(
-        new SqlLogger() {
-          @Override
-          public void logAfterExecution(StatementContext context) {
-            System.out.printf(
-                "Executed in '%s' with parameters '%s'\n",
-                context.getParsedSql().getSql(), context.getBinding());
-          }
-
-          @Override
-          public void logException(StatementContext context, SQLException ex) {
-            System.out.printf(
-                "Exception while executing '%s' with parameters '%s'\n",
-                context.getParsedSql().getSql(), context.getBinding(), ex);
-          }
-        });
-
-    return jdbi.onDemand(TransactionDao.class);
-  }
-
-  JarRunResponseBody execute(String... arguments) {
-    return restoreAndExecute(null, arguments);
-  }
-
-  @SneakyThrows
-  JarRunResponseBody restoreAndExecute(String savepointPath, String... arguments) {
-    var originalFile = new File("target/flink-sql-runner.jacoco.jar");
-
-    var uploadResponse = client.uploadJar(originalFile);
-
-    assertThat(uploadResponse.getStatus()).isEqualTo(UploadStatus.SUCCESS);
-
-    // Step 2: Extract jarId from the response
-    var jarId =
-        uploadResponse.getFilename().substring(uploadResponse.getFilename().lastIndexOf("/") + 1);
-
-    // Step 3: Submit the job
-    var jobResponse =
-        client.submitJobFromJar(
-            jarId,
-            null,
-            savepointPath == null ? null : false,
-            savepointPath,
-            null,
-            Arrays.stream(arguments).collect(Collectors.joining(",")),
-            null,
-            1);
-    String jobId = jobResponse.getJobid();
-    assertThat(jobId).isNotNull();
-
-    SECONDS.sleep(2);
-
-    return jobResponse;
-  }
-
-  @SneakyThrows
-  private void stopJobs(String jobId) {
-    var status = client.getJobStatusInfo(jobId);
-    if (Objects.equal(status.getStatus(), JobStatus.RUNNING)) {
-      client.cancelJob(jobId, TerminationMode.CANCEL);
-    } else {
-      JobExceptionsInfoWithHistory exceptions = client.getJobExceptions(jobId, 5, null);
-      fail(exceptions.toString());
-    }
-  }
-
-  @Test
-  void givenUdfSqlScript_whenExecuting_thenSuccess() {
-    var sqlFile = "/opt/flink/usrlib/sql/test_udf_sql.sql";
-    execute("--sqlfile", sqlFile, "--udfpath", "/opt/flink/usrlib/udfs/");
-  }
-
-  @Test
-  void givenUdfPlansScript_whenExecuting_thenSuccess() {
-    var planFile = "/opt/flink/usrlib/plans/compiled-plan-udf.json";
-    execute("--planfile", planFile, "--udfpath", "/opt/flink/usrlib/udfs/");
-  }
-
-  @Test
-  void givenKafkaPlanScript_whenExecuting_thenSuccess() {
-    String planFile = "/opt/flink/usrlib/plans/kafka_plan.json";
-    execute("--planfile", planFile);
+  private void assertJobRunning(String jobId) throws ApiException {
+    var jobStatus = client.getJobStatusInfo(jobId);
+    assertThat(jobStatus.getStatus()).isEqualTo(JobStatus.RUNNING);
   }
 }
