@@ -15,10 +15,6 @@
  */
 package com.datasqrl;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import com.nextbreakpoint.flink.client.api.ApiException;
-import com.nextbreakpoint.flink.client.model.JobStatus;
 import java.util.ArrayList;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -53,7 +49,7 @@ class FlinkMainIT extends AbstractITSupport {
     }
 
     String jobId = flinkRun(args);
-    assertJobRunning(jobId);
+    assertJobIsRunning(jobId);
   }
 
   static Stream<Arguments> udfExecArgs() {
@@ -67,17 +63,12 @@ class FlinkMainIT extends AbstractITSupport {
   void givenUdfSqlScript_whenExecuting_thenSuccess(String option, String file) throws Exception {
     var filePath = "/it/" + option + "/" + file;
     String jobId = flinkRun("--" + option, filePath, "--udfpath", "/it/udfs/");
-    assertJobRunning(jobId);
+    assertJobIsRunning(jobId);
   }
 
   @Test
   void givenKafkaPlanScript_whenExecuting_thenSuccess() throws Exception {
     String jobId = flinkRun("--planfile", "/it/planfile/kafka_plan.json");
-    assertJobRunning(jobId);
-  }
-
-  private void assertJobRunning(String jobId) throws ApiException {
-    var jobStatus = client.getJobStatusInfo(jobId);
-    assertThat(jobStatus.getStatus()).isEqualTo(JobStatus.RUNNING);
+    assertJobIsRunning(jobId);
   }
 }
