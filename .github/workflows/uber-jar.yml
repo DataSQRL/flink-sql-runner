@@ -78,6 +78,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
             echo "image_tag=datasqrl/flink-sql-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
           else
             echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
           fi
