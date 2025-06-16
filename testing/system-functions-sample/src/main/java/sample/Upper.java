@@ -15,7 +15,7 @@
  */
 package sample;
 
-import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
+import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
 import com.google.auto.service.AutoService;
 import org.apache.flink.table.functions.ScalarFunction;
 

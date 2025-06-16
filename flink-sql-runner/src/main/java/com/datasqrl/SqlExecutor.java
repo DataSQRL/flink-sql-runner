@@ -15,7 +15,7 @@
  */
 package com.datasqrl;
 
-import com.datasqrl.flinkrunner.functions.AutoRegisterSystemFunction;
+import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
 import java.io.File;
 import java.util.Optional;
 import java.util.ServiceLoader;

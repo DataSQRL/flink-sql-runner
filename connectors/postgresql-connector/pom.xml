@@ -58,12 +58,12 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>json-type</artifactId>
+      <artifactId>stdlib-json</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vector-type</artifactId>
+      <artifactId>stdlib-vector</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -73,7 +73,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>functions-common</artifactId>
+      <artifactId>stdlib-utils</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>

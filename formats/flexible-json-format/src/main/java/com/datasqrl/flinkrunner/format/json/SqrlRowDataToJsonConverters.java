@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.format.json;
 
-import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
+import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonType;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions.MapNullKeyMode;
 import org.apache.flink.formats.json.RowDataToJsonConverters;

@@ -15,8 +15,8 @@
  */
 package com.datasqrl.connector.postgresql.type;
 
-import com.datasqrl.flinkrunner.types.json.FlinkJsonType;
-import com.datasqrl.flinkrunner.types.json.FlinkJsonTypeSerializer;
+import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonType;
+import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonTypeSerializer;
 import com.google.auto.service.AutoService;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcSerializationConverter;

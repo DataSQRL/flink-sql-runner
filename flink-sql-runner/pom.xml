@@ -171,21 +171,15 @@
     </dependency>
 
     <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
-      <artifactId>functions-common</artifactId>
-      <version>0.7-SNAPSHOT</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>udf-sample</artifactId>
-      <version>0.7-SNAPSHOT</version>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>system-functions-sample</artifactId>
-      <version>0.7-SNAPSHOT</version>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -224,18 +218,23 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>functions-common</artifactId>
+      <artifactId>stdlib-utils</artifactId>
       <version>${project.version}</version>
-      <scope>runtime</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>json-type</artifactId>
+      <artifactId>stdlib-commons</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vector-type</artifactId>
+      <artifactId>stdlib-json</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>stdlib-vector</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -250,17 +249,17 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>text-functions</artifactId>
+      <artifactId>stdlib-text</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>math-functions</artifactId>
+      <artifactId>stdlib-math</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>openai-functions</artifactId>
+      <artifactId>stdlib-openai</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
@@ -295,6 +294,15 @@
               <shadedClassifierName>flink${flink.version}</shadedClassifierName>
               <artifactSet>
                 <excludes>
+                  <!--
+                  We have to exclude AutoRegisterSystemFunction from the shaded JAR because this class
+                  is loaded via ServiceLoader from the Flink classpath (/opt/flink/lib), not the job JAR.
+                  Including it here would result in a NoClassDefFoundError due to Flink's classloader isolation.
+
+                  To overcome thus, we put `stdlib-commons` under /opt/flink/lib, so it will be available in the
+                  proper classloader.
+                  -->
+                  <exclude>com.datasqrl.flinkrunner:stdlib-utils</exclude>
                   <exclude>org.apache.flink:flink-shaded-force-shading</exclude>
                   <exclude>com.google.code.findbugs:jsr305</exclude>
                   <exclude>org.slf4j:*</exclude>
@@ -313,16 +321,9 @@
                   <artifact>*:*</artifact>
                   <excludes>
                     <!--
-  We exclude AutoRegisterSystemFunction from the shaded JAR because this class
-  is loaded via ServiceLoader from the Flink classpath (/opt/flink/lib), not the job JAR.
-  Including it here would result in a NoClassDefFoundError due to Flink's classloader isolation.
-
-  A separate 'service' JAR is built (see maven-jar-plugin) that contains only this interface,
-  and is deployed to Flink's classpath to ensure it is available at runtime for discovery.
--->
-                    <exclude>com/datasqrl/function/AutoRegisterSystemFunction.class</exclude>
-                    <!-- Do not copy the signatures in the META-INF folder.
-                  Otherwise, this might cause SecurityExceptions when using the JAR. -->
+                    Do not copy the signatures in the META-INF folder.
+                    Otherwise, this might cause SecurityExceptions when using the JAR.
+                    -->
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
@@ -390,7 +391,7 @@
         <version>3.8.1</version>
         <executions>
           <execution>
-            <id>copy-udf-sample-deps</id>
+            <id>copy-udf-sample</id>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
@@ -402,7 +403,7 @@
             </configuration>
           </execution>
           <execution>
-            <id>copy-system-functions-deps</id>
+            <id>copy-system-functions-sample</id>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
@@ -414,14 +415,14 @@
             </configuration>
           </execution>
           <execution>
-            <id>copy-functions-common</id>
+            <id>copy-stdlib-utils</id>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
             <phase>process-resources</phase>
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
-              <includeArtifactIds>functions-common</includeArtifactIds>
+              <includeArtifactIds>stdlib-utils</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
