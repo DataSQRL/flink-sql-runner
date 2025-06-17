@@ -31,7 +31,7 @@
             "connector" : "kafka-safe",
             "format" : "json",
             "properties.auto.offset.reset" : "earliest",
-            "properties.bootstrap.servers" : "redpanda:9092",
+            "properties.bootstrap.servers" : "redpanda:${REDPANDA_PORT}",
             "properties.group.id" : "dummygroup",
             "scan.startup.mode" : "group-offsets",
             "scan.deser-failure.handler" : "log",
