@@ -17,8 +17,8 @@ package com.datasqrl.flinkrunner.connector.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.datasqrl.flinkrunner.functions.json.to_jsonb;
-import com.datasqrl.flinkrunner.types.json.FlinkJsonTypeSerializerSnapshot;
+import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonTypeSerializerSnapshot;
+import com.datasqrl.flinkrunner.stdlib.json.to_jsonb;
 import java.io.IOException;
 import java.sql.DriverManager;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -45,7 +45,7 @@ public class FlinkJdbcTest {
     System.out.println(input.readInt());
     System.out.println(input.readUTF());
 
-    var output = new DataOutputSerializer(73);
+    var output = new DataOutputSerializer(91);
     var snapshot = new FlinkJsonTypeSerializerSnapshot();
     output.writeUTF(snapshot.getClass().getName());
     output.writeInt(snapshot.getCurrentVersion());
@@ -82,7 +82,7 @@ public class FlinkJdbcTest {
 
       var createSinkTable =
           "CREATE TABLE jdbc_sink ("
-              + "    arrayOfRows RAW('com.datasqrl.flinkrunner.types.json.FlinkJsonType', 'AENjb20uZGF0YXNxcmwuZmxpbmtydW5uZXIudHlwZXMuanNvbi5GbGlua0pzb25UeXBlU2VyaWFsaXplclNuYXBzaG90AAAAAw==') "
+              + "    arrayOfRows RAW('com.datasqrl.flinkrunner.stdlib.json.FlinkJsonType', 'AERjb20uZGF0YXNxcmwuZmxpbmtydW5uZXIuc3RkbGliLmpzb24uRmxpbmtKc29uVHlwZVNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMAAAAAAAAAAAAAAAAAAAAAAA==') "
               + ") WITH ("
               + "    'connector' = 'jdbc-sqrl', "
               + "    'url' = '"

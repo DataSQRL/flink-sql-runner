@@ -36,7 +36,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>functions-common</artifactId>
+      <artifactId>stdlib-utils</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>

@@ -31,7 +31,7 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>json-type</artifactId>
+      <artifactId>stdlib-json</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

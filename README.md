@@ -6,7 +6,7 @@
 
 # Flink SQL Runner
 
-<img src="function-docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
+<img src="stdlib-docs/img/runner_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Tools and extensions for running Apache Flink SQL applications, including Docker images, data types, connectors, function libraries, and formats.
 
@@ -198,7 +198,7 @@ This project adds a [binary JSON type](types/json-type) and associated functions
 
 Native JSON type support is also extended to the [JSON format](formats/flexible-json-format) called `flexible-json` for writing JSON data as nested documents (instead of strings) as well as the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write JSON data to JSONB columns.
 
-The binary JSON type is supported by [these system functions](function-docs/system-functions.md#jsonb-functions).
+The binary JSON type is supported by [these system functions](stdlib-docs/system-functions.md#jsonb-functions).
 
 ### Vector Type
 
@@ -206,16 +206,16 @@ This project adds a native [Vector type](types/vector-type) and associated funct
 
 Native Vector type support is also extended to the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write vector data to vector columns for the `pgvector` extension.
 
-The native vector type is supported by [these system functions](function-docs/system-functions.md#vector-functions).
+The native vector type is supported by [these system functions](stdlib-docs/system-functions.md#vector-functions).
 
 ### Function Libraries
 
-<img src="function-docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
+<img src="stdlib-docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
 
 Implementation of Flink SQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 
-* [Math](function-docs/library-functions.md#math): Advanced math functions
-* [OpenAI](function-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
+* [Math](stdlib-docs/library-functions.md#math): Advanced math functions
+* [OpenAI](stdlib-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
 
 ## Usage
 
@@ -225,11 +225,13 @@ If you are using the [DataSQRL framework](https://github.com/DataSQRL/sqrl) to c
 
 `IMPORT stdlib.[library-name].*`
 
-where `[library-name]` is replaced with the name of the library.
+where `[library-name]` is replaced with the name of the library, e.g. `stdlib.math.*`.
 
 To import a single function:
 
-`IMPORT functions.[library-name].[function-name]`
+`IMPORT stdlib.[library-name].[function-name]`
+
+e.g. `stdlib.text.split`.
 
 ### Flink SQL Runner
 
