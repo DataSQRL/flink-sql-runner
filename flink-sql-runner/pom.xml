@@ -145,7 +145,7 @@
     <dependency>
       <groupId>org.jdbi</groupId>
       <artifactId>jdbi3-sqlobject</artifactId>
-      <version>3.49.4</version>
+      <version>3.49.5</version>
       <scope>test</scope>
     </dependency>
 
