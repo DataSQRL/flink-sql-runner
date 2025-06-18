@@ -22,18 +22,12 @@ jobs:
       matrix:
         FLINK_PROFILE: [flink-1.19]
 
-    env:
-      VERSION: ${{ github.event_name == 'release' && github.event.action == 'created' && github.ref_name || '1.0.0-SNAPSHOT' }}
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -63,6 +57,14 @@ jobs:
           mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -P${{ matrix.FLINK_PROFILE }}
           docker pull postgres:17
           grep '^FROM' flink-sql-runner/target/Dockerfile | awk '{print $2}' | xargs -n1 docker pull
+
+      - name: Get project version and store in env
+        run: |
+          if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+          fi
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
