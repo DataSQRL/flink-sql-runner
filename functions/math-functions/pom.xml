@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
     <artifactId>functions</artifactId>
-    <version>0.6.2-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
   </parent>
 
   <artifactId>math-functions</artifactId>
