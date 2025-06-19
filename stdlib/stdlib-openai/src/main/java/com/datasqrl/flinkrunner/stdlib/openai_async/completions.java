@@ -13,53 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.stdlib.openai;
+package com.datasqrl.flinkrunner.stdlib.openai_async;
 
+import com.datasqrl.flinkrunner.stdlib.openai.OpenAiCompletions;
 import com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionExecutor;
 import com.google.auto.service.AutoService;
+import java.util.concurrent.CompletableFuture;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 
 @AutoService(AsyncScalarFunction.class)
-public class extract_json extends AsyncScalarFunction {
+public class completions extends AsyncScalarFunction {
 
   private transient OpenAiCompletions openAiCompletions;
   private transient FunctionExecutor executor;
 
   @Override
   public void open(FunctionContext context) throws Exception {
-    this.openAiCompletions = createOpenAiCompletions();
-    this.executor = new FunctionExecutor(context, extract_json.class.getSimpleName());
+    this.openAiCompletions = createOpenAICompletions();
+    this.executor = new FunctionExecutor(context, completions.class.getSimpleName());
   }
 
-  protected OpenAiCompletions createOpenAiCompletions() {
+  protected OpenAiCompletions createOpenAICompletions() {
     return new OpenAiCompletions();
   }
 
-  public String eval(String prompt, String modelName) {
-    return eval(prompt, modelName, null);
+  public void eval(CompletableFuture<String> result, String prompt, String modelName) {
+    eval(result, prompt, modelName, null, null, null);
   }
 
-  public String eval(String prompt, String modelName, Double temperature) {
-    return eval(prompt, modelName, temperature, null);
+  public void eval(
+      CompletableFuture<String> result, String prompt, String modelName, Integer maxOutputTokens) {
+    eval(result, prompt, modelName, maxOutputTokens, null, null);
   }
 
-  public String eval(String prompt, String modelName, Double temperature, Double topP) {
-    return eval(prompt, modelName, temperature, topP, null);
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Integer maxOutputTokens,
+      Double temperature) {
+    eval(result, prompt, modelName, maxOutputTokens, temperature, null);
   }
 
-  public String eval(
-      String prompt, String modelName, Double temperature, Double topP, String jsonSchema) {
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Integer maxOutputTokens,
+      Double temperature,
+      Double topP) {
+
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
             .modelName(modelName)
-            .requireJsonOutput(true)
-            .jsonSchema(jsonSchema)
+            .maxOutputTokens(maxOutputTokens)
             .temperature(temperature)
             .topP(topP)
             .build();
 
-    return executor.execute(() -> openAiCompletions.callCompletions(request));
+    executor.execute(() -> openAiCompletions.callCompletions(request), result);
   }
 }

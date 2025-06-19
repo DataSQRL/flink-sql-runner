@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.stdlib.openai.util;
+package com.datasqrl.flinkrunner.stdlib.openai.utils;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;

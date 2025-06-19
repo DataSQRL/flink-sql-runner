@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.stdlib.openai;
+package com.datasqrl.flinkrunner.stdlib.openai_async;
 
+import com.datasqrl.flinkrunner.stdlib.openai.OpenAiCompletions;
 import com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionExecutor;
 import com.google.auto.service.AutoService;
+import java.util.concurrent.CompletableFuture;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 
@@ -36,20 +38,31 @@ public class extract_json extends AsyncScalarFunction {
     return new OpenAiCompletions();
   }
 
-  public String eval(String prompt, String modelName) {
-    return eval(prompt, modelName, null);
+  public void eval(CompletableFuture<String> result, String prompt, String modelName) {
+    eval(result, prompt, modelName, null);
   }
 
-  public String eval(String prompt, String modelName, Double temperature) {
-    return eval(prompt, modelName, temperature, null);
+  public void eval(
+      CompletableFuture<String> result, String prompt, String modelName, Double temperature) {
+    eval(result, prompt, modelName, temperature, null);
   }
 
-  public String eval(String prompt, String modelName, Double temperature, Double topP) {
-    return eval(prompt, modelName, temperature, topP, null);
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Double temperature,
+      Double topP) {
+    eval(result, prompt, modelName, temperature, topP, null);
   }
 
-  public String eval(
-      String prompt, String modelName, Double temperature, Double topP, String jsonSchema) {
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Double temperature,
+      Double topP,
+      String jsonSchema) {
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
@@ -60,6 +73,6 @@ public class extract_json extends AsyncScalarFunction {
             .topP(topP)
             .build();
 
-    return executor.execute(() -> openAiCompletions.callCompletions(request));
+    executor.execute(() -> openAiCompletions.callCompletions(request), result);
   }
 }

@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.stdlib.openai;
 
-import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.*;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.*;
 
 import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
 import java.io.IOException;
@@ -29,7 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class OpenAIEmbeddings {
+public class OpenAiEmbeddings {
 
   private static final int TOKEN_LIMIT = 8192;
 
@@ -37,11 +37,11 @@ public class OpenAIEmbeddings {
 
   private final HttpClient httpClient;
 
-  public OpenAIEmbeddings() {
+  public OpenAiEmbeddings() {
     this(HttpClient.newHttpClient());
   }
 
-  public OpenAIEmbeddings(HttpClient httpClient) {
+  public OpenAiEmbeddings(HttpClient httpClient) {
     this.httpClient = httpClient;
   }
 
@@ -86,7 +86,7 @@ public class OpenAIEmbeddings {
     }
   }
 
-  private FlinkVectorType parseEmbeddingVector(String responseBody) throws IOException {
+  private static FlinkVectorType parseEmbeddingVector(String responseBody) throws IOException {
     // Parse JSON response
     JsonNode jsonResponse = objectMapper.readTree(responseBody);
     ArrayNode embeddingArray = (ArrayNode) jsonResponse.get("data").get(0).get("embedding");

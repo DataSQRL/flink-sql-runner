@@ -15,18 +15,22 @@
  */
 package com.datasqrl.flinkrunner.stdlib.openai;
 
-import static com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker.CALL_COUNT;
-import static com.datasqrl.flinkrunner.stdlib.openai.util.FunctionMetricTracker.ERROR_COUNT;
+import static com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionMetricTracker.CALL_COUNT;
+import static com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionMetricTracker.ERROR_COUNT;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -48,7 +52,7 @@ class ExtractJsonTest {
 
   @Mock private HttpResponse<String> mockHttpResponse;
 
-  @InjectMocks private OpenAICompletions openAICompletions;
+  @InjectMocks private OpenAiCompletions openAiCompletions;
 
   @Mock private FunctionContext functionContext;
 
@@ -71,8 +75,8 @@ class ExtractJsonTest {
     function =
         new extract_json() {
           @Override
-          public OpenAICompletions createOpenAICompletions() {
-            return openAICompletions;
+          public OpenAiCompletions createOpenAiCompletions() {
+            return openAiCompletions;
           }
         };
     function.open(functionContext);
@@ -99,10 +103,7 @@ class ExtractJsonTest {
     when(mockHttpResponse.statusCode()).thenReturn(200);
     when(mockHttpResponse.body()).thenReturn(responseBody);
 
-    CompletableFuture<String> future = new CompletableFuture<>();
-    function.eval(future, "prompt", "model");
-
-    String result = future.join();
+    String result = function.eval("prompt", "model");
 
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
@@ -131,10 +132,7 @@ class ExtractJsonTest {
     when(mockHttpResponse.statusCode()).thenReturn(200);
     when(mockHttpResponse.body()).thenReturn(responseBody);
 
-    CompletableFuture<String> future = new CompletableFuture<>();
-    function.eval(future, "prompt", "model");
-
-    String result = future.join();
+    String result = function.eval("prompt", "model");
 
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
@@ -150,10 +148,7 @@ class ExtractJsonTest {
     when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenThrow(exception);
 
-    CompletableFuture<String> future = new CompletableFuture<>();
-    function.eval(future, "prompt", "model");
-
-    assertThatThrownBy(future::join).hasRootCause(exception);
+    assertThatThrownBy(() -> function.eval("prompt", "model")).hasRootCause(exception);
 
     verify(mockHttpClient, times(1))
         .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
@@ -166,12 +161,7 @@ class ExtractJsonTest {
   @MethodSource("provideInvalidTestArguments")
   void testEvalWhenInputIsInvalid(String prompt, String modelName)
       throws IOException, InterruptedException {
-    CompletableFuture<String> future = new CompletableFuture<>();
-    function.eval(future, prompt, modelName);
-
-    String result = future.join();
-
-    assertThat(result).isNull();
+    assertThat(function.eval(prompt, modelName)).isNull();
 
     verify(mockHttpClient, never())
         .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));

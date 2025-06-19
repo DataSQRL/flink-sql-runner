@@ -13,25 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.stdlib.openai;
+package com.datasqrl.flinkrunner.stdlib.openai_async;
 
 import static com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionMetricTracker.CALL_COUNT;
 import static com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionMetricTracker.ERROR_COUNT;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+import com.datasqrl.flinkrunner.stdlib.openai.OpenAiEmbeddings;
 import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -47,7 +44,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class VectorEmbedTest {
+class VectorEmbedAsyncTest {
 
   @Mock private HttpClient httpClient;
 
@@ -94,7 +91,10 @@ class VectorEmbedTest {
         .thenReturn(httpResponse);
 
     // Execute function
-    FlinkVectorType result = function.eval("some text", "model-name");
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
+    function.eval(future, "some text", "model-name");
+
+    FlinkVectorType result = future.join();
 
     verify(callCounter, times(1)).inc();
     verify(errorCounter, never()).inc();
@@ -112,7 +112,10 @@ class VectorEmbedTest {
         .thenThrow(exception);
 
     // Attempt to call vectorEmbed, expecting retries
-    assertThatThrownBy(() -> function.eval("some text", "model-name")).hasRootCause(exception);
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
+    function.eval(future, "some text", "model-name");
+
+    assertThatThrownBy(future::join).hasRootCause(exception);
 
     verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
 
@@ -124,7 +127,12 @@ class VectorEmbedTest {
   @MethodSource("provideInvalidTestArguments")
   void testEvalWhenInputIsInvalid(String prompt, String modelName)
       throws IOException, InterruptedException {
-    assertThat(function.eval(prompt, modelName)).isNull();
+    CompletableFuture<FlinkVectorType> future = new CompletableFuture<>();
+    function.eval(future, prompt, modelName);
+
+    FlinkVectorType result = future.join();
+
+    assertThat(result).isNull();
     verify(httpClient, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
   }
 
