@@ -42,11 +42,13 @@
       <email>daniel@datasqrl.com</email>
       <url>https://github.com/henneberger</url>
     </developer>
+
     <developer>
       <name>Marvin Froeder</name>
       <email>marvin@datasqrl.com</email>
       <url>https://github.com/velo</url>
     </developer>
+
     <developer>
       <name>Ferenc Csaky</name>
       <email>ferenc@datasqrl.com</email>
@@ -81,17 +83,26 @@
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
 
+    <!-- Flink versions -->
+    <flink.version>1.19.2</flink.version>
+    <jdbc.conn.version>3.2.0-1.19</jdbc.conn.version>
+    <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
+
     <!-- Dependency versions -->
     <assertj.version>3.27.3</assertj.version>
     <auto.service.version>1.1.1</auto.service.version>
+    <awaitility.version>4.3.0</awaitility.version>
+    <commons-exec.version>1.5.0</commons-exec.version>
+    <commons-math3.version>3.6.1</commons-math3.version>
     <feign.version>13.5</feign.version>
-    <flink.version>1.19.2</flink.version>
-    <jdbc.version>3.2.0-1.19</jdbc.version>
+    <jacoco.version>0.8.13</jacoco.version>
+    <jdbi3.version>3.49.5</jdbi3.version>
+    <json-path.version>2.9.0</json-path.version>
     <junit.version>5.13.1</junit.version>
-    <kafka.version>3.2.0-1.19</kafka.version>
     <log4j.version>2.24.3</log4j.version>
     <lombok.version>1.18.38</lombok.version>
     <mockito.version>5.18.0</mockito.version>
+    <nextbreakpoint.flink.client.version>1.1.4</nextbreakpoint.flink.client.version>
     <picocli.version>4.7.7</picocli.version>
     <postgres.version>42.7.7</postgres.version>
     <slf4j.version>2.0.17</slf4j.version>
@@ -120,6 +131,7 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-bom</artifactId>
@@ -127,6 +139,7 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
       <dependency>
         <groupId>com.google.auto.service</groupId>
         <artifactId>auto-service</artifactId>
@@ -136,7 +149,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- General dependencies -->
+    <!-- Common provided dependencies -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
@@ -150,33 +163,39 @@
       <artifactId>junit-platform-launcher</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.vintage</groupId>
       <artifactId>junit-vintage-engine</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
@@ -193,21 +212,25 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless-maven-plugin}</version>
         </plugin>
+
         <plugin>
           <groupId>com.mycila</groupId>
           <artifactId>license-maven-plugin</artifactId>
           <version>${license-maven-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>io.sundr</groupId>
           <artifactId>sundr-maven-plugin</artifactId>
           <version>${sundr-maven-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>${maven-enforcer-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
@@ -218,26 +241,31 @@
           <artifactId>maven-gpg-plugin</artifactId>
           <version>${maven-gpg-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${maven-javadoc-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
           <version>${maven-source-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven-surefire-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
         </plugin>
+
         <plugin>
           <groupId>org.sonatype.central</groupId>
           <artifactId>central-publishing-maven-plugin</artifactId>
@@ -452,89 +480,44 @@
   </build>
 
   <profiles>
-    <!-- Useful profile for local dev (forces code format, etc.) -->
+    <!-- Skip code format, license checks, tests, and enforced rules -->
     <profile>
-      <id>dev</id>
+      <id>fast</id>
+      <activation>
+        <property>
+          <name>fast</name>
+        </property>
+      </activation>
       <properties>
-        <gcf.skipInstallHooks>false</gcf.skipInstallHooks>
-        <flink.version>1.19.2</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>1.19.2-scala_2.12-java17</flink-base-image>
+        <skipTests>true</skipTests>
+        <enforcer.skip>true</enforcer.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <license.skip>true</license.skip>
+        <spotless.check.skip>true</spotless.check.skip>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.diffplug.spotless</groupId>
-            <artifactId>spotless-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format</id>
-                <goals>
-                  <goal>apply</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>com.mycila</groupId>
-            <artifactId>license-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>format</id>
-                <goals>
-                  <goal>format</goal>
-                </goals>
-                <phase>initialize</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
-    <!--  Flink specific profiles  -->
+    <!-- Flink specific profiles -->
     <profile>
       <id>flink-2.0</id>
       <properties>
-        <flink.version>2.0-preview1</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>2.0-preview1-scala_2.12-java17</flink-base-image>
+        <flink.version>2.0.0</flink.version>
+        <jdbc.conn.version>3.2.0-1.19</jdbc.conn.version>
+        <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
+        <flink-base-image>2.0.0-scala_2.12-java17</flink-base-image>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-flink-1.20+-specific-source</id>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <sources>
-                    <source>${basedir}/src/main/flink120+</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
+
     <profile>
       <id>flink-1.20</id>
       <properties>
         <flink.version>1.20.1</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
-        <flink-base-image>1.20.0-scala_2.12-java17</flink-base-image>
+        <jdbc.conn.version>3.2.0-1.19</jdbc.conn.version>
+        <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
+        <flink-base-image>1.20.1-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
+
     <profile>
       <id>flink-1.19</id>
       <activation>
@@ -542,8 +525,8 @@
       </activation>
       <properties>
         <flink.version>1.19.2</flink.version>
-        <jdbc.version>3.2.0-1.19</jdbc.version>
-        <kafka.version>3.2.0-1.19</kafka.version>
+        <jdbc.conn.version>3.2.0-1.19</jdbc.conn.version>
+        <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
         <flink-base-image>1.19.2-scala_2.12-java17</flink-base-image>
       </properties>
     </profile>
@@ -551,9 +534,6 @@
     <!-- Extra tasks only meant to be executed by CI -->
     <profile>
       <id>ci</id>
-      <properties>
-        <gcf.skip>true</gcf.skip>
-      </properties>
       <build>
         <plugins>
           <plugin>
@@ -611,23 +591,7 @@
         </plugins>
       </build>
     </profile>
-    <profile>
-      <!-- just compile, skip all other checks -->
-      <id>fast</id>
-      <activation>
-        <property>
-          <name>fast</name>
-        </property>
-      </activation>
-      <properties>
-        <skipTests>true</skipTests>
-        <enforcer.skip>true</enforcer.skip>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
-        <gcf.skip>true</gcf.skip>
-        <license.skip>true</license.skip>
-        <spotless.check.skip>true</spotless.check.skip>
-      </properties>
-    </profile>
+
     <profile>
       <!-- helper profile to proper configure eclipse -->
       <id>m2e</id>

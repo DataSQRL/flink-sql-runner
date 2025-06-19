@@ -17,7 +17,6 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -29,29 +28,26 @@
   <artifactId>flink-sql-runner</artifactId>
 
   <dependencies>
+    <!-- Provided -->
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-utils</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java</artifactId>
+      <artifactId>flink-table-api-java-bridge</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-api-java</artifactId>
+      <artifactId>flink-table-planner-loader</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-planner_2.12</artifactId>
-      <version>${flink.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-runtime-web</artifactId>
-      <version>${flink.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <!-- Add logging framework, to produce console output when running in the IDE. -->
@@ -61,109 +57,89 @@
       <artifactId>slf4j-api</artifactId>
       <scope>provided</scope>
     </dependency>
+
+    <!-- Compile -->
+    <!-- Custom Connectors -->
     <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-      <version>${log4j.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-api</artifactId>
-      <version>${log4j.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>${log4j.version}</version>
-      <scope>runtime</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>kafka-safe-connector</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>${picocli.version}</version>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>postgresql-connector</artifactId>
+      <version>${project.version}</version>
     </dependency>
+
+    <!-- Custom Formats -->
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>${testcontainers.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>${testcontainers.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-test-utils</artifactId>
-      <version>${flink.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-api-java-bridge</artifactId>
-      <version>${flink.version}</version>
-      <scope>provided</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>flexible-csv-format</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.nextbreakpoint</groupId>
-      <artifactId>com.nextbreakpoint.flink.client</artifactId>
-      <version>1.1.4</version>
-      <scope>test</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>flexible-json-format</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- StdLib -->
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-commons</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <version>4.3.0</version>
-      <scope>test</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-json</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-exec</artifactId>
-      <version>1.5.0</version>
-      <scope>test</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-vector</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
-    <!-- JDBI -->
     <dependency>
-      <groupId>org.jdbi</groupId>
-      <artifactId>jdbi3-core</artifactId>
-      <version>3.49.4</version>
-      <scope>test</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-text</artifactId>
+      <version>${project.version}</version>
     </dependency>
+
     <dependency>
-      <groupId>org.jdbi</groupId>
-      <artifactId>jdbi3-sqlobject</artifactId>
-      <version>3.49.4</version>
-      <scope>test</scope>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-math</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-openai</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-connector-kafka</artifactId>
-      <version>${kafka.version}</version>
+      <version>${kafka.conn.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-connector-jdbc</artifactId>
-      <version>${jdbc.version}</version>
+      <version>${jdbc.conn.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-avro-confluent-registry</artifactId>
       <version>${flink.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-s3-fs-hadoop</artifactId>
@@ -171,29 +147,45 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>udf-sample</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>${picocli.version}</version>
     </dependency>
+
+    <!-- Runtime -->
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>system-functions-sample</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>${log4j.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>${log4j.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${log4j.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Test -->
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>udf-sample</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.jacoco</groupId>
-      <artifactId>org.jacoco.core</artifactId>
-      <version>0.8.13</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jacoco</groupId>
-      <artifactId>org.jacoco.agent</artifactId>
-      <version>0.8.13</version>
-      <classifier>runtime</classifier>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>system-functions-sample</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -205,62 +197,82 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- project dependencies-->
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>flexible-csv-format</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-runtime-web</artifactId>
+      <version>${flink.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>flexible-json-format</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-test-utils</artifactId>
+      <version>${flink.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-utils</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
+      <groupId>com.nextbreakpoint</groupId>
+      <artifactId>com.nextbreakpoint.flink.client</artifactId>
+      <version>${nextbreakpoint.flink.client.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-commons</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <version>${awaitility.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-json</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-exec</artifactId>
+      <version>${commons-exec.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-vector</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>kafka-safe-connector</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>postgresql-connector</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-core</artifactId>
+      <version>${jdbi3.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-text</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-sqlobject</artifactId>
+      <version>${jdbi3.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-math</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.core</artifactId>
+      <version>${jacoco.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>stdlib-openai</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.agent</artifactId>
+      <version>${jacoco.version}</version>
+      <classifier>runtime</classifier>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

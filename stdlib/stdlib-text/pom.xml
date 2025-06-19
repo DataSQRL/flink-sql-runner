@@ -29,18 +29,9 @@
   <description>Text functions for Flink</description>
 
   <dependencies>
+    <!-- Provided -->
     <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-common</artifactId>
-      <version>${flink.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
+      <groupId>com.datasqrl.flinkrunner</groupId>
       <artifactId>stdlib-utils</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
