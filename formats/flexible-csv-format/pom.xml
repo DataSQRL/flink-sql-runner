@@ -28,12 +28,11 @@
   <artifactId>flexible-csv-format</artifactId>
 
   <dependencies>
-    <!-- Provided -->
+    <!-- Compile -->
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-csv</artifactId>
       <version>${flink.version}</version>
-      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>
