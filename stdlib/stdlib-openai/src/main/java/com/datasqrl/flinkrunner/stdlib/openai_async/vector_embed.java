@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner.stdlib.openai;
+package com.datasqrl.flinkrunner.stdlib.openai_async;
 
+import com.datasqrl.flinkrunner.stdlib.openai.OpenAiEmbeddings;
 import com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionExecutor;
 import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
 import com.google.auto.service.AutoService;
+import java.util.concurrent.CompletableFuture;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 
@@ -37,7 +39,7 @@ public class vector_embed extends AsyncScalarFunction {
     return new OpenAiEmbeddings();
   }
 
-  public FlinkVectorType eval(String text, String modelName) {
-    return executor.execute(() -> openAiEmbeddings.vectorEmbed(text, modelName));
+  public void eval(CompletableFuture<FlinkVectorType> result, String text, String modelName) {
+    executor.execute(() -> openAiEmbeddings.vectorEmbed(text, modelName), result);
   }
 }

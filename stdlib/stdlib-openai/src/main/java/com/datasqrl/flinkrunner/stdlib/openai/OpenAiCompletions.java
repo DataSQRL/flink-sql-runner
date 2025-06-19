@@ -15,8 +15,8 @@
  */
 package com.datasqrl.flinkrunner.stdlib.openai;
 
-import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.API_KEY;
-import static com.datasqrl.flinkrunner.stdlib.openai.OpenAIUtil.COMPLETIONS_API;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.API_KEY;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.COMPLETIONS_API;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,13 +24,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import lombok.Builder;
+import lombok.Getter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class OpenAICompletions {
+public class OpenAiCompletions {
 
   private static final double TEMPERATURE_DEFAULT = 1.0;
   private static final double TOP_P_DEFAULT = 1.0;
@@ -39,11 +41,11 @@ public class OpenAICompletions {
 
   private final HttpClient httpClient;
 
-  public OpenAICompletions() {
+  public OpenAiCompletions() {
     this(HttpClient.newHttpClient());
   }
 
-  public OpenAICompletions(HttpClient httpClient) {
+  public OpenAiCompletions(HttpClient httpClient) {
     this.httpClient = httpClient;
   }
 
@@ -88,7 +90,7 @@ public class OpenAICompletions {
     // Create the messages array as required by the chat completions endpoint
     final ArrayNode messagesArray = objectMapper.createArrayNode();
 
-    if (Boolean.TRUE.equals(request.isRequireJsonOutput())) {
+    if (request.isRequireJsonOutput()) {
       if (request.getJsonSchema() != null) {
         JsonNode schemaNode;
         try {
@@ -141,5 +143,18 @@ public class OpenAICompletions {
     userMessage.put("role", role);
     userMessage.put("content", prompt);
     return userMessage;
+  }
+
+  @Getter
+  @Builder
+  public static class CompletionsRequest {
+
+    private final String prompt;
+    private final String modelName;
+    private final boolean requireJsonOutput;
+    private final String jsonSchema;
+    private final Integer maxOutputTokens;
+    private final Double temperature;
+    private final Double topP;
   }
 }

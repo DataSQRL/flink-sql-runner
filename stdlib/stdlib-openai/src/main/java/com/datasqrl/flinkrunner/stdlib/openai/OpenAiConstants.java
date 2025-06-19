@@ -15,17 +15,13 @@
  */
 package com.datasqrl.flinkrunner.stdlib.openai;
 
-import lombok.Builder;
-import lombok.Getter;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Builder
-public class CompletionsRequest {
-  private final String prompt;
-  private final String modelName;
-  private final boolean requireJsonOutput;
-  private final String jsonSchema;
-  private final Integer maxOutputTokens;
-  private final Double temperature;
-  private final Double topP;
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class OpenAiConstants {
+
+  public static final String API_KEY = "OPENAI_API_KEY";
+  public static final String EMBEDDING_API = "https://api.openai.com/v1/embeddings";
+  public static final String COMPLETIONS_API = "https://api.openai.com/v1/chat/completions";
 }
