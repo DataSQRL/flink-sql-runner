@@ -28,15 +28,18 @@
   <artifactId>udf-sample</artifactId>
 
   <dependencies>
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-    </dependency>
+    <!-- Provided -->
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-table-api-java-bridge</artifactId>
-      <version>1.16.1</version>
+      <version>${flink.version}</version>
       <scope>provided</scope>
+    </dependency>
+
+    <!-- Compile -->
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
     </dependency>
   </dependencies>
 </project>
