@@ -19,3 +19,9 @@ FROM flink:${flink-base-image}
 RUN mkdir -p /opt/flink/plugins/flink-sql-runner
 COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
 COPY stdlib-utils-${project.version}.jar /opt/flink/lib/stdlib-utils-${project.version}.jar
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh \
+  && ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar
+
+ENTRYPOINT ["/entrypoint.sh"]
