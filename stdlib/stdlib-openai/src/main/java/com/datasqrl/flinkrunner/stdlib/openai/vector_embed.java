@@ -18,11 +18,11 @@ package com.datasqrl.flinkrunner.stdlib.openai;
 import com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionExecutor;
 import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
 import com.google.auto.service.AutoService;
-import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
 
-@AutoService(AsyncScalarFunction.class)
-public class vector_embed extends AsyncScalarFunction {
+@AutoService(ScalarFunction.class)
+public class vector_embed extends ScalarFunction {
 
   private transient OpenAiEmbeddings openAiEmbeddings;
   private transient FunctionExecutor executor;
