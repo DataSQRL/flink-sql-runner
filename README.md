@@ -71,25 +71,29 @@ This starts a full standalone Flink session cluster in one container:
 docker run --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
-  --name flink \
+  --name runner \
   datasqrl/flink-sql-runner:0.6.2-flink-1.19 \
-  bash -c "bin/start-cluster.sh && tail -f /dev/null"
+  cluster
 ```
 
 3\. Submit your SQL job
 In a separate terminal, run:
 
 ```bash
-docker exec -it flink flink run ./plugins/flink-sql-runner/flink-sql-runner.uber.jar --sqlfile /flink/sql/flink.sql
+docker exec -it runner flink run flink-sql-runner.jar --sqlfile /flink/sql/flink.sql
 ```
 
 The job will be submitted to the embedded JobManager and executed using the local TaskManager.
+
+> [!NOTE]  
+> The `flink-sql-runner.jar` is a symlink placed in the Flink root directory (`/opt/flink`) for easier access, but the actual file resides in its own plugin directory: `/opt/flink/plugins/flink-sql-runner`.
+> It is possible to add any Flink arguments or run any accessible JAR, just like with a vanilla `flink run` command.
 
 4\. Inspect output
 If your SQL uses the print connector as a sink, you can check logs via:
 
 ```bash
-docker exec -it flink bash -c "cat /opt/flink/log/$(ls /opt/flink/log | grep 'flink--taskexecutor' | grep '.out')"
+docker exec -it runner bash -c "cat /opt/flink/log/$(ls /opt/flink/log | grep 'flink--taskexecutor' | grep '.out')"
 ```
 
 Or use the Flink UI at http://localhost:8081 to monitor jobs.
