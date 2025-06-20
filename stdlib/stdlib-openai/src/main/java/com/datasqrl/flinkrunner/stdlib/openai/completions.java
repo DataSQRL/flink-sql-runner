@@ -17,11 +17,11 @@ package com.datasqrl.flinkrunner.stdlib.openai;
 
 import com.datasqrl.flinkrunner.stdlib.openai.utils.FunctionExecutor;
 import com.google.auto.service.AutoService;
-import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
 
-@AutoService(AsyncScalarFunction.class)
-public class completions extends AsyncScalarFunction {
+@AutoService(ScalarFunction.class)
+public class completions extends ScalarFunction {
 
   private transient OpenAiCompletions openAiCompletions;
   private transient FunctionExecutor executor;
