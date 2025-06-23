@@ -13,33 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl;
+package com.datasqrl.flinkrunner;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import sample.Upper;
 
-class SqlExecutorTest {
+public class TouchTest {
 
-  @Test
-  void testGetFunctionNameAndClass_FunctionClass() {
-    var res = SqlExecutor.getFunctionNameAndClass(Upper.class);
-
-    assertThat(res)
-        .isPresent()
-        .get()
-        .satisfies(
-            tuple -> {
-              assertThat(tuple.f0).isEqualTo("upper");
-              assertThat(tuple.f1).isEqualTo(Upper.class);
-            });
+  @BeforeAll
+  static void copyJacocoReports() throws Exception {
+    Files.createFile(Path.of("target/jacoco.job.exec"));
+    Files.setPosixFilePermissions(
+        Path.of("target/jacoco.job.exec"), EnumSet.allOf(PosixFilePermission.class));
   }
 
   @Test
-  void testGetFunctionNameAndClass_NonFunctionClass() {
-    var result = SqlExecutor.getFunctionNameAndClass(Object.class);
-
-    assertThat(result).isEmpty();
-  }
+  void doNothing() {}
 }

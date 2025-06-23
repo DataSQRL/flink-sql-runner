@@ -13,23 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl;
+package com.datasqrl.flinkrunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.Test;
+import sample.Upper;
 
-class SqlUtilsTest {
+class SqlExecutorTest {
 
-  @ParameterizedTest(name = "{0}")
-  @CsvSource({"flink.sql,18", "test_sql.sql,6", "test_udf_sql.sql,6"})
-  void givenSource_when_thenSplitCorrectly(String filename, int numberOfStatements)
-      throws Exception {
-    var script = Resources.toString(getClass().getResource("/sql/" + filename), Charsets.UTF_8);
-    var stmts = SqlUtils.parseStatements(script);
-    assertThat(stmts).isNotNull().isNotEmpty().hasSize(numberOfStatements);
+  @Test
+  void testGetFunctionNameAndClass_FunctionClass() {
+    var res = SqlExecutor.getFunctionNameAndClass(Upper.class);
+
+    assertThat(res)
+        .isPresent()
+        .get()
+        .satisfies(
+            tuple -> {
+              assertThat(tuple.f0).isEqualTo("upper");
+              assertThat(tuple.f1).isEqualTo(Upper.class);
+            });
+  }
+
+  @Test
+  void testGetFunctionNameAndClass_NonFunctionClass() {
+    var result = SqlExecutor.getFunctionNameAndClass(Object.class);
+
+    assertThat(result).isEmpty();
   }
 }
