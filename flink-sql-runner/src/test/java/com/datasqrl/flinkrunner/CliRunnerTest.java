@@ -16,9 +16,11 @@
 package com.datasqrl.flinkrunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-class FlinkMainTest {
+class CliRunnerTest {
 
   @TempDir private Path tempDir;
 
@@ -44,21 +46,26 @@ class FlinkMainTest {
     Files.writeString(sqlFile, "SELECT 1;");
     Files.writeString(planFile, "{\"fake\":\"plan\"}");
 
-    FlinkMain flinkMain =
-        new FlinkMain(
+    CliRunner cliRunner =
+        new CliRunner(
             RuntimeExecutionMode.STREAMING, sqlFile.toString(), planFile.toString(), null, null);
 
     // Act & Assert
-    assertThat(flinkMain.run(() -> null)).isEqualTo(1);
+    assertThatThrownBy(() -> cliRunner.run(() -> null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Provide either a SQL file or a compiled plan - not both.");
   }
 
   @Test
   void run_shouldFail_ifNoSqlOrPlanProvided() throws Exception {
     // Arrange
-    var flinkMain = new FlinkMain(RuntimeExecutionMode.STREAMING, null, null, null, null);
+    var cliRunner = new CliRunner(RuntimeExecutionMode.STREAMING, null, null, null, null);
 
     // Assert
-    assertThat(flinkMain.run(() -> null)).isEqualTo(2);
+    assertThatThrownBy(() -> cliRunner.run(() -> null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "Invalid input. Please provide one of the following combinations: 1. A single SQL file (--sqlfile) 2. A plan JSON file (--planfile)");
   }
 
   @Test
@@ -68,14 +75,18 @@ class FlinkMainTest {
     String sql = "SELECT * FROM dummy_table";
     Files.writeString(sqlFile, sql);
 
+    EnvVarResolver mockResolver = mock(EnvVarResolver.class);
     SqlExecutor mockExecutor = mock(SqlExecutor.class);
     Supplier<SqlExecutor> supplier = () -> mockExecutor;
 
-    FlinkMain flinkMain =
-        new FlinkMain(RuntimeExecutionMode.STREAMING, sqlFile.toString(), null, null, null);
+    when(mockResolver.resolve(sql)).thenReturn(sql);
+
+    CliRunner cliRunner =
+        new CliRunner(
+            RuntimeExecutionMode.STREAMING, mockResolver, sqlFile.toString(), null, null, null);
 
     // Act
-    flinkMain.run(supplier);
+    cliRunner.run(supplier);
 
     // Assert
     verify(mockExecutor).setupSystemFunctions();
@@ -90,14 +101,18 @@ class FlinkMainTest {
     String planJson = "{\"pipeline\":\"plan\"}";
     Files.writeString(planFile, planJson);
 
+    EnvVarResolver mockResolver = mock(EnvVarResolver.class);
     SqlExecutor mockExecutor = mock(SqlExecutor.class);
     Supplier<SqlExecutor> supplier = () -> mockExecutor;
 
-    var flinkMain =
-        new FlinkMain(RuntimeExecutionMode.STREAMING, null, planFile.toString(), null, null);
+    when(mockResolver.resolveInJson(planJson)).thenReturn(planJson);
+
+    var cliRunner =
+        new CliRunner(
+            RuntimeExecutionMode.STREAMING, mockResolver, null, planFile.toString(), null, null);
 
     // Act
-    flinkMain.run(supplier);
+    cliRunner.run(supplier);
 
     // Assert
     verify(mockExecutor).setupSystemFunctions();
@@ -114,10 +129,10 @@ class FlinkMainTest {
     String yamlConf = "execution.runtime-mode: BATCH\ndummy.key: asd";
     Files.writeString(configFile, yamlConf);
 
-    var flinkMain = new FlinkMain(mode, null, null, tempDir.toString(), null);
+    var cliRunner = new CliRunner(mode, null, null, tempDir.toString(), null);
 
     // Act
-    var finalConf = flinkMain.initConfiguration();
+    var finalConf = cliRunner.initConfiguration();
 
     // Assert
     assertThat(finalConf.keySet()).hasSize(2);
@@ -132,10 +147,10 @@ class FlinkMainTest {
     String yamlConf = "dummy.key: asd";
     Files.writeString(configFile, yamlConf);
 
-    var flinkMain = new FlinkMain(mode, null, null, tempDir.toString(), null);
+    var cliRunner = new CliRunner(mode, null, null, tempDir.toString(), null);
 
     // Act
-    var finalConf = flinkMain.initConfiguration();
+    var finalConf = cliRunner.initConfiguration();
 
     // Assert
     assertThat(finalConf.keySet()).hasSize(2);
@@ -146,10 +161,10 @@ class FlinkMainTest {
   @EnumSource(RuntimeExecutionMode.class)
   void initConfiguration_shouldCreateNewConfigIfNoPathGiven(RuntimeExecutionMode mode) {
     // Arrange
-    var flinkMain = new FlinkMain(mode, null, null, null, null);
+    var cliRunner = new CliRunner(mode, null, null, null, null);
 
     // Act
-    var finalConf = flinkMain.initConfiguration();
+    var finalConf = cliRunner.initConfiguration();
 
     // Assert
     assertThat(finalConf.keySet()).hasSize(1);

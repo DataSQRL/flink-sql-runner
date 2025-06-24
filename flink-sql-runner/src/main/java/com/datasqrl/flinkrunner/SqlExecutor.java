@@ -17,12 +17,23 @@ package com.datasqrl.flinkrunner;
 
 import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
 import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.PlanReference;
@@ -30,33 +41,54 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Class for executing SQL scripts programmatically. */
+@Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class SqlExecutor {
-
-  private static final Logger log = LoggerFactory.getLogger(SqlExecutor.class);
 
   private static final Pattern SET_STATEMENT_PATTERN =
       Pattern.compile("SET\\s+'(\\S+)'\\s*=\\s*'(.+)';?", Pattern.CASE_INSENSITIVE);
 
-  private final TableEnvironment tableEnv;
+  private final TableEnvironment tEnv;
 
-  public SqlExecutor(Configuration configuration, String udfPath) {
-    var sEnv = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+  SqlExecutor(Configuration config, @Nullable String udfPath) {
+    var sEnv = StreamExecutionEnvironment.getExecutionEnvironment(config);
+    var tEnvConfig = EnvironmentSettings.newInstance().withConfiguration(config).build();
 
-    var tEnvConfig = EnvironmentSettings.newInstance().withConfiguration(configuration).build();
-
-    this.tableEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
+    tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
 
     if (StringUtils.isNotBlank(udfPath)) {
       setupUdfPath(udfPath);
     }
   }
 
-  public void setupSystemFunctions() {
-    System.out.println("Setting up automatically registered system functions");
+  /**
+   * Dedicated to be used with {@link SqrlRunner}, which is used in the SQRL test env, where it is
+   * necessary to add UDFs to the classpath due to the test env setup.
+   *
+   * @param config Flink configuration
+   * @param udfPath path to a directory with UDF JAR(s)
+   * @return a new {@link SqlExecutor} instance configured specifically to the SQRL test env
+   * @throws IOException when UDF class loader creation fails
+   */
+  static SqlExecutor withUdfClassLoader(Configuration config, @Nullable String udfPath)
+      throws IOException {
+    var udfClassLoader = buildUdfClassLoader(udfPath);
+    setConfigClassPaths(config, udfClassLoader);
+
+    var sEnv = new StreamExecutionEnvironment(config, udfClassLoader);
+    var tEnvConfig =
+        EnvironmentSettings.newInstance()
+            .withConfiguration(config)
+            .withClassLoader(udfClassLoader)
+            .build();
+
+    return new SqlExecutor(StreamTableEnvironment.create(sEnv, tEnvConfig));
+  }
+
+  void setupSystemFunctions() {
+    log.debug("Setting up automatically registered system functions");
 
     try {
       ServiceLoader<AutoRegisterSystemFunction> standardLibraryFunctions =
@@ -66,14 +98,12 @@ class SqlExecutor {
           function ->
               getFunctionNameAndClass(function.getClass())
                   .ifPresent(
-                      funcParts ->
-                          tableEnv.createTemporarySystemFunction(funcParts.f0, funcParts.f1)));
-    } catch (Throwable e) {
-      e.printStackTrace(System.out);
-      throw new RuntimeException(e);
+                      funcParts -> tEnv.createTemporarySystemFunction(funcParts.f0, funcParts.f1)));
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
     }
 
-    System.out.println("Completed auto function registered system functions");
+    log.debug("Completed auto function registered system functions");
   }
 
   /**
@@ -82,7 +112,7 @@ class SqlExecutor {
    * @param script The SQL script content.
    * @return
    */
-  public TableResult executeScript(String script) {
+  TableResult executeScript(String script) {
     var statements = SqlUtils.parseStatements(script);
     TableResult tableResult = null;
     for (String statement : statements) {
@@ -93,11 +123,24 @@ class SqlExecutor {
   }
 
   /**
-   * Executes a single SQL statement.
+   * Executes a compiled plan from JSON.
    *
-   * @param statement The SQL statement.
+   * @param planJson The JSON content of the compiled plan.
    * @return
    */
+  TableResult executeCompiledPlan(String planJson) {
+    log.info("Executing compiled plan from JSON.");
+    try {
+      var planReference = PlanReference.fromJsonString(planJson);
+      var result = tEnv.executePlan(planReference);
+      log.info("Compiled plan executed.");
+      return result;
+    } catch (Exception e) {
+      log.error("Failed to execute compiled plan", e);
+      throw e;
+    }
+  }
+
   private TableResult executeStatement(String statement) {
     TableResult tableResult = null;
     try {
@@ -107,12 +150,11 @@ class SqlExecutor {
         // Handle SET statements
         var key = setMatcher.group(1);
         var value = setMatcher.group(2);
-        tableEnv.getConfig().getConfiguration().setString(key, value);
+        tEnv.getConfig().getConfiguration().setString(key, value);
         log.info("Set configuration: {} = {}", key, value);
       } else {
-        System.out.println(statement);
         log.info("Executing statement:\n{}", statement);
-        tableResult = tableEnv.executeSql(EnvVarUtils.resolveEnvVars(statement));
+        tableResult = tEnv.executeSql(statement);
       }
     } catch (Exception e) {
       e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
@@ -137,7 +179,7 @@ class SqlExecutor {
         var jarFiles = udfDir.listFiles((dir, name) -> name.endsWith(".jar"));
         if (jarFiles != null) {
           for (File jarFile : jarFiles) {
-            tableEnv.executeSql("ADD JAR 'file://" + jarFile.getAbsolutePath() + "'");
+            tEnv.executeSql("ADD JAR 'file://" + jarFile.getAbsolutePath() + "'");
             log.info("Added UDF JAR: {}", jarFile.getAbsolutePath());
           }
         }
@@ -150,25 +192,43 @@ class SqlExecutor {
     }
   }
 
-  /**
-   * Executes a compiled plan from JSON.
-   *
-   * @param planJson The JSON content of the compiled plan.
-   * @return
-   */
-  protected TableResult executeCompiledPlan(String planJson) {
-    log.info("Executing compiled plan from JSON.");
-    try {
-      var planReference = PlanReference.fromJsonString(planJson);
-      var result = tableEnv.executePlan(planReference);
-      log.info("Compiled plan executed.");
-      return result;
-    } catch (Exception e) {
-      log.error("Failed to execute compiled plan", e);
-      throw e;
+  @Nullable
+  static URLClassLoader buildUdfClassLoader(String udfPath) throws IOException {
+    if (StringUtils.isBlank(udfPath)) {
+      return null;
     }
+
+    var udfDir = new File(udfPath);
+    if (!udfDir.exists() || !udfDir.isDirectory()) {
+      return null;
+    }
+
+    var jarFiles = udfDir.listFiles((dir, name) -> name.endsWith(".jar"));
+    var jarUrls = new URL[0];
+    if (jarFiles != null) {
+      jarUrls = new URL[jarFiles.length];
+
+      for (int i = 0; i < jarFiles.length; i++) {
+        jarUrls[i] = jarFiles[i].toURI().toURL();
+      }
+    }
+
+    return jarUrls.length < 1
+        ? null
+        : new URLClassLoader(jarUrls, Thread.currentThread().getContextClassLoader());
   }
 
+  static void setConfigClassPaths(Configuration config, @Nullable URLClassLoader udfClassLoader) {
+    if (udfClassLoader == null || udfClassLoader.getURLs().length < 1) {
+      return;
+    }
+
+    var joinedUrls =
+        Arrays.stream(udfClassLoader.getURLs()).map(URL::toString).collect(Collectors.toList());
+    config.set(PipelineOptions.CLASSPATHS, joinedUrls);
+  }
+
+  @VisibleForTesting
   static Optional<Tuple2<String, Class<? extends UserDefinedFunction>>> getFunctionNameAndClass(
       Class<?> clazz) {
     Tuple2<String, Class<? extends UserDefinedFunction>> res = null;

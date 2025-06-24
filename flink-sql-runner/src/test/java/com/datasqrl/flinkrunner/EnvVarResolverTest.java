@@ -23,7 +23,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class EnvVarUtilsTest {
+class EnvVarResolverTest {
+
+  private EnvVarResolver resolver;
 
   @ParameterizedTest
   @CsvSource({
@@ -38,7 +40,8 @@ class EnvVarUtilsTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    var result = EnvVarUtils.resolveEnvVars(command, envVariables);
+    resolver = new EnvVarResolver(envVariables);
+    var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
 
@@ -50,8 +53,9 @@ class EnvVarUtilsTest {
         "'Combined ${VAR1} and ${VAR2}'" // Multiple missing variables
       })
   void givenMissingEnvVariables_whenResolveEnv_Vars_thenThrowException(String command) {
-    Map<String, String> envVariables = Map.of(); // Empty map to simulate missing variables
-    assertThatThrownBy(() -> EnvVarUtils.resolveEnvVars(command, envVariables))
+    Map<String, String> envVariables = Map.of();
+    resolver = new EnvVarResolver(envVariables); // Empty map to simulate missing variables
+    assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith(
             "The following environment variables were referenced, but not found:");
@@ -69,9 +73,63 @@ class EnvVarUtilsTest {
         Map.of(
             "USER", "John",
             "NAME", "exists");
-    assertThatThrownBy(() -> EnvVarUtils.resolveEnvVars(command, envVariables))
+    resolver = new EnvVarResolver(envVariables);
+    assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage(
             "The following environment variables were referenced, but not found: [USER_NAME]");
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    // Env var not present, fallback used
+    "'${USERNAME:guest}', 'guest'",
+    "'Welcome ${USERNAME:anonymous}', 'Welcome anonymous'",
+    // Env var present, fallback ignored
+    "'${USER:guest}', 'John'",
+    "'Path: ${PATH:/default}', 'Path: /usr/bin'",
+    // Empty default
+    "'Empty fallback: ${MISSING:}', 'Empty fallback: '",
+    // Mixed present and fallback
+    "'User=${USER}, ID=${ID:0000}', 'User=John, ID=0000'",
+    "'${MISSING1:default1} and ${MISSING2:default2}', 'default1 and default2'"
+  })
+  void givenDefaultEnvValues_whenResolve_thenFallbackOrUseEnvValue(
+      String command, String expected) {
+    Map<String, String> envVariables =
+        Map.of(
+            "USER", "John",
+            "PATH", "/usr/bin");
+    resolver = new EnvVarResolver(envVariables);
+    var result = resolver.resolve(command);
+    assertThat(result).isEqualTo(expected);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "${MISSING}", // Still fails because no default
+        "Hi ${MISSING}!", // Same
+        "${A:} ${B}" // A has empty default, B is missing
+      })
+  void givenMissingEnvWithoutDefault_whenResolve_thenThrowException(String command) {
+    Map<String, String> envVariables = Map.of("A", "something");
+    resolver = new EnvVarResolver(envVariables);
+    assertThatThrownBy(() -> resolver.resolve(command))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("referenced, but not found");
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "'${TOKEN:abc:def}', 'abc:def'", // Semicolon inside fallback value
+    "'${TOKEN:abc:def:ghi}', 'abc:def:ghi'", // colon is only split on first occurrence
+    "'${TOKEN:}', ''" // colon at the end
+  })
+  void givenFallbackWithColons_whenResolve_thenParseCorrectly(String command, String expected) {
+    Map<String, String> envVariables = Map.of(); // No TOKEN set
+    resolver = new EnvVarResolver(envVariables);
+    var result = resolver.resolve(command);
+    assertThat(result).isEqualTo(expected);
   }
 }

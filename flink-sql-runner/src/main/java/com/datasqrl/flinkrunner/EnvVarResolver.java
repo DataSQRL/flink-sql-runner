@@ -22,32 +22,40 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
-/** Environment variable handling utilities. */
+/** Environment variable resolving functionality. */
 @Slf4j
-class EnvVarUtils {
+public class EnvVarResolver {
 
   private static final Pattern ENVIRONMENT_VARIABLE_PATTERN = Pattern.compile("\\$\\{(.*?)\\}");
-  private static final ObjectMapper OBJECT_MAPPER = initObjectMapper();
 
-  /** See {@link EnvVarUtils#resolveEnvVars(String, Map)}. */
-  static String resolveEnvVars(String src) {
-    return resolveEnvVars(src, System.getenv());
+  private final Map<String, String> envVars;
+  private final ObjectMapper objectMapper;
+
+  public EnvVarResolver() {
+    this(System.getenv());
+  }
+
+  public EnvVarResolver(Map<String, String> envVars) {
+    this.envVars = envVars;
+    objectMapper = initObjectMapper();
   }
 
   /**
    * Resolves environment variables referenced in a given source string. Searches for environment
-   * variable references based on {@link EnvVarUtils#ENVIRONMENT_VARIABLE_PATTERN}. If a blank
+   * variable references based on {@link EnvVarResolver#ENVIRONMENT_VARIABLE_PATTERN}. If a blank
    * source string is passed, it will be returned as is.
    *
    * @param src given source string that may contain environment variable references
-   * @param envVars available environment variables
    * @return a new string with the resolved environment variables
    * @throws IllegalStateException if any referenced environment variable are not available
    */
-  static String resolveEnvVars(String src, Map<String, String> envVars) {
+  public String resolve(String src) {
     if (StringUtils.isBlank(src)) {
       return src;
     }
@@ -57,10 +65,24 @@ class EnvVarUtils {
     var matcher = ENVIRONMENT_VARIABLE_PATTERN.matcher(src);
     var missingEnvVars = new HashSet<String>();
     while (matcher.find()) {
-      var key = matcher.group(1);
+      var rawKey = matcher.group(1);
+      String key;
+      String defaultValue = null;
+
+      // Split at first ':' to support default values
+      int colonIdx = rawKey.indexOf(':');
+      if (colonIdx >= 0) {
+        key = rawKey.substring(0, colonIdx);
+        defaultValue = rawKey.substring(colonIdx + 1);
+      } else {
+        key = rawKey;
+      }
+
       if (envVars.containsKey(key)) {
         var envValue = envVars.get(key);
         matcher.appendReplacement(res, Matcher.quoteReplacement(envValue));
+      } else if (defaultValue != null) {
+        matcher.appendReplacement(res, Matcher.quoteReplacement(defaultValue));
       } else {
         missingEnvVars.add(key);
       }
@@ -80,19 +102,19 @@ class EnvVarUtils {
   /**
    * Resolves environment variables referenced in a given JSON source string.Searches for
    * environment variable references in any string leaf nodes based on {@link
-   * EnvVarUtils#ENVIRONMENT_VARIABLE_PATTERN}.
+   * EnvVarResolver#ENVIRONMENT_VARIABLE_PATTERN}.
    *
    * @param jsonSrc given JSON source string that may contain environment variable references
    * @return JSON string with the resolved environment variables
    * @throws IOException if the JSON processing fails in any way
    */
-  static String resolveEnvVarsInJson(String jsonSrc) throws IOException {
-    var res = OBJECT_MAPPER.readValue(jsonSrc, Map.class);
+  public String resolveInJson(String jsonSrc) throws IOException {
+    var res = objectMapper.readValue(jsonSrc, Map.class);
 
-    return OBJECT_MAPPER.writeValueAsString(res);
+    return objectMapper.writeValueAsString(res);
   }
 
-  private static ObjectMapper initObjectMapper() {
+  private ObjectMapper initObjectMapper() {
     var objectMapper = new ObjectMapper();
 
     var module = new SimpleModule();
@@ -102,7 +124,12 @@ class EnvVarUtils {
     return objectMapper;
   }
 
-  private EnvVarUtils() {
-    throw new UnsupportedOperationException();
+  private class JsonEnvVarDeserializer extends JsonDeserializer<String> {
+
+    @Override
+    public String deserialize(JsonParser parser, DeserializationContext ctx) throws IOException {
+      var value = parser.getText();
+      return resolve(value);
+    }
   }
 }
