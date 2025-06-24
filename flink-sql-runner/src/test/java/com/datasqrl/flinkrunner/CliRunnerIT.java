@@ -22,7 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class FlinkMainIT extends AbstractITSupport {
+class CliRunnerIT extends AbstractITSupport {
 
   static Stream<Arguments> execArgs() {
     return Stream.of(
