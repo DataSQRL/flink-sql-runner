@@ -16,7 +16,8 @@
 package com.datasqrl.flinkrunner.stdlib.openai;
 
 import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.API_KEY;
-import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.COMPLETIONS_API;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.COMPLETIONS_API_URL;
+import static com.datasqrl.flinkrunner.stdlib.openai.OpenAiConstants.DEFAULT_COMPLETIONS_API;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,6 +25,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -61,7 +63,10 @@ public class OpenAiCompletions {
     // Build the HTTP request
     final HttpRequest httpRequest =
         HttpRequest.newBuilder()
-            .uri(URI.create(COMPLETIONS_API))
+            .uri(
+                URI.create(
+                    Optional.ofNullable(System.getenv(COMPLETIONS_API_URL))
+                        .orElse(DEFAULT_COMPLETIONS_API)))
             .header("Authorization", "Bearer " + System.getenv(API_KEY))
             .header("Content-Type", "application/json")
             .POST(

@@ -22,6 +22,8 @@ import lombok.NoArgsConstructor;
 public final class OpenAiConstants {
 
   public static final String API_KEY = "OPENAI_API_KEY";
-  public static final String EMBEDDING_API = "https://api.openai.com/v1/embeddings";
-  public static final String COMPLETIONS_API = "https://api.openai.com/v1/chat/completions";
+  public static final String EMBEDDING_API_URL = "OPENAI_EMBEDDING_API_URL";
+  public static final String COMPLETIONS_API_URL = "OPENAI_COMPLETIONS_API_URL";
+  public static final String DEFAULT_EMBEDDING_API = "https://api.openai.com/v1/embeddings";
+  public static final String DEFAULT_COMPLETIONS_API = "https://api.openai.com/v1/chat/completions";
 }

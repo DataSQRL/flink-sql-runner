@@ -24,6 +24,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -67,7 +68,10 @@ public class OpenAiEmbeddings {
     // Build the HTTP request
     HttpRequest request =
         HttpRequest.newBuilder()
-            .uri(URI.create(EMBEDDING_API))
+            .uri(
+                URI.create(
+                    Optional.ofNullable(System.getenv(EMBEDDING_API_URL))
+                        .orElse(DEFAULT_EMBEDDING_API)))
             .header("Authorization", "Bearer " + System.getenv(API_KEY))
             .header("Content-Type", "application/json")
             .POST(
