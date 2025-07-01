@@ -72,7 +72,8 @@ public class AbstractITSupport {
 
   @Container
   protected static final GenericContainer<?> redpandaContainer =
-      new GenericContainer<>(DockerImageName.parse("redpandadata/redpanda"))
+      new GenericContainer<>(
+              DockerImageName.parse("docker.redpanda.com/redpandadata/redpanda:v23.1.2"))
           .withNetwork(sharedNetwork)
           .withNetworkAliases("redpanda")
           .withExposedPorts(REDPANDA_PORT);
