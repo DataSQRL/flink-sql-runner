@@ -106,7 +106,7 @@
     <picocli.version>4.7.7</picocli.version>
     <postgres.version>42.7.7</postgres.version>
     <slf4j.version>2.0.17</slf4j.version>
-    <testcontainers.version>1.21.2</testcontainers.version>
+    <testcontainers.version>1.21.3</testcontainers.version>
 
     <!-- Plugin versions -->
     <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
