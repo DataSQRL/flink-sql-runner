@@ -21,6 +21,7 @@ import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonTypeSerializerSnapshot;
 import com.datasqrl.flinkrunner.stdlib.json.to_jsonb;
 import java.io.IOException;
 import java.sql.DriverManager;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 @ExtendWith(MiniClusterExtension.class)
+@Slf4j
 public class FlinkJdbcTest {
 
   public static void main(String[] args) throws IOException {
@@ -41,16 +43,18 @@ public class FlinkJdbcTest {
         new DataInputDeserializer(
             EncodingUtils.decodeBase64ToBytes(
                 "ADFjb20uZGF0YXNxcmwuanNvbi5GbGlua0pzb25UeXBlU2VyaWFsaXplclNuYXBzaG90AAAAAQApY29tLmRhdGFzcXJsLmpzb24uRmxpbmtKc29uVHlwZVNlcmlhbGl6ZXI="));
-    System.out.println(input.readUTF());
-    System.out.println(input.readInt());
-    System.out.println(input.readUTF());
+
+    log.debug(input.readUTF());
+    log.debug("{}", input.readInt());
+    log.debug(input.readUTF());
 
     var output = new DataOutputSerializer(91);
     var snapshot = new FlinkJsonTypeSerializerSnapshot();
     output.writeUTF(snapshot.getClass().getName());
     output.writeInt(snapshot.getCurrentVersion());
     snapshot.writeSnapshot(output);
-    System.out.println(EncodingUtils.encodeBytesToBase64(output.getSharedBuffer()));
+
+    log.debug(EncodingUtils.encodeBytesToBase64(output.getSharedBuffer()));
   }
 
   @Test

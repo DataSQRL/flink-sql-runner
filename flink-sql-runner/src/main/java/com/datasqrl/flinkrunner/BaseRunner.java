@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
@@ -30,6 +31,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.util.FileUtils;
 
 @RequiredArgsConstructor
+@Slf4j
 abstract class BaseRunner {
 
   final RuntimeExecutionMode mode;
@@ -88,7 +90,7 @@ abstract class BaseRunner {
   Configuration initConfiguration() {
     var conf = new Configuration();
     if (StringUtils.isNotBlank(configDir)) {
-      System.out.printf("Loading configuration from %s\n", configDir);
+      log.info("Loading Flink configuration from '{}'", configDir);
       conf = GlobalConfiguration.loadConfiguration(configDir);
     }
 
