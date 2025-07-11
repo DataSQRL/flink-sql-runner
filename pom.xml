@@ -403,6 +403,25 @@
               <fail>true</fail>
             </configuration>
           </execution>
+          <execution>
+            <id>ban-slf4j2-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <searchTransitive>true</searchTransitive>
+                  <excludes>
+                    <!-- Ban SLF4J 2.x bridge to ensure only SLF4J 1.x is used -->
+                    <exclude>org.apache.logging.log4j:log4j-slf4j2-impl</exclude>
+                    <exclude>org.slf4j:slf4j-reload4j</exclude>
+                  </excludes>
+                  <message>SLF4J 2.x is not allowed. Use log4j-slf4j-impl instead of log4j-slf4j2-impl</message>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
 
