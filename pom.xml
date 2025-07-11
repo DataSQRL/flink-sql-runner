@@ -118,7 +118,7 @@
     <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
     <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
     <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
-    <spotless-maven-plugin>2.44.5</spotless-maven-plugin>
+    <spotless-maven-plugin>2.45.0</spotless-maven-plugin>
     <sundr-maven-plugin.version>0.200.4</sundr-maven-plugin.version>
   </properties>
 
