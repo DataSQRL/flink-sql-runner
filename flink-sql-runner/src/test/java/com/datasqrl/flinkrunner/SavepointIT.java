@@ -28,6 +28,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.SqlLogger;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.Container;
 
+@Slf4j
 public class SavepointIT extends AbstractITSupport {
 
   @TempDir private Path tempDir;
@@ -72,8 +74,8 @@ public class SavepointIT extends AbstractITSupport {
         flinkContainer.execInContainer(
             "flink", "stop", jobId, "--savepointPath", CONTAINER_TEST_OUT_PATH);
 
-    System.out.printf("Flink container STDOUT: %s%n", cmdRes.getStdout());
-    System.out.printf("Flink container STDERR: %s%n", cmdRes.getStderr());
+    log.debug("Flink container STDOUT: {}", cmdRes.getStdout());
+    log.debug("Flink container STDERR: {}", cmdRes.getStderr());
 
     // check if STOPed, make sure no new records are create
     untilAssert(
@@ -126,17 +128,19 @@ public class SavepointIT extends AbstractITSupport {
     jdbi.setSqlLogger(
         new SqlLogger() {
           @Override
-          public void logAfterExecution(StatementContext context) {
-            System.out.printf(
-                "Executed in '%s' with parameters '%s'\n",
-                context.getParsedSql().getSql(), context.getBinding());
+          public void logAfterExecution(StatementContext ctx) {
+            log.info(
+                "Executed '{}' with parameters '{}'",
+                ctx.getParsedSql().getSql(),
+                ctx.getBinding());
           }
 
           @Override
-          public void logException(StatementContext context, SQLException ex) {
-            System.out.printf(
-                "Exception while executing '%s' with parameters '%s'\n",
-                context.getParsedSql().getSql(), context.getBinding(), ex);
+          public void logException(StatementContext ctx, SQLException ex) {
+            log.info(
+                "Exception while executing '{}' with parameters '{}'",
+                ctx.getParsedSql().getSql(),
+                ctx.getBinding());
           }
         });
 

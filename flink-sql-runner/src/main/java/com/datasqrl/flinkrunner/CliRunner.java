@@ -18,12 +18,14 @@ package com.datasqrl.flinkrunner;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+@Slf4j
 public class CliRunner extends BaseRunner {
 
   @SuppressWarnings("unused")
@@ -88,7 +90,7 @@ public class CliRunner extends BaseRunner {
   }
 
   public static void main(String[] args) throws Exception {
-    System.out.printf("\n\nExecuting flink-sql-runner: %s\n\n", Arrays.toString(args));
+    log.info("Executing flink-sql-runner: {}", Arrays.toString(args));
 
     var cl = new CommandLine(new SqlRunner());
     var resCode = cl.execute(args);
@@ -110,6 +112,6 @@ public class CliRunner extends BaseRunner {
     new CliRunner(runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath)
         .run();
 
-    System.out.println("Finished flink-sql-runner");
+    log.info("Finished flink-sql-runner execution");
   }
 }
