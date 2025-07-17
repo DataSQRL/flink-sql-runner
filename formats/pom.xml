@@ -27,6 +27,7 @@
 
   <artifactId>formats</artifactId>
   <packaging>pom</packaging>
+  <name>Formats</name>
 
   <modules>
     <module>flexible-csv-format</module>

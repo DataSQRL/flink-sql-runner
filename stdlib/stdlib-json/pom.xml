@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>stdlib-json</artifactId>
+  <name>StdLib JSON</name>
 
   <dependencies>
     <!-- Provided -->

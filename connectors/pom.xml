@@ -27,6 +27,7 @@
 
   <artifactId>connectors</artifactId>
   <packaging>pom</packaging>
+  <name>Connectors</name>
 
   <modules>
     <module>kafka-safe-connector</module>

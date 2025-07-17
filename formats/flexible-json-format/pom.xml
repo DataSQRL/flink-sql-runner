@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>flexible-json-format</artifactId>
+  <name>Flexible JSON Format</name>
 
   <dependencies>
     <!-- Provided -->

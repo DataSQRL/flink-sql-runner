@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>stdlib-commons</artifactId>
+  <name>StdLib Commons</name>
 
   <dependencies>
     <!-- Provided -->

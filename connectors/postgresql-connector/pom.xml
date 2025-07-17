@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>postgresql-connector</artifactId>
+  <name>PostgreSQL Connector</name>
 
   <dependencies>
     <!-- Provided -->

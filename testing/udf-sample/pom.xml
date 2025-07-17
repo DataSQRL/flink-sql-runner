@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>udf-sample</artifactId>
+  <name>UDF Sample</name>
 
   <dependencies>
     <!-- Provided -->

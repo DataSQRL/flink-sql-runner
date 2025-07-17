@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>kafka-safe-connector</artifactId>
+  <name>Kafka Safe Connector</name>
 
   <dependencies>
     <!-- Provided -->

@@ -27,6 +27,7 @@
 
   <artifactId>testing</artifactId>
   <packaging>pom</packaging>
+  <name>Testing</name>
 
   <modules>
     <module>system-functions-sample</module>

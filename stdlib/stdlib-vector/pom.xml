@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>stdlib-vector</artifactId>
+  <name>StdLib Vector</name>
 
   <dependencies>
     <!-- Provided -->
