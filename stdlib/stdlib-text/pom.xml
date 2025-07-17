@@ -26,7 +26,7 @@
   </parent>
 
   <artifactId>stdlib-text</artifactId>
-  <description>Text functions for Flink</description>
+  <name>StdLib Text</name>
 
   <dependencies>
     <!-- Provided -->

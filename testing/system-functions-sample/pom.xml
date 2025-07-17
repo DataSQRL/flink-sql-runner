@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>system-functions-sample</artifactId>
+  <name>System Functions Sample</name>
 
   <dependencies>
     <!-- Provided -->

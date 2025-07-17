@@ -23,7 +23,9 @@
   <artifactId>flink-sql-runner-parent</artifactId>
   <version>0.7-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <description>Flink SQL Runner: a tool for running Flink SQL scripts easily.</description>
+
+  <name>Flink SQL Runner</name>
+  <description>Flink SQL Runner: A tool for running Flink SQL scripts easily.</description>
   <url>https://github.com/DataSQRL/flink-sql-runner/</url>
 
   <inceptionYear>2024</inceptionYear>

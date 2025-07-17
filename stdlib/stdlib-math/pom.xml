@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>stdlib-math</artifactId>
+  <name>StdLib Math</name>
 
   <dependencies>
     <!-- Provided -->

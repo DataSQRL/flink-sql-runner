@@ -27,6 +27,7 @@
 
   <artifactId>stdlib</artifactId>
   <packaging>pom</packaging>
+  <name>StdLib</name>
 
   <modules>
     <module>stdlib-commons</module>

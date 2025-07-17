@@ -26,4 +26,5 @@
   </parent>
 
   <artifactId>stdlib-utils</artifactId>
+  <name>StdLib Utilities</name>
 </project>

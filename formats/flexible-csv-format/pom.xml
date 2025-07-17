@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>flexible-csv-format</artifactId>
+  <name>Flexible CSV Format</name>
 
   <dependencies>
     <!-- Compile -->
