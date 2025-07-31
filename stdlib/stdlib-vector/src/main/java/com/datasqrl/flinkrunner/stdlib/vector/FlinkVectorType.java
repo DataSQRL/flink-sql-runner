@@ -46,4 +46,9 @@ public class FlinkVectorType {
     var other = (FlinkVectorType) obj;
     return Arrays.equals(value, other.value);
   }
+
+  @Override
+  public String toString() {
+    return Arrays.toString(value);
+  }
 }
