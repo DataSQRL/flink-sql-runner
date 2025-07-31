@@ -47,4 +47,9 @@ public class FlinkJsonType {
     var other = (FlinkJsonType) obj;
     return Objects.equals(json, other.json);
   }
+
+  @Override
+  public String toString() {
+    return json.toString();
+  }
 }
