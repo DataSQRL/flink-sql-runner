@@ -36,22 +36,24 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
             bridgedTo = FlinkJsonType.class,
             rawSerializer = FlinkJsonTypeSerializer.class))
 @AutoService(AutoRegisterSystemFunction.class)
-public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg>
+public class jsonb_object_agg extends AggregateFunction<Object, ObjectAggAccumulator>
     implements AutoRegisterSystemFunction {
 
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   @Override
-  public ObjectAgg createAccumulator() {
-    return new ObjectAgg(new LinkedHashMap<>());
+  public ObjectAggAccumulator createAccumulator() {
+    return new ObjectAggAccumulator(new LinkedHashMap<>());
   }
 
-  public void accumulate(ObjectAgg accumulator, String key, String value) {
+  public void accumulate(ObjectAggAccumulator accumulator, String key, String value) {
     accumulateObject(accumulator, key, value);
   }
 
   public void accumulate(
-      ObjectAgg accumulator, String key, @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
+      ObjectAggAccumulator accumulator,
+      String key,
+      @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
     if (value instanceof FlinkJsonType) {
       accumulateObject(accumulator, key, ((FlinkJsonType) value).getJson());
     } else {
@@ -59,53 +61,56 @@ public class jsonb_object_agg extends AggregateFunction<Object, ObjectAgg>
     }
   }
 
-  public void accumulate(ObjectAgg accumulator, String key, Double value) {
+  public void accumulate(ObjectAggAccumulator accumulator, String key, Double value) {
     accumulateObject(accumulator, key, value);
   }
 
-  public void accumulate(ObjectAgg accumulator, String key, Long value) {
+  public void accumulate(ObjectAggAccumulator accumulator, String key, Long value) {
     accumulateObject(accumulator, key, value);
   }
 
-  public void accumulate(ObjectAgg accumulator, String key, Integer value) {
+  public void accumulate(ObjectAggAccumulator accumulator, String key, Integer value) {
     accumulateObject(accumulator, key, value);
   }
 
-  public void accumulateObject(ObjectAgg accumulator, String key, Object value) {
+  public void accumulateObject(ObjectAggAccumulator accumulator, String key, Object value) {
     accumulator.add(key, mapper.getNodeFactory().pojoNode(value));
   }
 
-  public void retract(ObjectAgg accumulator, String key, String value) {
+  public void retract(ObjectAggAccumulator accumulator, String key, String value) {
     retractObject(accumulator, key);
   }
 
   public void retract(
-      ObjectAgg accumulator, String key, @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
+      ObjectAggAccumulator accumulator,
+      String key,
+      @DataTypeHint(inputGroup = InputGroup.ANY) Object value) {
     retractObject(accumulator, key);
   }
 
-  public void retract(ObjectAgg accumulator, String key, Double value) {
+  public void retract(ObjectAggAccumulator accumulator, String key, Double value) {
     retractObject(accumulator, key);
   }
 
-  public void retract(ObjectAgg accumulator, String key, Long value) {
+  public void retract(ObjectAggAccumulator accumulator, String key, Long value) {
     retractObject(accumulator, key);
   }
 
-  public void retract(ObjectAgg accumulator, String key, Integer value) {
+  public void retract(ObjectAggAccumulator accumulator, String key, Integer value) {
     retractObject(accumulator, key);
   }
 
-  public void retractObject(ObjectAgg accumulator, String key) {
+  public void retractObject(ObjectAggAccumulator accumulator, String key) {
     accumulator.remove(key);
   }
 
-  public void merge(ObjectAgg accumulator, java.lang.Iterable<ObjectAgg> iterable) {
+  public void merge(
+      ObjectAggAccumulator accumulator, java.lang.Iterable<ObjectAggAccumulator> iterable) {
     iterable.forEach(o -> accumulator.getObjects().putAll(o.getObjects()));
   }
 
   @Override
-  public FlinkJsonType getValue(ObjectAgg accumulator) {
+  public FlinkJsonType getValue(ObjectAggAccumulator accumulator) {
     var objectNode = mapper.createObjectNode();
     accumulator.getObjects().forEach(objectNode::putPOJO);
     return new FlinkJsonType(objectNode);

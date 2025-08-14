@@ -18,6 +18,7 @@ package com.datasqrl.flinkrunner.stdlib.json;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -317,7 +318,7 @@ class JsonFunctionsTest {
   }
 
   @Nested
-  class JsonArrayAggTest {
+  class JsonArrayAggAccumulatorTest {
 
     @Test
     void testAggregateJsonTypes() {
@@ -406,10 +407,32 @@ class JsonFunctionsTest {
       assertThat(result).isNotNull();
       assertThat(result.getJson().toString()).isEqualTo("[{\"key\":\"value1\"}]");
     }
+
+    @Test
+    void testMergeWithProperRetract() {
+      var acc = JsonFunctions.JSON_ARRAYAGG.createAccumulator();
+      JsonFunctions.JSON_ARRAYAGG.accumulate(acc, 1);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(acc, 2);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(acc, 3);
+      JsonFunctions.JSON_ARRAYAGG.retract(acc, 4);
+
+      var otherAcc = JsonFunctions.JSON_ARRAYAGG.createAccumulator();
+      JsonFunctions.JSON_ARRAYAGG.accumulate(otherAcc, 1);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(otherAcc, 2);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(otherAcc, 3);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(otherAcc, 4);
+      JsonFunctions.JSON_ARRAYAGG.accumulate(otherAcc, 5);
+      JsonFunctions.JSON_ARRAYAGG.retract(otherAcc, 1);
+
+      JsonFunctions.JSON_ARRAYAGG.merge(acc, List.of(otherAcc));
+
+      var res = JsonFunctions.JSON_ARRAYAGG.getValue(acc);
+      assertThat(res.getJson().toString()).isEqualTo("[1,2,3,2,3,5]");
+    }
   }
 
   @Nested
-  class JsonObjectAggTest {
+  class JsonObjectAggAccumulatorTest {
 
     @Test
     void testAggregateJsonTypes() {
