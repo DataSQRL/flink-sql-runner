@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.stdlib.json;
 
-import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -23,16 +23,20 @@ import org.apache.flink.table.annotation.DataTypeHint;
 
 @AllArgsConstructor
 @Getter
-public final class ArrayAgg {
+public final class ObjectAggAccumulator {
 
   @DataTypeHint("RAW")
-  private final List<JsonNode> objects;
+  private final Map<String, JsonNode> objects;
 
-  public void add(JsonNode value) {
-    objects.add(value);
+  public void add(String key, JsonNode value) {
+    if (key != null) {
+      objects.put(key, value);
+    }
   }
 
-  public void remove(JsonNode value) {
-    objects.remove(value);
+  public void remove(String key) {
+    if (key != null) {
+      objects.remove(key);
+    }
   }
 }
