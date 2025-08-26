@@ -88,7 +88,7 @@
     <!-- Flink versions -->
     <flink.version>1.19.3</flink.version>
     <jdbc.conn.version>3.2.0-1.19</jdbc.conn.version>
-    <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
+    <kafka.conn.version>4.0.1-2.0</kafka.conn.version>
 
     <!-- Dependency versions -->
     <assertj.version>3.27.4</assertj.version>
