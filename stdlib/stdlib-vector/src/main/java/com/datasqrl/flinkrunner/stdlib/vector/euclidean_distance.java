@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.stdlib.vector;
 
-import static com.datasqrl.flinkrunner.stdlib.vector.VectorFunctions.VEC_TO_DOUBLE;
+import static com.datasqrl.flinkrunner.stdlib.vector.VectorFunctions.VECTOR_TO_DOUBLE;
 
 import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
 import com.google.auto.service.AutoService;
@@ -35,8 +35,8 @@ public class euclidean_distance extends ScalarFunction implements AutoRegisterSy
     }
 
     // Create RealVectors from the input arrays
-    RealVector vA = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorA), false);
-    RealVector vB = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorB), false);
+    RealVector vA = new ArrayRealVector(VECTOR_TO_DOUBLE.eval(vectorA), false);
+    RealVector vB = new ArrayRealVector(VECTOR_TO_DOUBLE.eval(vectorB), false);
 
     return vA.getDistance(vB);
   }
