@@ -29,7 +29,11 @@ public class cosine_similarity extends ScalarFunction implements AutoRegisterSys
 
   private static final long serialVersionUID = -2874221094617590631L;
 
-  public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
+  public Double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
+    if (vectorA == null || vectorB == null) {
+      return null;
+    }
+
     // Create RealVectors from the input arrays
     RealVector vA = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorA), false);
     RealVector vB = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorB), false);

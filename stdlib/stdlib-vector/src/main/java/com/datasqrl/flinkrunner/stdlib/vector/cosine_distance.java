@@ -25,7 +25,12 @@ public class cosine_distance extends cosine_similarity {
   private static final long serialVersionUID = -7136217222147264375L;
 
   @Override
-  public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
-    return 1 - super.eval(vectorA, vectorB);
+  public Double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
+    var similarity = super.eval(vectorA, vectorB);
+    if (similarity == null) {
+      return null;
+    }
+
+    return 1 - similarity;
   }
 }

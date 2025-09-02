@@ -29,6 +29,10 @@ public class serialize_to_bytes extends ScalarFunction implements AutoRegisterSy
 
   @SneakyThrows
   public byte[] eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object object) {
+    if (object == null) {
+      return null;
+    }
+
     DataTypeHint hint = object.getClass().getAnnotation(DataTypeHint.class);
     Class<? extends TypeSerializer> serializerClass = hint.rawSerializer();
 

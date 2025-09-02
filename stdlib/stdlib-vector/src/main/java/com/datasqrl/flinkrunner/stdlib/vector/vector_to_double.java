@@ -26,6 +26,10 @@ public class vector_to_double extends ScalarFunction implements AutoRegisterSyst
   private static final long serialVersionUID = 1598660373825090723L;
 
   public double[] eval(FlinkVectorType vectorType) {
+    if (vectorType == null) {
+      return null;
+    }
+
     return vectorType.getValue();
   }
 }
