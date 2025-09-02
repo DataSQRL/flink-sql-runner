@@ -1188,6 +1188,57 @@ class VectorFunctionsTest {
   };
 
   @Test
+  public void testNullSafetyVectorUDFs() {
+    // Test cosine_similarity with null inputs
+    assertThat(VectorFunctions.COSINE_SIMILARITY.eval(null, null)).isNull();
+    assertThat(
+            VectorFunctions.COSINE_SIMILARITY.eval(
+                null, VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0])))
+        .isNull();
+    assertThat(
+            VectorFunctions.COSINE_SIMILARITY.eval(
+                VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0]), null))
+        .isNull();
+
+    // Test cosine_distance with null inputs
+    assertThat(VectorFunctions.COSINE_DISTANCE.eval(null, null)).isNull();
+    assertThat(
+            VectorFunctions.COSINE_DISTANCE.eval(
+                null, VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0])))
+        .isNull();
+    assertThat(
+            VectorFunctions.COSINE_DISTANCE.eval(
+                VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0]), null))
+        .isNull();
+
+    // Test euclidean_distance with null inputs
+    assertThat(VectorFunctions.EUCLIDEAN_DISTANCE.eval(null, null)).isNull();
+    assertThat(
+            VectorFunctions.EUCLIDEAN_DISTANCE.eval(
+                null, VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0])))
+        .isNull();
+    assertThat(
+            VectorFunctions.EUCLIDEAN_DISTANCE.eval(
+                VectorFunctions.DOUBLE_TO_VECTOR.eval(VECTORS[0]), null))
+        .isNull();
+
+    // Test double_to_vector with null input
+    assertThat(VectorFunctions.DOUBLE_TO_VECTOR.eval(null)).isNull();
+
+    // Test vector_to_double with null input
+    assertThat(VectorFunctions.VECTOR_TO_DOUBLE.eval(null)).isNull();
+
+    // Test ascii_text_test_embed with null input
+    assertThat(VectorFunctions.ASCII_TEXT_TEST_EMBED.eval(null)).isNull();
+
+    // Verify that cosine_distance returns null when cosine_similarity returns null
+    var cosineSimilarity = VectorFunctions.COSINE_SIMILARITY.eval(null, null);
+    var cosineDistance = VectorFunctions.COSINE_DISTANCE.eval(null, null);
+    assertThat(cosineSimilarity).isNull();
+    assertThat(cosineDistance).isNull();
+  }
+
+  @Test
   public void testSimilarityCenter() {
     var results = new FlinkVectorType[VECTORS.length];
     for (var i = 0; i < results.length; i++) {

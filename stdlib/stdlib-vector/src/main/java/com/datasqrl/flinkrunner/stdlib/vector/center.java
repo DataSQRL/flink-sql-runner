@@ -15,7 +15,7 @@
  */
 package com.datasqrl.flinkrunner.stdlib.vector;
 
-import static com.datasqrl.flinkrunner.stdlib.vector.VectorFunctions.VEC_TO_DOUBLE;
+import static com.datasqrl.flinkrunner.stdlib.vector.VectorFunctions.VECTOR_TO_DOUBLE;
 import static com.datasqrl.flinkrunner.stdlib.vector.VectorFunctions.convert;
 
 import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
@@ -47,11 +47,11 @@ public class center extends AggregateFunction<FlinkVectorType, CenterAccumulator
   }
 
   public void accumulate(CenterAccumulator acc, FlinkVectorType vector) {
-    acc.add(VEC_TO_DOUBLE.eval(vector));
+    acc.add(VECTOR_TO_DOUBLE.eval(vector));
   }
 
   public void retract(CenterAccumulator acc, FlinkVectorType vector) {
-    acc.substract(VEC_TO_DOUBLE.eval(vector));
+    acc.substract(VECTOR_TO_DOUBLE.eval(vector));
   }
 
   public void merge(CenterAccumulator acc, Iterable<CenterAccumulator> iter) {

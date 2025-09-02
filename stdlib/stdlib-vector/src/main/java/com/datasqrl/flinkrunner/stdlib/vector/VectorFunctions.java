@@ -25,7 +25,7 @@ public class VectorFunctions {
 
   public static final euclidean_distance EUCLIDEAN_DISTANCE = new euclidean_distance();
 
-  public static final vector_to_double VEC_TO_DOUBLE = new vector_to_double();
+  public static final vector_to_double VECTOR_TO_DOUBLE = new vector_to_double();
 
   public static final double_to_vector DOUBLE_TO_VECTOR = new double_to_vector();
 
@@ -38,7 +38,7 @@ public class VectorFunctions {
           COSINE_SIMILARITY,
           COSINE_DISTANCE,
           EUCLIDEAN_DISTANCE,
-          VEC_TO_DOUBLE,
+          VECTOR_TO_DOUBLE,
           DOUBLE_TO_VECTOR,
           ASCII_TEXT_TEST_EMBED,
           CENTER);
