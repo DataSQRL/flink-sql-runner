@@ -29,10 +29,15 @@ public class euclidean_distance extends ScalarFunction implements AutoRegisterSy
 
   private static final long serialVersionUID = 5193554802773750128L;
 
-  public double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
+  public Double eval(FlinkVectorType vectorA, FlinkVectorType vectorB) {
+    if (vectorA == null || vectorB == null) {
+      return null;
+    }
+
     // Create RealVectors from the input arrays
     RealVector vA = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorA), false);
     RealVector vB = new ArrayRealVector(VEC_TO_DOUBLE.eval(vectorB), false);
+
     return vA.getDistance(vB);
   }
 }
