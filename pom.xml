@@ -91,7 +91,7 @@
     <kafka.conn.version>3.2.0-1.19</kafka.conn.version>
 
     <!-- Dependency versions -->
-    <assertj.version>3.27.4</assertj.version>
+    <assertj.version>3.27.5</assertj.version>
     <auto.service.version>1.1.1</auto.service.version>
     <awaitility.version>4.3.0</awaitility.version>
     <commons-exec.version>1.5.0</commons-exec.version>
