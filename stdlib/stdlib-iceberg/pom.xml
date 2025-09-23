@@ -21,37 +21,44 @@
 
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
-    <artifactId>flink-sql-runner-parent</artifactId>
+    <artifactId>stdlib</artifactId>
     <version>0.9-SNAPSHOT</version>
   </parent>
 
-  <artifactId>stdlib</artifactId>
-  <packaging>pom</packaging>
-  <name>StdLib</name>
-
-  <modules>
-    <module>stdlib-commons</module>
-    <module>stdlib-text</module>
-    <module>stdlib-json</module>
-    <module>stdlib-vector</module>
-    <module>stdlib-math</module>
-    <module>stdlib-openai</module>
-    <module>stdlib-iceberg</module>
-    <module>stdlib-utils</module>
-  </modules>
+  <artifactId>stdlib-iceberg</artifactId>
+  <name>StdLib Iceberg</name>
 
   <dependencies>
+    <!-- Provided -->
     <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-common</artifactId>
-      <version>${flink.version}</version>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-utils</artifactId>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
-    <!-- Compile -->
     <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>ch.qos.reload4j</groupId>
+          <artifactId>reload4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-reload4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.iceberg</groupId>
+      <artifactId>iceberg-flink-runtime-1.19</artifactId>
+      <version>${iceberg.version}</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>
