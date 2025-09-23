@@ -47,8 +47,11 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class SqlExecutor {
 
-  private static final Pattern SET_STATEMENT_PATTERN =
+  private static final Pattern SET_PATTERN =
       Pattern.compile("SET\\s+'(\\S+)'\\s*=\\s*'(.+)';?", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern STATEMENT_SET_PATTERN =
+      Pattern.compile("EXECUTE\\s+STATEMENT\\s+SET", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   private final TableEnvironment tEnv;
 
@@ -115,8 +118,11 @@ class SqlExecutor {
   TableResult executeScript(String script) {
     var statements = SqlUtils.parseStatements(script);
     TableResult tableResult = null;
-    for (String statement : statements) {
-      tableResult = executeStatement(statement);
+
+    var it = statements.iterator();
+    while (it.hasNext()) {
+      var statement = it.next();
+      tableResult = executeStatement(statement, it.hasNext());
     }
 
     return tableResult;
@@ -141,10 +147,11 @@ class SqlExecutor {
     }
   }
 
-  private TableResult executeStatement(String statement) {
+  private TableResult executeStatement(String statement, boolean intermediate) {
     TableResult tableResult = null;
     try {
-      var setMatcher = SET_STATEMENT_PATTERN.matcher(statement.trim());
+      var setMatcher = SET_PATTERN.matcher(statement.trim());
+      var statementSetMatcher = STATEMENT_SET_PATTERN.matcher(statement.trim());
 
       if (setMatcher.matches()) {
         // Handle SET statements
@@ -152,13 +159,17 @@ class SqlExecutor {
         var value = setMatcher.group(2);
         tEnv.getConfig().getConfiguration().setString(key, value);
         log.info("Set configuration: {} = {}", key, value);
+
       } else {
         log.info("Executing statement:\n{}", statement);
         tableResult = tEnv.executeSql(statement);
+        if (statementSetMatcher.find() && intermediate) {
+          log.debug("Make sure to wait intermediate statement set to finish...");
+          tableResult.await();
+        }
       }
     } catch (Exception e) {
-      e.addSuppressed(new RuntimeException("Error while executing stmt: " + statement));
-      throw e;
+      throw new RuntimeException("Error while executing stmt: " + statement, e);
     }
     return tableResult;
   }
