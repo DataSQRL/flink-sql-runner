@@ -131,6 +131,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-iceberg</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-connector-kafka</artifactId>
       <version>${kafka.conn.version}</version>
