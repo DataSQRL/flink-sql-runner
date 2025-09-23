@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
     <artifactId>testing</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
   </parent>
 
   <artifactId>udf-sample</artifactId>
