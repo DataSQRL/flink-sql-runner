@@ -35,13 +35,13 @@ The individual components are modular and the project is composable to make it e
 You can use the docker image to run Flink SQL scripts or compiled plans locally or in Kubernetes.
 The docker image contains the executable flink-sql-runner.jar file which supports the following command line arguments:
 
-| Argument           | Description                                                                                                                                   |
- --------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `-p, --planfile`   | 	Compiled plan (i.e. JSON file) to execute                                                                                                    |
-| `-s, --sqlfile`    | 	Flink SQL script to execute                                                                                                                  |
-| `-c, --config-dir` | 	Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/config/) |
-| `-u, --udfpath`    | 	Path to JAR files that implement user defined functions (UDFs) or other runtime extensions for Flink                                         |
-| `-m, --mode`       | 	Optional argument to specify [Flink execution mode](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/datastream/execution_mode/) (`STREAMING` (default), `BATCH`, or `AUTOMATIC`)                                       |
+| Argument           | Description                                                                                                                                                                                           |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-p, --planfile`   | 	Compiled plan (i.e. JSON file) to execute                                                                                                                                                            |
+| `-s, --sqlfile`    | 	Flink SQL script to execute                                                                                                                                                                          |
+| `-c, --config-dir` | 	Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/config/)                                                         |
+| `-u, --udfpath`    | 	Path to JAR files that implement user defined functions (UDFs) or other runtime extensions for Flink                                                                                                 |
+| `-m, --mode`       | 	Optional argument to specify [Flink execution mode](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/datastream/execution_mode/) (`STREAMING` (default), `BATCH`, or `AUTOMATIC`) |
 
 > [!WARNING]
 > The runner expects either a Flink SQL script or a compiled plan - not both.
@@ -68,11 +68,11 @@ Put your Flink SQL (e.g., `flink.sql`) in a local directory, such as:
 This starts a full standalone Flink session cluster in one container:
 
 ```bash
-docker run --rm -it \
+docker run -d --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name runner \
-  datasqrl/flink-sql-runner:0.6.2-flink-1.19 \
+  datasqrl/flink-sql-runner:0.8.1-flink-1.19 \
   cluster
 ```
 
@@ -126,7 +126,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.6.2/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.8.1/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -166,13 +166,13 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.6.2</version>
+  <version>0.8.1</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.6.2'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.8.1'
 ```
 ---
 
