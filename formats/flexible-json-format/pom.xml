@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
     <artifactId>formats</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
   </parent>
 
   <artifactId>flexible-json-format</artifactId>
