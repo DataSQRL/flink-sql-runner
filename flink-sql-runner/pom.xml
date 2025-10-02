@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.datasqrl.flinkrunner</groupId>
     <artifactId>flink-sql-runner-parent</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
   </parent>
 
   <artifactId>flink-sql-runner</artifactId>
@@ -303,7 +303,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
         <executions>
           <!-- Run shade goal on package phase -->
           <execution>
