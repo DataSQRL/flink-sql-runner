@@ -170,7 +170,7 @@ These defaults are applied at runtime before environment variable substitution o
 
 Example usage in a SQL script:
 ```sql
-SELECT '${DEPLOYMENT_ID}' AS deployment_id, '${DEPLOYMENT_TIMESTAMP}' AS deployment_timestamp;
+SELECT '${DEPLOYMENT_ID}' AS deployment_id, CAST('${DEPLOYMENT_TIMESTAMP}' AS BIGINT) AS deployment_timestamp;
 ```
 
 ### Building Your Own Flink SQL Runner
