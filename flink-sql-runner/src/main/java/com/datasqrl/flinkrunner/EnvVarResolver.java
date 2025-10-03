@@ -38,7 +38,7 @@ public class EnvVarResolver {
   private final ObjectMapper objectMapper;
 
   public EnvVarResolver() {
-    this(System.getenv());
+    this(EnvUtils.getEnvWithDefaults());
   }
 
   public EnvVarResolver(Map<String, String> envVars) {
