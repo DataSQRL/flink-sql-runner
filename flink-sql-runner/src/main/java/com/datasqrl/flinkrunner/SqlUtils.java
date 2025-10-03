@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Utility class for parsing SQL scripts. */
-class SqlUtils {
+final class SqlUtils {
 
   private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
   private static final String LINE_DELIMITER = "\n";
