@@ -141,6 +141,7 @@ helm install sql-example -f <your-helm-values>.yaml <your-helm-chart>
 ```
 
 ### Environment Variable Substitution
+
 Flink SQL Runner automatically substitutes environment variables in your configuration files, SQL scripts, and compiled plans for secrets and environment specific configuration. Environment variables must be of the form `${ENV_VARIABLE}` and inside of strings.
 
 For example, `${DATA_PATH}` is an environment variable inside the connector configuration of a table that is substituted at runtime:
@@ -153,6 +154,23 @@ CREATE TEMPORARY TABLE `MyTable` (
   'path' = '${DATA_PATH}/applications.jsonl',
   'source.monitor-interval' = '1'
 );
+```
+
+### Default Environment Variables
+
+The Flink SQL Runner automatically provides default values for deployment-specific environment variables if they are not already set in your environment.
+The following environment variables are automatically set with default values:
+
+| Variable               | Default Value                | Description                                                                           |
+|------------------------|------------------------------|---------------------------------------------------------------------------------------|
+| `DEPLOYMENT_ID`        | Random UUID                  | A unique identifier for the deployment (e.g., `550e8400-e29b-41d4-a716-446655440000`) |
+| `DEPLOYMENT_TIMESTAMP` | Current time in milliseconds | The deployment timestamp in milliseconds since epoch (e.g., `1704067200000`)          |
+
+These defaults are applied at runtime before environment variable substitution occurs, making them available for use in SQL scripts and compiled plans even when not explicitly set in your environment.
+
+Example usage in a SQL script:
+```sql
+SELECT '${DEPLOYMENT_ID}' AS deployment_id, CAST('${DEPLOYMENT_TIMESTAMP}' AS BIGINT) AS deployment_timestamp;
 ```
 
 ### Building Your Own Flink SQL Runner
@@ -188,10 +206,10 @@ This project implements the `kafka-safe` and `upsert-kafka-safe` [connectors](co
 
 In addition to the configuration options exposed by the original kafka connectors, the `-safe` versions support the following optional configuration options:
 
-| Options | Default | Type   | Description                                                                                                                                               |
-|---------|---------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| scan.deser-failure.handler        | none    | String | Use `log` to output failed messages to the logger, `kafka` to output failed messages to a kafka topic, or `none` to fail the job.                         |
-| scan.deser-failure.topic        | -       | String | The topic for the dead-letter-queue that failed messages are written to. Required when the handler is configured to `kafka`. |
+| Options                    | Default | Type   | Description                                                                                                                       |
+|----------------------------|---------|--------|-----------------------------------------------------------------------------------------------------------------------------------|
+| scan.deser-failure.handler | none    | String | Use `log` to output failed messages to the logger, `kafka` to output failed messages to a kafka topic, or `none` to fail the job. |
+| scan.deser-failure.topic   | -       | String | The topic for the dead-letter-queue that failed messages are written to. Required when the handler is configured to `kafka`.      |
 
 > [!NOTE]  
 > The dead-letter-queue producer will use the same Kafka configuration, that is provided for the Flink SQL table that reads the data.
