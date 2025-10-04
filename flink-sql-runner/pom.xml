@@ -138,7 +138,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-connector-jdbc</artifactId>
+      <artifactId>flink-connector-jdbc-core</artifactId>
       <version>${jdbc.conn.version}</version>
     </dependency>
 
