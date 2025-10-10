@@ -237,6 +237,7 @@ The native vector type is supported by [these system functions](stdlib-docs/syst
 Implementation of Flink SQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 
 * [Math](stdlib-docs/library-functions.md#math): Advanced math functions
+* [Iceberg](stdlib-docs/library-functions.md#iceberg): Helper functions for advanced Iceberg functionality.
 * [OpenAI](stdlib-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
 
 ## Usage
