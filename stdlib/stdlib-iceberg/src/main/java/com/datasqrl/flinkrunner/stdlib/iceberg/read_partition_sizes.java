@@ -34,12 +34,13 @@ import org.apache.iceberg.Table;
 public class read_partition_sizes extends TableFunction<Row> {
 
   /**
-   * Computes the total size on disk for each partition in an Iceberg table.
+   * Calculates the total size on disk in bytes for each partition in an Iceberg table.
    *
    * @param warehouse The warehouse path or URI for the catalog
-   * @param catalogType The type of catalog (optional, e.g., "hadoop", "hive")
+   * @param catalogType The type of catalog (optional, supports "hadoop", otherwise falls back to
+   *     AWS Glue)
    * @param catalogName The name of the catalog
-   * @param databaseName The database/schema name (optional)
+   * @param databaseName The database name (optional, if null "default_database" will be used)
    * @param tableName The name of the table to analyze
    */
   @FunctionHint(
