@@ -97,6 +97,8 @@
     <commons-exec.version>1.5.0</commons-exec.version>
     <commons-math3.version>3.6.1</commons-math3.version>
     <feign.version>13.5</feign.version>
+    <hadoop.version>3.3.4</hadoop.version>
+    <iceberg.version>1.9.2</iceberg.version>
     <jacoco.version>0.8.13</jacoco.version>
     <jdbi3.version>3.49.6</jdbi3.version>
     <json-path.version>2.9.0</json-path.version>
