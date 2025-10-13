@@ -31,7 +31,7 @@ Functions to access some Iceberg Java API functionality.
 | **Function Name**                                                                                                                                                                               | **Description**                                                                                              |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
 | **read_partition_sizes(String warehouse, String catalogType, String catalogName, String databaseName, String tableName)**                                                                       | Calculates the total size on disk in bytes for each partition in an Iceberg table.                           |
-| **delete_duplicated_data(String warehouse, String catalogType, String catalogName, String databaseName, String tableName, Long maxTimeBucket, Map<Map<String, String>, Integer> partitionSet)** | Deletes duplicated data from an Iceberg table based on partition specifications and time bucket constraints. |
+| **delete_duplicated_data(String warehouse, String catalogType, String catalogName, String databaseName, String tableName, Long maxTimeBucket, Map[Map[String, String], Integer] partitionSet)** | Deletes duplicated data from an Iceberg table based on partition specifications and time bucket constraints. |
 
 
 ## OpenAI
