@@ -220,7 +220,7 @@ This project adds a [binary JSON type](types/json-type) and associated functions
 
 Native JSON type support is also extended to the [JSON format](formats/flexible-json-format) called `flexible-json` for writing JSON data as nested documents (instead of strings) as well as the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write JSON data to JSONB columns.
 
-The binary JSON type is supported by [these system functions](stdlib-docs/system-functions.md#jsonb-functions).
+The binary JSON type is supported by [these system functions](stdlib-docs/system-functions.yml).
 
 ### Vector Type
 
@@ -228,7 +228,7 @@ This project adds a native [Vector type](types/vector-type) and associated funct
 
 Native Vector type support is also extended to the [JDBC connector for PostgreSQL](connectors/postgresql-connector) to write vector data to vector columns for the `pgvector` extension.
 
-The native vector type is supported by [these system functions](stdlib-docs/system-functions.md#vector-functions).
+The native vector type is supported by [these system functions](stdlib-docs/system-functions.yml).
 
 ### Function Libraries
 
@@ -236,9 +236,9 @@ The native vector type is supported by [these system functions](stdlib-docs/syst
 
 Implementation of Flink SQL and SQRL functions that can be added as user-defined functions (UDFs) to support additional functionality.
 
-* [Math](stdlib-docs/library-functions.md#math): Advanced math functions
-* [Iceberg](stdlib-docs/library-functions.md#iceberg): Helper functions for advanced Iceberg functionality.
-* [OpenAI](stdlib-docs/library-functions.md#openai): Function for calling completions, structured data extraction, and vector embeddings.
+* [Math](stdlib-docs/library-functions.yml): Advanced math functions
+* [Iceberg](stdlib-docs/library-functions.yml): Helper functions for advanced Iceberg functionality.
+* [OpenAI](stdlib-docs/library-functions.yml): Function for calling completions, structured data extraction, and vector embeddings.
 
 ## Usage
 
