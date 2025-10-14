@@ -18,7 +18,7 @@ FROM flink:${flink-base-image}
 
 RUN mkdir -p /opt/flink/plugins/flink-sql-runner
 
-COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
+COPY flink-s3-fs-presto-*.jar /opt/flink/lib
 COPY hadoop-hdfs-client-*.jar /opt/flink/lib
 COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY bundle-*.jar /opt/flink/lib
