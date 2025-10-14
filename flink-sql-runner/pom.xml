@@ -60,7 +60,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-s3-fs-presto</artifactId>
+      <artifactId>flink-s3-fs-hadoop</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -462,14 +462,14 @@
         <version>3.9.0</version>
         <executions>
           <execution>
-            <id>copy-s3-fs-presto</id>
+            <id>copy-s3-fs-hadoop</id>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
             <phase>process-resources</phase>
             <configuration>
               <includeGroupIds>org.apache.flink</includeGroupIds>
-              <includeArtifactIds>flink-s3-fs-presto</includeArtifactIds>
+              <includeArtifactIds>flink-s3-fs-hadoop</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
