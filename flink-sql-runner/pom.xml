@@ -512,7 +512,7 @@
             <phase>process-resources</phase>
             <configuration>
               <includeGroupIds>software.amazon.awssdk</includeGroupIds>
-              <outputDirectory>${project.build.directory}</outputDirectory>
+              <outputDirectory>${project.build.directory}/aws-sdk</outputDirectory>
             </configuration>
           </execution>
           <execution>

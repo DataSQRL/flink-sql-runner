@@ -21,7 +21,7 @@ RUN mkdir -p /opt/flink/plugins/flink-sql-runner
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
 COPY hadoop-hdfs-client-*.jar /opt/flink/lib
 COPY iceberg-flink-runtime-*.jar /opt/flink/lib
-COPY s3-*.jar auth-*.jar regions-*.jar aws-core-*.jar sdk-core-*.jar aws-json-protocol-*.jar aws-xml-protocol-*.jar protocol-core-*.jar http-client-spi-*.jar url-connection-client-*.jar utils-*.jar annotations-*.jar profiles-*.jar endpoints-spi-*.jar metrics-spi-*.jar json-utils-*.jar sts-*.jar /opt/flink/lib/
+COPY aws-sdk/*.jar /opt/flink/lib/
 COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
 COPY entrypoint.sh /entrypoint.sh
