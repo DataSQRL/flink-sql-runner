@@ -93,7 +93,14 @@
     <!-- AWS SDK v2 required for Iceberg S3FileIO -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
-      <artifactId>bundle</artifactId>
+      <artifactId>s3</artifactId>
+      <version>${aws.sdk.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sts</artifactId>
       <version>${aws.sdk.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -505,7 +512,6 @@
             <phase>process-resources</phase>
             <configuration>
               <includeGroupIds>software.amazon.awssdk</includeGroupIds>
-              <includeArtifactIds>bundle,url-connection-client</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
