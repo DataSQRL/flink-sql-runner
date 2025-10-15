@@ -94,6 +94,7 @@
     <assertj.version>3.27.4</assertj.version>
     <auto.service.version>1.1.1</auto.service.version>
     <awaitility.version>4.3.0</awaitility.version>
+    <aws.sdk.version>2.20.160</aws.sdk.version>
     <commons-exec.version>1.5.0</commons-exec.version>
     <commons-math3.version>3.6.1</commons-math3.version>
     <feign.version>13.5</feign.version>

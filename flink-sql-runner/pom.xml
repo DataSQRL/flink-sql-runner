@@ -90,6 +90,28 @@
       </exclusions>
     </dependency>
 
+    <!-- AWS SDK v2 required for Iceberg S3FileIO -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${aws.sdk.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sts</artifactId>
+      <version>${aws.sdk.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${aws.sdk.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Add logging framework, to produce console output when running in the IDE. -->
     <!-- These dependencies are excluded from the application JAR by default. -->
     <dependency>
@@ -480,6 +502,17 @@
               <includeGroupIds>org.apache.hadoop</includeGroupIds>
               <includeArtifactIds>hadoop-hdfs-client</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-aws-sdk-for-iceberg</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <includeGroupIds>software.amazon.awssdk</includeGroupIds>
+              <outputDirectory>${project.build.directory}/aws-sdk</outputDirectory>
             </configuration>
           </execution>
           <execution>
