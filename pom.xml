@@ -124,7 +124,7 @@
     <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
     <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
     <spotless-maven-plugin>2.46.1</spotless-maven-plugin>
-    <sundr-maven-plugin.version>0.230.0</sundr-maven-plugin.version>
+    <sundr-maven-plugin.version>0.230.1</sundr-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
