@@ -26,7 +26,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import lombok.SneakyThrows;
-import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
+import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.TimestampData;
@@ -38,7 +38,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
 /** A sqrl class to handle arrays and extra data types */
-public abstract class SqrlBaseJdbcRowConverter extends AbstractJdbcRowConverter {
+public abstract class SqrlBaseJdbcRowConverter extends AbstractDialectConverter {
 
   public SqrlBaseJdbcRowConverter(RowType rowType) {
     super(rowType);

@@ -75,14 +75,16 @@ public class SqrlJsonRowDataSerializationSchema implements SerializationSchema<R
       TimestampFormat timestampFormat,
       JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
       String mapNullKeyLiteral,
-      boolean encodeDecimalAsPlainNumber) {
+      boolean encodeDecimalAsPlainNumber,
+      boolean ignoreNullFields) {
     this.rowType = rowType;
     this.timestampFormat = timestampFormat;
     this.mapNullKeyMode = mapNullKeyMode;
     this.mapNullKeyLiteral = mapNullKeyLiteral;
     this.encodeDecimalAsPlainNumber = encodeDecimalAsPlainNumber;
     this.runtimeConverter =
-        new SqrlRowDataToJsonConverters(timestampFormat, mapNullKeyMode, mapNullKeyLiteral)
+        new SqrlRowDataToJsonConverters(
+                timestampFormat, mapNullKeyMode, mapNullKeyLiteral, ignoreNullFields)
             .createConverter(rowType);
   }
 

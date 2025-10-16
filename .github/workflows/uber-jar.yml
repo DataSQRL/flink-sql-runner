@@ -20,10 +20,6 @@ jobs:
       contents: write
       packages: write
 
-    strategy:
-      matrix:
-        FLINK_PROFILE: [flink-1.19]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,36 +51,37 @@ jobs:
 
       - name: Download dependencies
         run: |
-          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -P${{ matrix.FLINK_PROFILE }}
-          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -P${{ matrix.FLINK_PROFILE }}
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources
           grep '^FROM' flink-sql-runner/target/Dockerfile | awk '{print $2}' | xargs -n1 docker pull
 
-      - name: Get project version and store in env
+      - name: Get project version and Flink version
         run: |
           if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
-            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "PROJECT_VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
           else
-            echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+            echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
           fi
+          echo "FLINK_VERSION_LABEL=$(mvn help:evaluate -Dexpression=flink.version.label -q -DforceStdout)" >> $GITHUB_ENV
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
-          mvn -B versions:set -DnewVersion=${{ env.VERSION }}
+          mvn -B versions:set -DnewVersion=${{ env.PROJECT_VERSION }}
 
       - name: Run Maven Build
         run: |
-          mvn -B clean install -P${{ matrix.FLINK_PROFILE }}
+          mvn -B clean install
 
       - name: Define Docker image tag
         id: vars
         run: |
           if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
-            echo "image_tag=datasqrl/flink-sql-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
+            echo "image_tag=datasqrl/flink-sql-runner:${{ env.PROJECT_VERSION }}-${{ env.FLINK_VERSION_LABEL }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${{ env.PROJECT_VERSION }}" >> $GITHUB_OUTPUT
           else
-            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}" >> $GITHUB_OUTPUT
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Log in to container registry
@@ -106,12 +103,12 @@ jobs:
       - name: Rename jar file
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
-          mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
+          mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ env.PROJECT_VERSION }}-${{ env.FLINK_VERSION_LABEL }}.jar
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release' && github.event.action == 'created'
         uses: softprops/action-gh-release@v1
         with:
-          files: flink-sql-runner/target/flink-sql-runner-${{ env.VERSION }}-${{ matrix.FLINK_PROFILE }}.jar
+          files: flink-sql-runner/target/flink-sql-runner-${{ env.PROJECT_VERSION }}-${{ env.FLINK_VERSION_LABEL }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

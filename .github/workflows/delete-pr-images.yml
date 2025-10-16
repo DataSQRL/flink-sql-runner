@@ -7,11 +7,6 @@ on:
 jobs:
   delete-ghcr:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        FLINK_PROFILE: [flink-1.19, flink-1.20]
-
     steps:
       - name: Delete GHCR image via GitHub REST API
         env:
@@ -19,7 +14,7 @@ jobs:
           GH_PASSWORD: ${{ secrets.PAT_PASSWORD }}
           ORG: DataSQRL
           PACKAGE: flink-sql-runner
-          TAG: pr-${{ github.event.number }}-${{ matrix.FLINK_PROFILE }}
+          TAG: pr-${{ github.event.number }}
         run: |
           set -euxo pipefail
 

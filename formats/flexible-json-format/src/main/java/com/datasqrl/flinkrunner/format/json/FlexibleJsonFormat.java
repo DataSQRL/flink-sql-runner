@@ -16,6 +16,7 @@
 package com.datasqrl.flinkrunner.format.json;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 
 import com.google.auto.service.AutoService;
@@ -102,6 +103,7 @@ public class FlexibleJsonFormat
     var timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
     var mapNullKeyMode = JsonFormatOptionsUtil.getMapNullKeyMode(formatOptions);
     var mapNullKeyLiteral = formatOptions.get(MAP_NULL_KEY_LITERAL);
+    var ignoreNullFields = formatOptions.getOptional(ENCODE_IGNORE_NULL_FIELDS).orElse(false);
 
     final boolean encodeDecimalAsPlainNumber = formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
 
@@ -115,7 +117,8 @@ public class FlexibleJsonFormat
             timestampOption,
             mapNullKeyMode,
             mapNullKeyLiteral,
-            encodeDecimalAsPlainNumber);
+            encodeDecimalAsPlainNumber,
+            ignoreNullFields);
       }
 
       @Override

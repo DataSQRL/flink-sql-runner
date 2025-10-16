@@ -15,6 +15,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -36,14 +37,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
-import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
-
-import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
-import com.google.auto.service.AutoService;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -55,9 +52,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
-import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
-import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
+import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.*;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -66,11 +61,14 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_TIMESTAMP_MILLIS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTION_NAMING_STRATEGY;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
@@ -79,16 +77,15 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getBoundedOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getKafkaProperties;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopicPattern;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopics;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopicPattern;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateScanBoundedMode;
 
 /** Upsert-Kafka factory. */
-@AutoService(Factory.class)
 public class SafeUpsertKafkaDynamicTableFactory
         implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-    public static final String IDENTIFIER = "upsert-kafka-safe";
+    public static final String IDENTIFIER = "upsert-kafka";
 
     @Override
     public String factoryIdentifier() {
@@ -99,7 +96,6 @@ public class SafeUpsertKafkaDynamicTableFactory
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(PROPS_BOOTSTRAP_SERVERS);
-        options.add(TOPIC);
         options.add(KEY_FORMAT);
         options.add(VALUE_FORMAT);
         return options;
@@ -108,6 +104,8 @@ public class SafeUpsertKafkaDynamicTableFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(TOPIC);
+        options.add(TOPIC_PATTERN);
         options.add(KEY_FIELDS_PREFIX);
         options.add(VALUE_FIELDS_INCLUDE);
         options.add(SINK_PARALLELISM);
@@ -120,12 +118,15 @@ public class SafeUpsertKafkaDynamicTableFactory
         options.add(SCAN_DESER_FAILURE_TOPIC);
         options.add(DELIVERY_GUARANTEE);
         options.add(TRANSACTIONAL_ID_PREFIX);
+        options.add(SCAN_PARALLELISM);
+        options.add(TRANSACTION_NAMING_STRATEGY);
         return options;
     }
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        return Stream.of(DELIVERY_GUARANTEE, TRANSACTIONAL_ID_PREFIX).collect(Collectors.toSet());
+        return Stream.of(DELIVERY_GUARANTEE, TRANSACTIONAL_ID_PREFIX, TRANSACTION_NAMING_STRATEGY)
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -158,6 +159,8 @@ public class SafeUpsertKafkaDynamicTableFactory
         final DeserFailureHandler deserFailureHandler =
                 DeserFailureHandler.of(tableOptions, properties);
 
+        Integer parallelism = tableOptions.get(SCAN_PARALLELISM);
+
         return new SafeKafkaDynamicSource(
                 context.getPhysicalRowDataType(),
                 keyDecodingFormat,
@@ -165,8 +168,8 @@ public class SafeUpsertKafkaDynamicTableFactory
                 keyValueProjections.f0,
                 keyValueProjections.f1,
                 keyPrefix,
-                getSourceTopics(tableOptions),
-                getSourceTopicPattern(tableOptions),
+                getTopics(tableOptions),
+                getTopicPattern(tableOptions),
                 properties,
                 earliest,
                 Collections.emptyMap(),
@@ -176,6 +179,7 @@ public class SafeUpsertKafkaDynamicTableFactory
                 boundedOptions.boundedTimestampMillis,
                 true,
                 context.getObjectIdentifier().asSummaryString(),
+                parallelism,
                 deserFailureHandler);
     }
 
@@ -223,14 +227,16 @@ public class SafeUpsertKafkaDynamicTableFactory
                 keyValueProjections.f0,
                 keyValueProjections.f1,
                 keyPrefix,
-                tableOptions.get(TOPIC).get(0),
+                getTopics(tableOptions),
+                getTopicPattern(tableOptions),
                 properties,
                 null,
                 tableOptions.get(DELIVERY_GUARANTEE),
                 true,
                 flushMode,
                 parallelism,
-                tableOptions.get(TRANSACTIONAL_ID_PREFIX));
+                tableOptions.get(TRANSACTIONAL_ID_PREFIX),
+                tableOptions.get(TRANSACTION_NAMING_STRATEGY));
     }
 
     private Tuple2<int[], int[]> createKeyValueProjections(ResolvedCatalogTable catalogTable) {
@@ -258,7 +264,6 @@ public class SafeUpsertKafkaDynamicTableFactory
             Format keyFormat,
             Format valueFormat,
             int[] primaryKeyIndexes) {
-        validateTopic(tableOptions);
         validateScanBoundedMode(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(primaryKeyIndexes);
@@ -270,19 +275,9 @@ public class SafeUpsertKafkaDynamicTableFactory
             Format keyFormat,
             Format valueFormat,
             int[] primaryKeyIndexes) {
-        validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(primaryKeyIndexes);
         validateSinkBufferFlush(tableOptions);
-    }
-
-    private static void validateTopic(ReadableConfig tableOptions) {
-        List<String> topic = tableOptions.get(TOPIC);
-        if (topic.size() > 1) {
-            throw new ValidationException(
-                    "The 'upsert-kafka' connector doesn't support topic list now. "
-                            + "Please use single topic as the value of the parameter 'topic'.");
-        }
     }
 
     private static void validateFormat(

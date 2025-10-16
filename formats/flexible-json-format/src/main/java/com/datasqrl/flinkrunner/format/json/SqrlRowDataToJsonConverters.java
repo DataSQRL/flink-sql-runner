@@ -30,8 +30,11 @@ import org.apache.flink.table.types.logical.RawType;
 public class SqrlRowDataToJsonConverters extends RowDataToJsonConverters {
 
   public SqrlRowDataToJsonConverters(
-      TimestampFormat timestampFormat, MapNullKeyMode mapNullKeyMode, String mapNullKeyLiteral) {
-    super(timestampFormat, mapNullKeyMode, mapNullKeyLiteral);
+      TimestampFormat timestampFormat,
+      MapNullKeyMode mapNullKeyMode,
+      String mapNullKeyLiteral,
+      boolean ignoreNullFields) {
+    super(timestampFormat, mapNullKeyMode, mapNullKeyLiteral, ignoreNullFields);
   }
 
   @Override

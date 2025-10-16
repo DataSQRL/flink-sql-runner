@@ -55,8 +55,8 @@ jobs:
 
       - name: Download dependencies
         run: |
-          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Pci,flink-1.19
-          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -Pci,flink-1.19
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Pci
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -Pci
 
       - name: Get project version and store in env
         run: |
@@ -74,10 +74,9 @@ jobs:
       - name: Run Maven Build
         run: |
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            mvn -B clean deploy -Pci,release,flink-1.19
+            mvn -B clean deploy -Pci,release
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            mvn -B clean deploy -Pci,flink-1.19
+            mvn -B clean deploy -Pci
           else
-            mvn -B clean install -Pci,flink-1.19 -Dgpg.skip=true
+            mvn -B clean install -Pci -Dgpg.skip=true
           fi
-
