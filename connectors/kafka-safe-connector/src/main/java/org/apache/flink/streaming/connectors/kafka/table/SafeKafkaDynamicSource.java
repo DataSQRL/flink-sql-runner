@@ -28,10 +28,8 @@ import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDe
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -48,7 +46,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
@@ -69,11 +70,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A version-agnostic Kafka {@link ScanTableSource}. */
 @Internal
@@ -141,7 +145,7 @@ public class SafeKafkaDynamicSource
      * Specific startup offsets; only relevant when startup mode is {@link
      * StartupMode#SPECIFIC_OFFSETS}.
      */
-    protected final Map<KafkaTopicPartition, Long> specificStartupOffsets;
+    protected final Map<TopicPartition, Long> specificStartupOffsets;
 
     /**
      * The start timestamp to locate partition offsets; only relevant when startup mode is {@link
@@ -156,7 +160,7 @@ public class SafeKafkaDynamicSource
      * Specific end offsets; only relevant when bounded mode is {@link
      * BoundedMode#SPECIFIC_OFFSETS}.
      */
-    protected final Map<KafkaTopicPartition, Long> specificBoundedOffsets;
+    protected final Map<TopicPartition, Long> specificBoundedOffsets;
 
     /**
      * The bounded timestamp to locate partition offsets; only relevant when bounded mode is {@link
@@ -168,6 +172,9 @@ public class SafeKafkaDynamicSource
     protected final boolean upsertMode;
 
     protected final String tableIdentifier;
+
+    /** Parallelism of the physical Kafka consumer. * */
+    protected final @Nullable Integer parallelism;
 
     protected final DeserFailureHandler deserFailureHandler;
 
@@ -182,13 +189,14 @@ public class SafeKafkaDynamicSource
             @Nullable Pattern topicPattern,
             Properties properties,
             StartupMode startupMode,
-            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            Map<TopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
             BoundedMode boundedMode,
-            Map<KafkaTopicPartition, Long> specificBoundedOffsets,
+            Map<TopicPartition, Long> specificBoundedOffsets,
             long boundedTimestampMillis,
             boolean upsertMode,
             String tableIdentifier,
+            @Nullable Integer parallelism,
             DeserFailureHandler deserFailureHandler) {
         // Format attributes
         this.physicalDataType =
@@ -229,6 +237,7 @@ public class SafeKafkaDynamicSource
         this.boundedTimestampMillis = boundedTimestampMillis;
         this.upsertMode = upsertMode;
         this.tableIdentifier = tableIdentifier;
+        this.parallelism = parallelism;
         this.deserFailureHandler = deserFailureHandler;
     }
 
@@ -268,6 +277,11 @@ public class SafeKafkaDynamicSource
             @Override
             public boolean isBounded() {
                 return kafkaSource.getBoundedness() == Boundedness.BOUNDED;
+            }
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.ofNullable(parallelism);
             }
         };
     }
@@ -347,6 +361,7 @@ public class SafeKafkaDynamicSource
                         boundedTimestampMillis,
                         upsertMode,
                         tableIdentifier,
+                        parallelism,
                         deserFailureHandler);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
@@ -387,7 +402,8 @@ public class SafeKafkaDynamicSource
                 && boundedTimestampMillis == that.boundedTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
-                && Objects.equals(watermarkStrategy, that.watermarkStrategy);
+                && Objects.equals(watermarkStrategy, that.watermarkStrategy)
+                && Objects.equals(parallelism, that.parallelism);
     }
 
     @Override
@@ -412,7 +428,8 @@ public class SafeKafkaDynamicSource
                 boundedTimestampMillis,
                 upsertMode,
                 tableIdentifier,
-                watermarkStrategy);
+                watermarkStrategy,
+                parallelism);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -422,7 +439,7 @@ public class SafeKafkaDynamicSource
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo) {
 
-        final KafkaDeserializationSchema<RowData> kafkaDeserializer =
+        final KafkaRecordDeserializationSchema<RowData> kafkaDeserializer =
                 createKafkaDeserializationSchema(
                         keyDeserialization, valueDeserialization, producedTypeInfo);
 
@@ -455,8 +472,7 @@ public class SafeKafkaDynamicSource
                 specificStartupOffsets.forEach(
                         (tp, offset) ->
                                 offsets.put(
-                                        new TopicPartition(tp.getTopic(), tp.getPartition()),
-                                        offset));
+                                        new TopicPartition(tp.topic(), tp.partition()), offset));
                 kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.offsets(offsets));
                 break;
             case TIMESTAMP:
@@ -480,8 +496,7 @@ public class SafeKafkaDynamicSource
                 specificBoundedOffsets.forEach(
                         (tp, offset) ->
                                 offsets.put(
-                                        new TopicPartition(tp.getTopic(), tp.getPartition()),
-                                        offset));
+                                        new TopicPartition(tp.topic(), tp.partition()), offset));
                 kafkaSourceBuilder.setBounded(OffsetsInitializer.offsets(offsets));
                 break;
             case TIMESTAMP:
@@ -489,9 +504,7 @@ public class SafeKafkaDynamicSource
                 break;
         }
 
-        kafkaSourceBuilder
-                .setProperties(properties)
-                .setDeserializer(KafkaRecordDeserializationSchema.of(kafkaDeserializer));
+        kafkaSourceBuilder.setProperties(properties).setDeserializer(kafkaDeserializer);
 
         return kafkaSourceBuilder.build();
     }
@@ -513,7 +526,7 @@ public class SafeKafkaDynamicSource
                                                         .collect(Collectors.joining(",")))));
     }
 
-    private KafkaDeserializationSchema<RowData> createKafkaDeserializationSchema(
+    private KafkaRecordDeserializationSchema<RowData> createKafkaDeserializationSchema(
             DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo) {
@@ -567,9 +580,28 @@ public class SafeKafkaDynamicSource
         }
         DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
-            physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
+            physicalFormatDataType = stripRowPrefix(physicalFormatDataType, prefix);
         }
         return format.createRuntimeDecoder(context, physicalFormatDataType);
+    }
+
+    /** Removes a string prefix from the fields of the given row data type. */
+    private static DataType stripRowPrefix(DataType dataType, String prefix) {
+        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final List<String> newFieldNames =
+                rowType.getFieldNames().stream()
+                        .map(
+                                s -> {
+                                    if (s.startsWith(prefix)) {
+                                        return s.substring(prefix.length());
+                                    }
+                                    return s;
+                                })
+                        .collect(Collectors.toList());
+        final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
+        return new FieldsDataType(
+                newRowType, dataType.getConversionClass(), dataType.getChildren());
     }
 
     // --------------------------------------------------------------------------------------------

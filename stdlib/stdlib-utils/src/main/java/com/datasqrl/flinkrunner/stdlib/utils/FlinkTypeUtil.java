@@ -15,7 +15,6 @@
  */
 package com.datasqrl.flinkrunner.stdlib.utils;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +30,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
+import org.apache.flink.table.types.inference.utils.CastCallContext;
 
 public class FlinkTypeUtil {
 
@@ -62,16 +61,16 @@ public class FlinkTypeUtil {
   }
 
   @SneakyThrows
-  public static DataType getFirstArgumentType(CallContext callContext) {
-    if (callContext instanceof AdaptedCallContext) {
-      Field privateField = AdaptedCallContext.class.getDeclaredField("originalContext");
+  public static DataType getFirstArgumentType(CallContext callCtx) {
+    if (callCtx instanceof CastCallContext) {
+      var privateField = CastCallContext.class.getDeclaredField("originalContext");
       privateField.setAccessible(true);
-      CallContext originalContext = (CallContext) privateField.get(callContext);
+      var originalContext = (CallContext) privateField.get(callCtx);
 
       return originalContext.getArgumentDataTypes().get(0);
-    } else {
-      return callContext.getArgumentDataTypes().get(0);
     }
+
+    return callCtx.getArgumentDataTypes().get(0);
   }
 
   @Builder

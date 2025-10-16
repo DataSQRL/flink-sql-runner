@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
-import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
+import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialect;
+import org.apache.flink.connector.jdbc.core.database.dialect.JdbcDialectConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -48,7 +48,7 @@ public class SqrlPostgresDialect extends AbstractDialect {
   private static final int MIN_DECIMAL_PRECISION = 1;
 
   @Override
-  public JdbcRowConverter getRowConverter(RowType rowType) {
+  public JdbcDialectConverter getRowConverter(RowType rowType) {
     return new SqrlPostgresRowConverter(rowType);
   }
 

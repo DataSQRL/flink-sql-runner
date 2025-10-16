@@ -17,7 +17,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
@@ -25,8 +25,9 @@ import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 
-/** A specific {@link KafkaSerializationSchema} for {@link SafeKafkaDynamicSource}. */
+/** A specific {@link KafkaRecordDeserializationSchema} for {@link SafeKafkaDynamicSource}. */
 public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeserializationSchema {
 
     private final DeserFailureHandler deserFailureHandler;
@@ -57,7 +58,7 @@ public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeseriali
 
     @Override
     public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector)
-            throws Exception {
+            throws IOException {
         deserFailureHandler.deserWithFailureHandling(
                 record, () -> super.deserialize(record, collector));
     }

@@ -17,8 +17,8 @@ package com.datasqrl.connector.postgresql.type;
 
 import com.datasqrl.flinkrunner.format.json.SqrlRowDataToJsonConverters;
 import com.google.auto.service.AutoService;
-import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcDeserializationConverter;
-import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter.JdbcSerializationConverter;
+import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcDeserializationConverter;
+import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcSerializationConverter;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions.MapNullKeyMode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,9 +48,7 @@ public class PostgresRowTypeSerializer
 
   @Override
   public GenericDeserializationConverter<JdbcDeserializationConverter> getDeserializerConverter() {
-    return () -> {
-      return (val) -> null;
-    };
+    return () -> (val) -> null;
   }
 
   @Override
@@ -61,7 +59,8 @@ public class PostgresRowTypeSerializer
         (val, index, statement) -> {
           if (val != null && !val.isNullAt(index)) {
             var rowDataToJsonConverter =
-                new SqrlRowDataToJsonConverters(TimestampFormat.SQL, MapNullKeyMode.DROP, "null");
+                new SqrlRowDataToJsonConverters(
+                    TimestampFormat.SQL, MapNullKeyMode.DROP, "null", false);
 
             var arrayType = (ArrayType) type;
             var objectNode = mapper.createObjectNode();
