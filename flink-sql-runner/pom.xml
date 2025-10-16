@@ -368,7 +368,7 @@
             <configuration>
               <finalName>flink-sql-runner.uber</finalName>
               <shadedArtifactAttached>true</shadedArtifactAttached>
-              <shadedClassifierName>flink${flink.version}</shadedClassifierName>
+              <shadedClassifierName>${flink.version.label}</shadedClassifierName>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <artifactSet>
                 <excludes>
