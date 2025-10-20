@@ -53,7 +53,7 @@ public class DeserFailureHandler implements Serializable {
   }
 
   public void deserWithFailureHandling(
-      ConsumerRecord<byte[], byte[]> record, DeserializationCaller deser) throws Exception {
+      ConsumerRecord<byte[], byte[]> record, DeserializationCaller deser) throws IOException {
 
     try {
       deser.call();
@@ -82,6 +82,6 @@ public class DeserFailureHandler implements Serializable {
   }
 
   public interface DeserializationCaller extends Serializable {
-    void call() throws Exception;
+    void call() throws IOException;
   }
 }
