@@ -56,7 +56,7 @@
 
     <dependency>
       <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-flink-runtime-1.19</artifactId>
+      <artifactId>iceberg-flink-runtime-2.0</artifactId>
       <version>${iceberg.version}</version>
       <scope>provided</scope>
     </dependency>
