@@ -21,7 +21,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
@@ -52,12 +51,12 @@ abstract class BaseRunner {
   TableResult run(Supplier<SqlExecutor> sqlExecutorSupplier) throws Exception {
     var sqlExecutor = sqlExecutorSupplier.get();
 
-    if (StringUtils.isNoneBlank(sqlFile, planFile)) {
+    if (StringUtils.isNotBlank(sqlFile) && StringUtils.isNotBlank(planFile)) {
       throw new IllegalArgumentException(
           "Provide either a SQL file or a compiled plan - not both.");
     }
 
-    if (StringUtils.isAllBlank(sqlFile, planFile)) {
+    if (StringUtils.isBlank(sqlFile) && StringUtils.isBlank(planFile)) {
       throw new IllegalArgumentException(
           "Invalid input. Please provide one of the following combinations: 1. A single SQL file (--sqlfile) 2. A plan JSON file (--planfile)");
     }
