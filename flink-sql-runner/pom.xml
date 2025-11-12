@@ -72,7 +72,6 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- Will be shipped as Flink lib -->
     <dependency>
       <groupId>org.apache.iceberg</groupId>
       <artifactId>iceberg-aws-bundle</artifactId>
@@ -452,8 +451,27 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.8.1</version>
         <executions>
+          <execution>
+            <id>unpack-iceberg-aws-bundle-without-logging</id>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.iceberg</groupId>
+                  <artifactId>iceberg-aws-bundle</artifactId>
+                  <version>${iceberg.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}/iceberg-aws-bundle-temp</outputDirectory>
+                  <excludes>org/apache/logging/**,org/slf4j/**</excludes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
           <execution>
             <id>copy-s3-fs-hadoop</id>
             <goals>
@@ -475,18 +493,6 @@
             <configuration>
               <includeGroupIds>org.apache.iceberg</includeGroupIds>
               <includeArtifactIds>iceberg-flink-runtime-1.19</includeArtifactIds>
-              <outputDirectory>${project.build.directory}</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-iceberg-aws-bundle</id>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <phase>process-resources</phase>
-            <configuration>
-              <includeGroupIds>org.apache.iceberg</includeGroupIds>
-              <includeArtifactIds>iceberg-aws-bundle</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
@@ -547,6 +553,26 @@
             <configuration>
               <includeArtifactIds>org.jacoco.agent</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Repackage iceberg-aws-bundle without SLF4J using antrun plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>repack-iceberg-aws-bundle</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <target>
+                <jar basedir="${project.build.directory}/iceberg-aws-bundle-temp" destfile="${project.build.directory}/iceberg-aws-bundle-${iceberg.version}.jar"/>
+              </target>
             </configuration>
           </execution>
         </executions>
