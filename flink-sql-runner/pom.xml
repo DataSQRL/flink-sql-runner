@@ -72,6 +72,14 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Will be shipped as Flink lib -->
+    <dependency>
+      <groupId>org.apache.iceberg</groupId>
+      <artifactId>iceberg-aws-bundle</artifactId>
+      <version>${iceberg.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Required for Iceberg to work -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -88,28 +96,6 @@
           <artifactId>jackson-databind</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-
-    <!-- AWS SDK v2 required for Iceberg S3FileIO -->
-    <dependency>
-      <groupId>software.amazon.awssdk</groupId>
-      <artifactId>s3</artifactId>
-      <version>${aws.sdk.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>software.amazon.awssdk</groupId>
-      <artifactId>sts</artifactId>
-      <version>${aws.sdk.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>software.amazon.awssdk</groupId>
-      <artifactId>url-connection-client</artifactId>
-      <version>${aws.sdk.version}</version>
-      <scope>provided</scope>
     </dependency>
 
     <!-- Add logging framework, to produce console output when running in the IDE. -->
@@ -462,7 +448,7 @@
         </executions>
       </plugin>
 
-      <!-- Copying UDF/SystemFunction JARs -->
+      <!-- Copying S3, Iceberg, UDF JARs -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -493,6 +479,18 @@
             </configuration>
           </execution>
           <execution>
+            <id>copy-iceberg-aws-bundle</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <includeGroupIds>org.apache.iceberg</includeGroupIds>
+              <includeArtifactIds>iceberg-aws-bundle</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
             <id>copy-hdfs-client-for-iceberg</id>
             <goals>
               <goal>copy-dependencies</goal>
@@ -502,17 +500,6 @@
               <includeGroupIds>org.apache.hadoop</includeGroupIds>
               <includeArtifactIds>hadoop-hdfs-client</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-aws-sdk-for-iceberg</id>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <phase>process-resources</phase>
-            <configuration>
-              <includeGroupIds>software.amazon.awssdk</includeGroupIds>
-              <outputDirectory>${project.build.directory}/aws-sdk</outputDirectory>
             </configuration>
           </execution>
           <execution>
