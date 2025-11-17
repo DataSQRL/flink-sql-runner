@@ -51,19 +51,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_BOT_PAT }}
 
-      - name: Calculate cutoff date
-        id: cutoff-date
+      - name: Delete untagged images
         run: |
-          # Calculate date 30 days ago in ISO 8601 format
-          cutoff_date=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
-          echo "cutoff_date=$cutoff_date" >> $GITHUB_OUTPUT
-          echo "Cutoff date for old images: $cutoff_date"
-
-      - name: Delete untagged, pr- tagged, and old images
-        run: |
-          cutoff_date="${{ steps.cutoff-date.outputs.cutoff_date }}"
-          echo "Using cutoff date: $cutoff_date"
-
           packages="${{ steps.get-packages.outputs.packages }}"
           if [ -z "$packages" ]; then
             echo "No packages found to clean up"
@@ -87,28 +76,8 @@ jobs:
                 echo "No untagged images found for $pkg."
               fi
 
-              # Delete images with tags starting with pr-
-              echo "Fetching images with 'pr-' tags for $pkg..."
-              pr_tagged_ids=$(gh api --paginate "$endpoint/packages/container/$pkg/versions" | jq '.[] | select(.metadata.container.tags[]? | startswith("pr-")) | .id' 2>/dev/null || echo "")
-              if [ -n "$pr_tagged_ids" ]; then
-                echo "Deleting 'pr-' tagged images for $pkg:"
-                echo "$pr_tagged_ids" | xargs -I {} gh api --method DELETE "$endpoint/packages/container/$pkg/versions/{}" --silent || echo "Could not delete some 'pr-' tagged images for $pkg. This might be due to download counts or other restrictions."
-              else
-                echo "No images with 'pr-' tags found for $pkg."
-              fi
-
-              # Delete tagged images older than 30 days (excluding dev, latest, and semver tags)
-              echo "Fetching tagged images older than $cutoff_date for $pkg (excluding dev, latest, and semver tags)..."
-              old_tagged_ids=$(gh api --paginate "$endpoint/packages/container/$pkg/versions" | jq --arg cutoff "$cutoff_date" '.[] | select(.metadata.container.tags | length > 0) | select(.updated_at < $cutoff) | select(.metadata.container.tags | any(. == "dev" or . == "latest" or test("^\\d+\\.\\d+\\.\\d+(-.*)?$")) | not) | .id' 2>/dev/null || echo "")
-              if [ -n "$old_tagged_ids" ]; then
-                echo "Deleting old tagged images for $pkg (older than $cutoff_date, excluding protected tags):"
-                echo "$old_tagged_ids" | xargs -I {} gh api --method DELETE "$endpoint/packages/container/$pkg/versions/{}" --silent || echo "Could not delete some old tagged images for $pkg. This might be due to download counts or other restrictions."
-              else
-                echo "No old tagged images found for $pkg (after excluding protected tags)."
-              fi
-
               # If we found versions, break out of the endpoint loop
-              if [ -n "$untagged_ids" ] || [ -n "$pr_tagged_ids" ] || [ -n "$old_tagged_ids" ]; then
+              if [ -n "$untagged_ids" ]; then
                 break
               fi
             done
