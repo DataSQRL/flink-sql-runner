@@ -41,9 +41,9 @@ import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
@@ -60,7 +60,7 @@ public class AbstractITSupport {
 
   @Container
   protected static final GenericContainer<?> postgresContainer =
-      new PostgreSQLContainer<>(DockerImageName.parse("postgres:17"))
+      new PostgreSQLContainer(DockerImageName.parse("postgres:17"))
           .withNetwork(sharedNetwork)
           .withNetworkAliases("postgres")
           .withDatabaseName("datasqrl")
