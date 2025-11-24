@@ -32,11 +32,13 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @ExtendWith(MiniClusterExtension.class)
 @Slf4j
 public class FlinkJdbcTest {
+
+  private static final String POSTGRES_IMG = "postgres:17";
 
   public static void main(String[] args) throws IOException {
     var input =
@@ -60,7 +62,7 @@ public class FlinkJdbcTest {
   @Test
   public void testFlinkWithPostgres() throws Exception {
     // Start PostgreSQL container
-    try (PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:14")) {
+    try (var postgres = new PostgreSQLContainer(POSTGRES_IMG)) {
       postgres.start();
       // Establish a connection and create the PostgreSQL table
       try (var conn =
@@ -121,13 +123,11 @@ public class FlinkJdbcTest {
 
   @Test
   public void testWriteAndReadToPostgres() throws Exception {
-    try (PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:14")) {
-      postgresContainer.start();
+    try (var postgres = new PostgreSQLContainer(POSTGRES_IMG)) {
+      postgres.start();
       try (var conn =
               DriverManager.getConnection(
-                  postgresContainer.getJdbcUrl(),
-                  postgresContainer.getUsername(),
-                  postgresContainer.getPassword());
+                  postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
           var stmt = conn.createStatement()) {
         var createTableSQL = "CREATE TABLE test_table (" + "id BIGINT, name VARCHAR" + ")";
         stmt.executeUpdate(createTableSQL);
@@ -146,14 +146,14 @@ public class FlinkJdbcTest {
               + ") WITH ("
               + "'connector' = 'jdbc',"
               + "'url' = '"
-              + postgresContainer.getJdbcUrl()
+              + postgres.getJdbcUrl()
               + "',"
               + "'table-name' = 'test_table',"
               + "'username' = '"
-              + postgresContainer.getUsername()
+              + postgres.getUsername()
               + "',"
               + "'password' = '"
-              + postgresContainer.getPassword()
+              + postgres.getPassword()
               + "'"
               + ")");
 
@@ -175,7 +175,7 @@ public class FlinkJdbcTest {
       tEnv.executeSql("INSERT INTO test_table SELECT * FROM datagen_source").await();
 
       // Verify the data has been inserted by querying the PostgreSQL database directly
-      var connection = postgresContainer.createConnection("");
+      var connection = postgres.createConnection("");
       var statement = connection.createStatement();
       var resultSet = statement.executeQuery("SELECT COUNT(*) FROM test_table");
 
