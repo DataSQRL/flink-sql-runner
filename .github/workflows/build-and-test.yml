@@ -1,0 +1,326 @@
+name: Build and Test
+
+on:
+  release:
+    types: [created]
+  push:
+    branches:
+      - main
+      - release-*
+  pull_request:
+    branches:
+      - main
+      - release-*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cache-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      packages: read
+
+    outputs:
+      project-version: ${{ steps.version.outputs.project_version }}
+      flink-version-label: ${{ steps.version.outputs.flink_version_label }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache Maven dependencies
+        id: cache-maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Download dependencies
+        if: steps.cache-maven.outputs.cache-hit != 'true'
+        run: |
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Pci
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -Pci
+
+      - name: Get project version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
+            echo "project_version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "project_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
+          fi
+          echo "flink_version_label=$(mvn help:evaluate -Dexpression=flink.version.label -q -DforceStdout)" >> $GITHUB_OUTPUT
+
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: cache-dependencies
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Run unit tests
+        run: mvn -B test -Pci
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: cache-dependencies
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Run integration tests
+        run: mvn -B verify -Pci -DskipUTs=true
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 20
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Import GPG Key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "default-key $(gpg --list-keys --with-colons | grep pub | cut -d':' -f5)" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                  ${{ secrets.MAVEN_SETTINGS_SERVER_CENTRAL }}
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Update version
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
+          mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
+
+      - name: Deploy to Maven Central
+        if: github.event_name == 'release'
+        run: mvn -B clean deploy -Pci,release -DskipTests
+
+      - name: Deploy to GitHub Packages
+        if: github.ref_name == 'main'
+        run: mvn -B clean deploy -Pci -DskipTests
+
+  uber-jar:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test, cache-dependencies]
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Generate settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                <servers>
+                  <server>
+                    <id>github</id>
+                    <username>${{ github.actor }}</username>
+                    <password>${{ secrets.GITHUB_TOKEN }}</password>
+                  </server>
+                </servers>
+              </settings>" > ~/.m2/settings.xml
+
+      - name: Pull base Docker image
+        run: |
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources -Pci
+          grep '^FROM' flink-sql-runner/target/Dockerfile | awk '{print $2}' | xargs -n1 docker pull
+
+      - name: Update version
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
+          mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
+
+      - name: Build uber jar
+        run: mvn -B clean install -DskipTests
+
+      - name: Define Docker image tag
+        id: vars
+        run: |
+          if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
+            echo "image_tag=datasqrl/flink-sql-runner:${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${{ needs.cache-dependencies.outputs.project-version }}" >> $GITHUB_OUTPUT
+          else
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ (github.event_name == 'release' && github.event.action == 'created') && 'docker.io' || 'ghcr.io' }}
+          username: ${{ (github.event_name == 'release' && github.event.action == 'created') && secrets.DOCKER_USERNAME || github.actor }}
+          password: ${{ (github.event_name == 'release' && github.event.action == 'created') && secrets.DOCKER_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image (linux/amd64 + linux/arm64)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./flink-sql-runner/target
+          file: ./flink-sql-runner/target/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.vars.outputs.image_tag }}
+
+      - name: Rename jar file
+        if: github.event_name == 'release' && github.event.action == 'created'
+        run: |
+          mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release' && github.event.action == 'created'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
