@@ -64,7 +64,7 @@
     <module>connectors</module>
     <module>testing</module>
     <module>flink-sql-runner</module>
-    <module>flink-sql-runner-runtime-dependencies</module>
+    <module>flink-sql-runner-dependencies</module>
   </modules>
 
   <scm>
