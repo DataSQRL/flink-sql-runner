@@ -63,6 +63,12 @@ public class CliRunner extends BaseRunner {
         description = "Path to UDFs.")
     private String udfPath;
 
+    @Option(
+        names = {"--host"},
+        description = "Host address passed by Flink 2.x application mode (accepted but not used).",
+        hidden = true)
+    private String host;
+
     @Override
     public Void call() {
       return null;
