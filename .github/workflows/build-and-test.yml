@@ -51,7 +51,7 @@ jobs:
       - name: Download dependencies
         if: steps.cache-maven.outputs.cache-hit != 'true'
         run: |
-          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
+          mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.9.0:go-offline de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies
           mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources
 
       - name: Get project version
