@@ -1,0 +1,32 @@
+name: 'Setup Maven Settings XML'
+description: 'Generates Maven settings.xml with GitHub Packages authentication'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  github-actor:
+    description: 'GitHub actor username'
+    required: true
+  additional-servers:
+    description: 'Additional server configurations to include'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate settings.xml
+      shell: bash
+      run: |
+        mkdir -p ~/.m2
+        echo "<settings>
+              <servers>
+                <server>
+                  <id>github</id>
+                  <username>${{ inputs.github-actor }}</username>
+                  <password>${{ inputs.github-token }}</password>
+                </server>
+                ${{ inputs.additional-servers }}
+              </servers>
+            </settings>" > ~/.m2/settings.xml
