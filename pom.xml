@@ -296,6 +296,15 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${maven-javadoc-plugin.version}</version>
+          <configuration>
+            <show>public</show>
+            <failOnError>false</failOnError>
+            <detectOfflineLinks>false</detectOfflineLinks>
+            <doclint>all,-missing</doclint>
+            <nohelp>true</nohelp>
+            <excludePackageNames>*.internal.*,testutil,demo</excludePackageNames>
+            <quiet>true</quiet>
+          </configuration>
         </plugin>
 
         <plugin>
@@ -596,10 +605,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>${maven-javadoc-plugin.version}</version>
-            <configuration>
-              <failOnError>false</failOnError>
-            </configuration>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
@@ -607,15 +612,6 @@
                   <goal>jar</goal>
                 </goals>
                 <phase>package</phase>
-                <configuration>
-                  <show>public</show>
-                  <failOnError>false</failOnError>
-                  <detectOfflineLinks>false</detectOfflineLinks>
-                  <doclint>all,-missing</doclint>
-                  <nohelp>true</nohelp>
-                  <excludePackageNames>*.internal.*,testutil,demo</excludePackageNames>
-                  <quiet>true</quiet>
-                </configuration>
               </execution>
             </executions>
           </plugin>
