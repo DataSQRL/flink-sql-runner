@@ -1,0 +1,12 @@
+name: 'Setup JDK'
+description: 'Sets up JDK 11 with Maven caching'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+        cache: 'maven'
