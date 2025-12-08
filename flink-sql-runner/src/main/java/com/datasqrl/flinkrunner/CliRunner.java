@@ -30,10 +30,10 @@ public class CliRunner extends BaseRunner {
 
   @SuppressWarnings("unused")
   @Command(
-      name = "SqlRunner",
-      mixinStandardHelpOptions = true,
-      version = "0.6",
-      description = "Runs SQL scripts using Flink TableEnvironment.")
+      name = "sql-runner",
+      version = "0.9",
+      description = "Runs SQL scripts using Flink TableEnvironment.",
+      mixinStandardHelpOptions = true)
   public static class SqlRunner implements Callable<Void> {
 
     @Option(
@@ -92,17 +92,19 @@ public class CliRunner extends BaseRunner {
   public static void main(String[] args) throws Exception {
     log.info("Executing flink-sql-runner: {}", Arrays.toString(args));
 
-    var cl = new CommandLine(new SqlRunner());
-    var resCode = cl.execute(args);
+    var cmd = new CommandLine(new SqlRunner());
+    cmd.setUnmatchedArgumentsAllowed(true);
+
+    var resCode = cmd.execute(args);
     if (resCode != 0) {
       System.exit(resCode);
     }
 
-    if (cl.isUsageHelpRequested()) {
+    if (cmd.isUsageHelpRequested()) {
       return;
     }
 
-    SqlRunner runner = cl.getCommand();
+    SqlRunner runner = cmd.getCommand();
 
     // Determine UDF path
     if (runner.udfPath == null) {
