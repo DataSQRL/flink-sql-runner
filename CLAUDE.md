@@ -61,7 +61,7 @@ java -jar flink-sql-runner/target/flink-sql-runner.jar --sqlfile script.sql --ud
 
 ## Technology Stack
 
-- **Java 11** - Base language version
+- **Java 17** - Base language version
 - **Apache Flink 1.19.2** - Stream processing framework (configurable via profiles)
 - **Maven** - Build system
 - **Lombok** - Code generation
