@@ -1,8 +1,6 @@
-[![Deploy jars](https://github.com/DataSQRL/flink-sql-runner/actions/workflows/deploy.yml/badge.svg)](https://github.com/DataSQRL/flink-sql-runner/actions/workflows/deploy.yml)
 [![GitHub release](https://img.shields.io/github/v/release/DataSQRL/flink-sql-runner?sort=semver)](https://github.com/DataSQRL/flink-sql-runner/releases)
 [![Docker Image Version](https://img.shields.io/docker/v/datasqrl/flink-sql-runner?sort=semver)](https://hub.docker.com/r/datasqrl/flink-sql-runner/tags)
 [![Maven Central](https://img.shields.io/maven-central/v/com.datasqrl.flinkrunner/flink-sql-runner)](https://repo1.maven.org/maven2/com/datasqrl/flinkrunner/flink-sql-runner/)
-
 
 # Flink SQL Runner
 
@@ -72,7 +70,7 @@ docker run -d --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name runner \
-  datasqrl/flink-sql-runner:0.8.1-flink-1.19 \
+  datasqrl/flink-sql-runner:0.8.3-flink-1.19 \
   cluster
 ```
 
@@ -126,7 +124,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.8.1/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.8.3/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -184,13 +182,13 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.8.1</version>
+  <version>0.8.3</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.8.1'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.8.3'
 ```
 ---
 
