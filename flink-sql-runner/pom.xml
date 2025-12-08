@@ -455,7 +455,7 @@
             <goals>
               <goal>unpack</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -475,7 +475,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>org.apache.flink</includeGroupIds>
               <includeArtifactIds>flink-s3-fs-hadoop</includeArtifactIds>
@@ -487,7 +487,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>org.apache.iceberg</includeGroupIds>
               <includeArtifactIds>iceberg-flink-runtime-2.0</includeArtifactIds>
@@ -499,7 +499,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>org.apache.hadoop</includeGroupIds>
               <includeArtifactIds>hadoop-hdfs-client</includeArtifactIds>
@@ -511,7 +511,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>stdlib-utils</includeArtifactIds>
@@ -523,7 +523,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-test-classes</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>udf-sample</includeArtifactIds>
@@ -535,7 +535,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-test-classes</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
               <includeArtifactIds>system-functions-sample</includeArtifactIds>
@@ -547,7 +547,7 @@
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <configuration>
               <includeArtifactIds>org.jacoco.agent</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
