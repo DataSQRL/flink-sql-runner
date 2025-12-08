@@ -87,9 +87,9 @@
     <maven.compiler.target>11</maven.compiler.target>
 
     <!-- Flink versions -->
-    <flink.version>2.1.0</flink.version>
-    <flink.version.label>flink-2.1</flink.version.label>
-    <flink-base-image>2.1.0-scala_2.12-java17</flink-base-image>
+    <flink.version>2.2.0</flink.version>
+    <flink.version.label>flink-2.2</flink.version.label>
+    <flink-base-image>${flink.version}-java17</flink-base-image>
     <jdbc.conn.version>4.0.0-2.0</jdbc.conn.version>
     <kafka.conn.version>4.0.1-2.0</kafka.conn.version>
 
