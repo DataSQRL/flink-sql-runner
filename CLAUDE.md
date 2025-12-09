@@ -62,11 +62,11 @@ java -jar flink-sql-runner/target/flink-sql-runner.jar --sqlfile script.sql --ud
 ## Technology Stack
 
 - **Java 17** - Base language version
-- **Apache Flink 1.19.2** - Stream processing framework (configurable via profiles)
+- **Apache Flink 2.2.0** - Stream processing framework
 - **Maven** - Build system
 - **Lombok** - Code generation
 - **PicoCLI** - Command line interface
-- **JUnit 5** - Testing framework
+- **JUnit 6** - Testing framework
 - **Testcontainers** - Integration testing
 - **Docker** - Containerization
 
@@ -82,12 +82,6 @@ java -jar flink-sql-runner/target/flink-sql-runner.jar --sqlfile script.sql --ud
 - Unit tests: `mvn test`
 - Integration tests: `mvn verify` (includes failsafe plugin)
 - Test coverage enforced at 70% minimum via JaCoCo
-
-### Flink Version Support
-Multiple Flink versions supported via Maven profiles:
-- `flink-1.19` (default)
-- `flink-1.20`
-- `flink-2.0`
 
 ### Architecture
 The main application (`CliRunner`) processes command-line arguments and delegates to `BaseRunner` which:
