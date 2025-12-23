@@ -20,7 +20,9 @@ RUN mkdir -p /opt/flink/plugins/flink-sql-runner
 
 COPY aws-msk-iam-auth-*.jar /opt/flink/lib
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
+COPY hadoop-common-*.jar /opt/flink/lib
 COPY hadoop-hdfs-client-*.jar /opt/flink/lib
+COPY hadoop-mapreduce-client-core-*.jar /opt/flink/lib
 COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib

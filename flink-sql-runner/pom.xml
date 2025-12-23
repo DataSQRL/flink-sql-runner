@@ -104,6 +104,18 @@
       </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Add logging framework, to produce console output when running in the IDE. -->
     <!-- These dependencies are excluded from the application JAR by default. -->
     <dependency>
@@ -522,6 +534,30 @@
             <configuration>
               <includeGroupIds>org.apache.hadoop</includeGroupIds>
               <includeArtifactIds>hadoop-hdfs-client</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-hadoop-common-for-iceberg</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <includeGroupIds>org.apache.hadoop</includeGroupIds>
+              <includeArtifactIds>hadoop-common</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-hadoop-mapreduce-client-core-for-iceberg</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <includeGroupIds>org.apache.hadoop</includeGroupIds>
+              <includeArtifactIds>hadoop-mapreduce-client-core</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
