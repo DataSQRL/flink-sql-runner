@@ -96,7 +96,6 @@
     <!-- Dependency versions -->
     <assertj.version>3.27.6</assertj.version>
     <auto.service.version>1.1.1</auto.service.version>
-    <avro.version>1.11.4</avro.version>
     <awaitility.version>4.3.0</awaitility.version>
     <aws-msk-iam-auth.version>2.3.5</aws-msk-iam-auth.version>
     <commons-exec.version>1.6.0</commons-exec.version>
@@ -148,12 +147,6 @@
         <groupId>com.google.auto.service</groupId>
         <artifactId>auto-service</artifactId>
         <version>${auto.service.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro</artifactId>
-        <version>${avro.version}</version>
       </dependency>
 
       <dependency>
@@ -213,6 +206,10 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-reload4j</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -236,6 +233,10 @@
           <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-reload4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
