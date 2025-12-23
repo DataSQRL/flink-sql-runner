@@ -86,6 +86,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.clients.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Required for Iceberg to work -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -498,6 +505,18 @@
             <configuration>
               <includeGroupIds>software.amazon.msk</includeGroupIds>
               <includeArtifactIds>aws-msk-iam-auth</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-kafka-clients</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <includeGroupIds>org.apache.kafka</includeGroupIds>
+              <includeArtifactIds>kafka-clients</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
