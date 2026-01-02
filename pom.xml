@@ -104,7 +104,7 @@
     <hadoop.version>3.3.4</hadoop.version>
     <iceberg.version>1.10.0</iceberg.version>
     <jacoco.version>0.8.14</jacoco.version>
-    <jdbi3.version>3.50.0</jdbi3.version>
+    <jdbi3.version>3.51.0</jdbi3.version>
     <json-path.version>2.10.0</json-path.version>
     <junit.version>6.0.1</junit.version>
     <log4j.version>2.25.2</log4j.version>
