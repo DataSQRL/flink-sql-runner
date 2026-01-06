@@ -20,7 +20,7 @@ This is a multi-module Maven project for the Flink SQL Runner - a tool and libra
 ### Building and Testing
 ```bash
 # Full build with all checks
-mvn clean install -Pci,flink-1.19
+mvn clean install -Pci
 
 # Fast build (skips tests, formatting, license checks)
 mvn clean install -Pfast
