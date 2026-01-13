@@ -79,13 +79,6 @@
       <scope>provided</scope>
     </dependency>
 
-    <dependency>
-      <groupId>software.amazon.msk</groupId>
-      <artifactId>aws-msk-iam-auth</artifactId>
-      <version>${aws-msk-iam-auth.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
     <!-- Required for Iceberg to work -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -216,6 +209,12 @@
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <version>${picocli.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.msk</groupId>
+      <artifactId>aws-msk-iam-auth</artifactId>
+      <version>${aws-msk-iam-auth.version}</version>
     </dependency>
 
     <!-- Runtime -->
@@ -487,18 +486,6 @@
                   <excludes>org/apache/logging/**,org/slf4j/**</excludes>
                 </artifactItem>
               </artifactItems>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-aws-msk-iam-auth</id>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <phase>prepare-package</phase>
-            <configuration>
-              <includeGroupIds>software.amazon.msk</includeGroupIds>
-              <includeArtifactIds>aws-msk-iam-auth</includeArtifactIds>
-              <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
           <execution>
