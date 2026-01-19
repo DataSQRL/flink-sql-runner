@@ -187,6 +187,7 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Flink Connectors -->
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-connector-kafka</artifactId>
@@ -199,6 +200,13 @@
       <version>${jdbc.conn.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.getindata</groupId>
+      <artifactId>flink-http-connector</artifactId>
+      <version>${http.conn.version}</version>
+    </dependency>
+
+    <!-- Flink Formats -->
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-avro-confluent-registry</artifactId>
