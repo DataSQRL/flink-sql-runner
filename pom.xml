@@ -90,6 +90,7 @@
     <flink.version>2.2.0</flink.version>
     <flink.version.label>flink-2.2</flink.version.label>
     <flink-base-image>${flink.version}-java17</flink-base-image>
+    <http.conn.version>0.25.0</http.conn.version>
     <jdbc.conn.version>4.0.0-2.0</jdbc.conn.version>
     <kafka.conn.version>4.0.1-2.0</kafka.conn.version>
 
