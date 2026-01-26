@@ -459,6 +459,7 @@
                 <exclude>**/src/test/resources/**</exclude>
                 <exclude>**/m2e-target/**</exclude>
                 <exclude>**/bin/**</exclude>
+                <exclude>**/org/apache/flink/**/*.java</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>

@@ -18,6 +18,7 @@ FROM apache/flink:${flink-base-image}
 
 RUN mkdir -p /opt/flink/plugins/flink-sql-runner
 
+COPY flink-table-planner_2.12-*.jar /opt/flink/lib
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
 COPY hadoop-common-*.jar /opt/flink/lib
 COPY hadoop-hdfs-client-*.jar /opt/flink/lib
@@ -26,8 +27,9 @@ COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
-COPY entrypoint.sh /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
-RUN ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar
+RUN rm -rf /opt/flink/lib/flink-table-planner-loader-*.jar \
+    && ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar
 
 ENTRYPOINT ["/entrypoint.sh"]
