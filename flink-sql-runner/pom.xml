@@ -51,9 +51,17 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- TODO: Switch back to planner loader when PTF loading is patched upstream. -->
+    <!--    <dependency>-->
+    <!--      <groupId>org.apache.flink</groupId>-->
+    <!--      <artifactId>flink-table-planner-loader</artifactId>-->
+    <!--      <version>${flink.version}</version>-->
+    <!--      <scope>provided</scope>-->
+    <!--    </dependency>-->
+
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-planner-loader</artifactId>
+      <artifactId>flink-table-planner_2.12</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -483,6 +491,26 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
+            <id>unpack-flink-table-planner-without-rex-json-deser</id>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.flink</groupId>
+                  <artifactId>flink-table-planner_2.12</artifactId>
+                  <version>${flink.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}/flink-table-planner-temp</outputDirectory>
+                  <excludes>org/apache/flink/table/planner/plan/nodes/exec/serde/RexNodeJsonDeserializer**</excludes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+          <execution>
             <id>unpack-iceberg-aws-bundle-without-logging</id>
             <goals>
               <goal>unpack</goal>
@@ -612,12 +640,28 @@
         </executions>
       </plugin>
 
-      <!-- Repackage iceberg-aws-bundle without SLF4J using antrun plugin -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
+            <!-- Repackage flink-table-planner_2.12 and override RexNodeJsonDeserializer using antrun plugin -->
+            <id>repack-flink-table-planner</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <target>
+                <copy failonerror="true" todir="${project.build.directory}/flink-table-planner-temp/org/apache/flink/table/planner/plan/nodes/exec/serde">
+                  <fileset dir="${project.build.outputDirectory}/org/apache/flink/table/planner/plan/nodes/exec/serde" includes="RexNodeJsonDeserializer*.class"/>
+                </copy>
+                <jar basedir="${project.build.directory}/flink-table-planner-temp" destfile="${project.build.directory}/flink-table-planner_2.12-${flink.version}.jar"/>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <!-- Repackage iceberg-aws-bundle without SLF4J using antrun plugin -->
             <id>repack-iceberg-aws-bundle</id>
             <goals>
               <goal>run</goal>
