@@ -367,7 +367,7 @@
   <build>
     <resources>
       <resource>
-        <targetPath>${project.basedir}/target</targetPath>
+        <targetPath>${project.build.directory}</targetPath>
         <filtering>true</filtering>
         <directory>src/main/docker</directory>
       </resource>
@@ -471,7 +471,7 @@
             </goals>
             <phase>package</phase>
             <configuration>
-              <workingDirectory>${project.basedir}/target/</workingDirectory>
+              <workingDirectory>${project.build.directory}</workingDirectory>
               <executable>docker</executable>
               <skip>${fast}</skip>
               <arguments>
@@ -635,6 +635,31 @@
             <configuration>
               <includeArtifactIds>org.jacoco.agent</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-existing-jars</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/artifact</directory>
+                  <includes>
+                    <include>*.jar</include>
+                  </includes>
+                </resource>
+              </resources>
             </configuration>
           </execution>
         </executions>
