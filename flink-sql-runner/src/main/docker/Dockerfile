@@ -26,6 +26,7 @@ COPY hadoop-mapreduce-client-core-*.jar /opt/flink/lib
 COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib
+COPY flink-sql-connector-sqlserver-cdc-sqrl.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
