@@ -111,6 +111,7 @@
     <log4j.version>2.25.3</log4j.version>
     <lombok.version>1.18.42</lombok.version>
     <mockito.version>5.21.0</mockito.version>
+    <netty.version>4.1.126.Final</netty.version>
     <nextbreakpoint.flink.client.version>1.1.4</nextbreakpoint.flink.client.version>
     <picocli.version>4.7.7</picocli.version>
     <postgres.version>42.7.9</postgres.version>
@@ -141,6 +142,14 @@
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-bom</artifactId>
+        <version>${netty.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
