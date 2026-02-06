@@ -24,12 +24,14 @@ import java.sql.DriverManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.types.Row;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -188,5 +190,16 @@ public class FlinkJdbcTest {
 
       connection.close();
     }
+  }
+
+  @Test
+  public void testToJsonbUnnamedRowUsesFlinkDefaultNames() throws Exception {
+    var row = Row.of(1, "value");
+    assertThat(row.getFieldNames(true)).isNull();
+
+    var result = new to_jsonb().eval(row);
+    assertThat(result).isNotNull();
+    assertThat(result.getJson())
+        .isEqualTo(new ObjectMapper().readTree("{\"f0\":1,\"f1\":\"value\"}"));
   }
 }

@@ -30,45 +30,55 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 @AutoService(AutoRegisterSystemFunction.class)
 public class to_jsonb extends ScalarFunction implements AutoRegisterSystemFunction {
 
-  public static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+  public static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();
 
-  public FlinkJsonType eval(String json) {
-    if (json == null) {
+  public FlinkJsonType eval(String jsonStr) {
+    if (jsonStr == null) {
       return null;
     }
     try {
-      return new FlinkJsonType(mapper.readTree(json));
+      return new FlinkJsonType(MAPPER.readTree(jsonStr));
     } catch (JsonProcessingException e) {
       return null;
     }
   }
 
-  public FlinkJsonType eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object json) {
-    if (json == null) {
+  public FlinkJsonType eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object obj) {
+    if (obj == null) {
       return null;
     }
-    if (json instanceof FlinkJsonType) {
-      return (FlinkJsonType) json;
+
+    if (obj instanceof FlinkJsonType jsonTypeObj) {
+      return jsonTypeObj;
     }
 
-    return new FlinkJsonType(unboxFlinkToJsonNode(json));
+    return new FlinkJsonType(unboxFlinkToJsonNode(obj));
   }
 
-  JsonNode unboxFlinkToJsonNode(Object json) {
-    if (json instanceof Row) {
-      var row = (Row) json;
-      var objectNode = mapper.createObjectNode();
-      var fieldNames =
-          row.getFieldNames(true).toArray(new String[0]); // Get field names in an array
-      for (String fieldName : fieldNames) {
-        var field = row.getField(fieldName);
-        objectNode.set(fieldName, unboxFlinkToJsonNode(field)); // Recursively unbox each field
+  JsonNode unboxFlinkToJsonNode(Object obj) {
+    if (obj instanceof Row row) {
+      var objectNode = MAPPER.createObjectNode();
+
+      var fieldNames = row.getFieldNames(true);
+      if (fieldNames == null) {
+        // No named fields, use position
+        for (var i = 0; i < row.getArity(); i++) {
+          var field = row.getField(i);
+          objectNode.set("f" + i, unboxFlinkToJsonNode(field));
+        }
+      } else {
+        for (var fieldName : fieldNames) {
+          var field = row.getField(fieldName);
+          objectNode.set(fieldName, unboxFlinkToJsonNode(field)); // Recursively unbox each field
+        }
       }
+
       return objectNode;
-    } else if (json instanceof Row[]) {
-      var rows = (Row[]) json;
-      var arrayNode = mapper.createArrayNode();
-      for (Row row : rows) {
+    }
+
+    if (obj instanceof Row[] rowArr) {
+      var arrayNode = MAPPER.createArrayNode();
+      for (var row : rowArr) {
         if (row == null) {
           arrayNode.addNull();
         } else {
@@ -77,6 +87,7 @@ public class to_jsonb extends ScalarFunction implements AutoRegisterSystemFuncti
       }
       return arrayNode;
     }
-    return mapper.valueToTree(json); // Directly serialize other types
+
+    return MAPPER.valueToTree(obj); // Directly serialize other types
   }
 }
