@@ -56,6 +56,14 @@ class JsonFunctionsTest {
     }
 
     @Test
+    void testUnnamedRowUsesFlinkDefaultFieldNames() {
+      var row = Row.of(1, "value");
+      var result = JsonFunctions.TO_JSON.eval(row);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"f0\":1,\"f1\":\"value\"}"));
+    }
+
+    @Test
     void testInvalidJson() {
       var json = "Not a JSON";
       var result = JsonFunctions.TO_JSON.eval(json);
