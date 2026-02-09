@@ -1,10 +1,10 @@
 name: Cleanup Package Versions
 
 on:
+  workflow_dispatch: # Allow manual triggering
   schedule:
     # Run every Monday at 2 AM UTC
-    - cron: '0 2 * * 1'
-  workflow_dispatch: # Allow manual triggering
+    - cron: '0 0 * * 0'
 
 jobs:
   discover-and-cleanup-maven-packages:
