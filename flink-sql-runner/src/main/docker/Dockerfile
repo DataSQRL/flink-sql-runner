@@ -31,6 +31,10 @@ COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 RUN rm -rf /opt/flink/lib/flink-table-planner-loader-*.jar \
-    && ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar
+    && ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar \
+    && mkdir -p /opt/flink/hadoop-conf \
+    && echo '<configuration><property><name>fs.s3a.aws.credentials.provider</name><value>com.amazonaws.auth.DefaultAWSCredentialsProviderChain</value></property></configuration>' > /opt/flink/hadoop-conf/core-site.xml
+
+ENV HADOOP_CONF_DIR="/opt/flink/hadoop-conf"
 
 ENTRYPOINT ["/entrypoint.sh"]
