@@ -1,17 +1,24 @@
-# Release Process for flink-sql-runner
+# Release Process for Flink SQL Runner
 
 Releasing a new version of `flink-sql-runner` is simple and fully automated via GitHub Actions.
+The project follows semantic versioning, and have separate release branches for every minor version (e.g. `release-1.0`, `release-1.1`).
+The `main` branch points to the next upcoming minor (or major) version.
 
-## Steps to Create a New Release
+## Release Steps
 
-1. Go to the [GitHub Releases page](https://github.com/DataSQRL/flink-sql-runner/releases/new).
-2. Set the **tag name** using [Semantic Versioning (SemVer 2.0.0)](https://semver.org/), e.g.:
-   - `1.0.0`
-   - `1.2.3-alpha.1`
-   - `2.0.0+build.456`
-3. Fill in the release title and description (e.g., changelog), and click **Publish release**.
+1. If you release a patch version, make sure all the necessary commits are present on the relevant `release-x.y` branch
+2. Create a new signed **tag** using [SemVer](https://semver.org/) (for example `1.0.0`, or `1.0.0-alpha.1`)
+   ```sh
+   git tag -s 1.0.0 -m 'Release version 1.0.0'
+   git push origin 1.0.0
+   ``` 
+3. Go to the [GitHub Releases page](https://github.com/DataSQRL/flink-sql-runner/releases/new)
+4. Fill in the release title and changelog (optional but recommended)
+5. Click **"Publish release"**
+6. In case of a new minor or major release, create a new `release-x.y` branch for the new version from `main` that points to the tagged commit
 
-⚠️ The tag name must be a valid SemVer string — it becomes the version number used in the Docker image and Maven artifact.
+> [!WARNING]
+>️ The tag name must be a valid SemVer string — it becomes the version number used in the Docker image and Maven artifact.
 
 ## What Happens Next
 
@@ -26,4 +33,3 @@ Once the release is created:
 
 - No manual deployment steps are required.
 - Docker images and Maven artifacts are tagged with the exact version string from the GitHub release tag.
-
