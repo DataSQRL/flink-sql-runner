@@ -114,7 +114,7 @@
     <netty.version>4.1.126.Final</netty.version>
     <nextbreakpoint.flink.client.version>1.1.4</nextbreakpoint.flink.client.version>
     <picocli.version>4.7.7</picocli.version>
-    <postgres.version>42.7.9</postgres.version>
+    <postgres.version>42.7.10</postgres.version>
     <slf4j.version>1.7.36</slf4j.version>
     <testcontainers.version>2.0.3</testcontainers.version>
 
