@@ -231,7 +231,7 @@ jobs:
           for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
             result=$(echo "$NEEDS_JSON" | jq -r ".[\"$job\"].result")
             echo "  $job: $result"
-            if [[ "$result" == "failure" ]]; then
+            if [[ "$result" != "success" ]]; then
               FAILED_JOBS="$FAILED_JOBS $job"
             fi
           done
