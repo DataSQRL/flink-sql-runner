@@ -216,3 +216,28 @@ jobs:
           files: flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [ unit-test, integration-test ]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "Checking results of upstream jobs..."
+          FAILED_JOBS=""
+          NEEDS_JSON='${{ toJSON(needs) }}'
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r ".[\"$job\"].result")
+            echo "  $job: $result"
+            if [[ "$result" != "success" ]]; then
+              FAILED_JOBS="$FAILED_JOBS $job"
+            fi
+          done
+
+          if [[ -n "$FAILED_JOBS" ]]; then
+            echo "One or more jobs did not succeed:$FAILED_JOBS"
+            exit 1
+          fi
