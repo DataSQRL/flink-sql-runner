@@ -83,16 +83,18 @@ class EnvVarResolverTest {
   @ParameterizedTest
   @CsvSource({
     // Env var not present, fallback used
-    "'${USERNAME:guest}', 'guest'",
-    "'Welcome ${USERNAME:anonymous}', 'Welcome anonymous'",
+    "'${USERNAME:-guest}', 'guest'",
+    "'${USERNAME:=guest}', 'guest'",
+    "'Welcome ${USERNAME:-anonymous}', 'Welcome anonymous'",
     // Env var present, fallback ignored
-    "'${USER:guest}', 'John'",
-    "'Path: ${PATH:/default}', 'Path: /usr/bin'",
+    "'${USER:-guest}', 'John'",
+    "'${USER:=guest}', 'John'",
+    "'Path: ${PATH:-/default}', 'Path: /usr/bin'",
     // Empty default
-    "'Empty fallback: ${MISSING:}', 'Empty fallback: '",
+    "'Empty fallback: ${MISSING:-}', 'Empty fallback: '",
     // Mixed present and fallback
-    "'User=${USER}, ID=${ID:0000}', 'User=John, ID=0000'",
-    "'${MISSING1:default1} and ${MISSING2:default2}', 'default1 and default2'"
+    "'User=${USER}, ID=${ID:-0000}', 'User=John, ID=0000'",
+    "'${MISSING1:-default1} and ${MISSING2:=default2}', 'default1 and default2'"
   })
   void givenDefaultEnvValues_whenResolve_thenFallbackOrUseEnvValue(
       String command, String expected) {
@@ -108,9 +110,10 @@ class EnvVarResolverTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
+        "${TOKEN:default}", // Single colon no longer supported
         "${MISSING}", // Still fails because no default
         "Hi ${MISSING}!", // Same
-        "${A:} ${B}" // A has empty default, B is missing
+        "${A:-} ${B}" // A has empty default, B is missing
       })
   void givenMissingEnvWithoutDefault_whenResolve_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of("A", "something");
@@ -122,9 +125,11 @@ class EnvVarResolverTest {
 
   @ParameterizedTest
   @CsvSource({
-    "'${TOKEN:abc:def}', 'abc:def'", // Semicolon inside fallback value
-    "'${TOKEN:abc:def:ghi}', 'abc:def:ghi'", // colon is only split on first occurrence
-    "'${TOKEN:}', ''" // colon at the end
+    "'${TOKEN:-abc:def}', 'abc:def'", // Bash-style with colon in fallback
+    "'${TOKEN:=abc:def}', 'abc:def'", // Bash-style with colon in fallback
+    "'${TOKEN:-abc:def:ghi}', 'abc:def:ghi'", // Bash-style
+    "'${TOKEN:-}', ''", // Bash-style colon-dash at the end
+    "'${TOKEN:=}', ''" // Bash-style colon-equals at the end
   })
   void givenFallbackWithColons_whenResolve_thenParseCorrectly(String command, String expected) {
     Map<String, String> envVariables = Map.of(); // No TOKEN set

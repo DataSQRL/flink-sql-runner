@@ -68,11 +68,15 @@ public class EnvVarResolver {
       String key;
       String defaultValue = null;
 
-      // Split at first ':' to support default values
-      int colonIdx = rawKey.indexOf(':');
-      if (colonIdx >= 0) {
-        key = rawKey.substring(0, colonIdx);
-        defaultValue = rawKey.substring(colonIdx + 1);
+      // Support bash-style default values: ${VAR:-default} or ${VAR:=default}
+      int splitIdx = rawKey.indexOf(":-");
+      if (splitIdx == -1) {
+        splitIdx = rawKey.indexOf(":=");
+      }
+
+      if (splitIdx >= 0) {
+        key = rawKey.substring(0, splitIdx);
+        defaultValue = rawKey.substring(splitIdx + 2);
       } else {
         key = rawKey;
       }
