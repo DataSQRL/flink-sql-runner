@@ -1,0 +1,66 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-security-review:
+    name: Claude Security Review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--model claude-sonnet-4-6-20250514"
+          prompt: |
+            Review this pull request for the Flink SQL Runner, a multi-module Maven project providing
+            CLI tools and libraries for running Apache Flink SQL applications. Includes custom connectors
+            (Kafka, PostgreSQL), data formats, UDF support, and Docker packaging. Built with Java 17.
+
+            Focus your review **exclusively on security issues**:
+
+            1. **Command Injection & Input Handling**:
+               - Unsafe handling of CLI arguments (PicoCLI) reaching file or system operations
+               - SQL injection through SQL file or plan file content
+               - Path traversal in --sqlfile, --planfile, --config-dir, or --udfpath arguments
+
+            2. **Environment Variable Security**:
+               - EnvVarResolver substitution allowing injection of malicious values
+               - Sensitive environment variables logged or exposed in error messages
+
+            3. **UDF Loading Security**:
+               - Unsafe class loading from user-provided UDF paths
+               - Arbitrary code execution through malicious UDF JARs
+               - Path traversal in UDF resolution
+
+            4. **Dependency & Supply Chain**:
+               - Known vulnerable dependencies being introduced
+               - Unpinned Docker base image tags
+               - Unsafe dependency resolution
+
+            5. **Secrets & Credentials**:
+               - AWS MSK IAM credentials exposed in logs or configuration
+               - Kafka authentication secrets in plain text
+               - Hardcoded credentials in connector configurations
+
+            6. **Docker Security**:
+               - Containers running as root without justification
+               - Sensitive data baked into Docker images
+               - Overly permissive file permissions
+
+            Note: The tool intentionally loads and executes SQL files and UDF JARs as its core function.
+            Note: Integration tests use Testcontainers which requires Docker access.
+
+            Only comment on actual security issues. Do not comment on code style, naming, or non-security concerns.
