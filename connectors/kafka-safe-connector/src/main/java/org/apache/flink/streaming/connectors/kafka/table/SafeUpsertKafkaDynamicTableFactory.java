@@ -85,7 +85,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 public class SafeUpsertKafkaDynamicTableFactory
         implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-    public static final String IDENTIFIER = "upsert-kafka";
+    public static final String IDENTIFIER = "upsert-kafka-safe";
 
     @Override
     public String factoryIdentifier() {
