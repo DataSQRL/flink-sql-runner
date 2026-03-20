@@ -15,8 +15,12 @@
  */
 package com.datasqrl.flinkrunner;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import com.nextbreakpoint.flink.client.model.JobStatus;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -53,6 +57,14 @@ class MultipleStatementSetsIT extends AbstractITSupport {
             .toList();
 
     assertThat(jobIds).as("Expected two jobs submitted (one per EXECUTE STATEMENT SET)").hasSize(2);
+
+    for (String jobId : jobIds) {
+      await()
+          .atMost(30, SECONDS)
+          .pollInterval(500, MILLISECONDS)
+          .ignoreExceptions()
+          .until(() -> client.getJobStatusInfo(jobId).getStatus() == JobStatus.FINISHED);
+    }
 
     var tmLogs = flinkContainer.execInContainer("bash", "-c", "cat /opt/flink/log/*taskexecutor*");
 
