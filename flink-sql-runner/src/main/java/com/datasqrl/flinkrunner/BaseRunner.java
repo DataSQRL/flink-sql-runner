@@ -66,7 +66,7 @@ abstract class BaseRunner {
       var script = readTextFile(sqlFile);
       script = resolver.resolve(script);
 
-      sqlExecutor.setupSystemFunctions();
+      // sqlExecutor.setupSystemFunctions();
       return sqlExecutor.executeScript(script);
     }
 
@@ -74,7 +74,7 @@ abstract class BaseRunner {
     var planJson = readTextFile(planFile);
     planJson = resolver.resolveInJson(planJson);
 
-    sqlExecutor.setupSystemFunctions();
+    // sqlExecutor.setupSystemFunctions();
     return sqlExecutor.executeCompiledPlan(planJson);
   }
 

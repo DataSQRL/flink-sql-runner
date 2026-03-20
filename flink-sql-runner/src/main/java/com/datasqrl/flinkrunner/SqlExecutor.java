@@ -23,11 +23,10 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,7 +42,6 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 
 /** Class for executing SQL scripts programmatically. */
 @Slf4j
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class SqlExecutor {
 
   private static final Pattern SET_PATTERN =
@@ -52,13 +50,29 @@ class SqlExecutor {
   private static final Pattern STATEMENT_SET_PATTERN =
       Pattern.compile("EXECUTE\\s+STATEMENT\\s+SET", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
-  private final TableEnvironment tEnv;
+  private final Supplier<TableEnvironment> tEnvSupplier;
+  @Nullable private final String udfPath;
+
+  private TableEnvironment tEnv;
 
   SqlExecutor(Configuration config, @Nullable String udfPath) {
-    var sEnv = StreamExecutionEnvironment.getExecutionEnvironment(config);
-    var tEnvConfig = EnvironmentSettings.newInstance().withConfiguration(config).build();
+    this.tEnvSupplier =
+        () -> {
+          var sEnv = StreamExecutionEnvironment.getExecutionEnvironment(config);
+          var tEnvConfig = EnvironmentSettings.newInstance().withConfiguration(config).build();
+          return StreamTableEnvironment.create(sEnv, tEnvConfig);
+        };
+    this.udfPath = udfPath;
+  }
 
-    tEnv = StreamTableEnvironment.create(sEnv, tEnvConfig);
+  private SqlExecutor(Supplier<TableEnvironment> tEnvSupplier) {
+    this.tEnvSupplier = tEnvSupplier;
+    udfPath = null;
+  }
+
+  private void init() {
+    this.tEnv = tEnvSupplier.get();
+    setupSystemFunctions();
 
     if (StringUtils.isNotBlank(udfPath)) {
       setupUdfPath(udfPath);
@@ -79,14 +93,16 @@ class SqlExecutor {
     var udfClassLoader = buildUdfClassLoader(udfPath);
     setConfigClassPaths(config, udfClassLoader);
 
-    var sEnv = new StreamExecutionEnvironment(config, udfClassLoader);
-    var tEnvConfig =
-        EnvironmentSettings.newInstance()
-            .withConfiguration(config)
-            .withClassLoader(udfClassLoader)
-            .build();
-
-    return new SqlExecutor(StreamTableEnvironment.create(sEnv, tEnvConfig));
+    return new SqlExecutor(
+        () -> {
+          var sEnv = new StreamExecutionEnvironment(config, udfClassLoader);
+          var tEnvConfig =
+              EnvironmentSettings.newInstance()
+                  .withConfiguration(config)
+                  .withClassLoader(udfClassLoader)
+                  .build();
+          return StreamTableEnvironment.create(sEnv, tEnvConfig);
+        });
   }
 
   void setupSystemFunctions() {
@@ -115,6 +131,7 @@ class SqlExecutor {
    * @return
    */
   TableResult executeScript(String script) {
+    init();
     var statements = SqlUtils.parseStatements(script);
     TableResult tableResult = null;
 
@@ -134,6 +151,7 @@ class SqlExecutor {
    * @return
    */
   TableResult executeCompiledPlan(String planJson) {
+    init();
     log.info("Executing compiled plan from JSON.");
     try {
       var planReference = PlanReference.fromJsonString(planJson);
@@ -161,11 +179,12 @@ class SqlExecutor {
 
       } else {
         log.info("Executing statement:\n{}", statement);
-        tableResult = tEnv.executeSql(statement);
-        if (statementSetMatcher.find() && intermediate) {
-          log.debug("Make sure to wait intermediate statement set to finish...");
-          tableResult.await();
+        if (statementSetMatcher.find()) {
+          init();
+          // log.debug("Make sure to wait intermediate statement set to finish...");
+          // tableResult.await();
         }
+        tableResult = tEnv.executeSql(statement);
       }
     } catch (Exception e) {
       throw new RuntimeException("Error while executing stmt: " + statement, e);
