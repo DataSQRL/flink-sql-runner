@@ -16,14 +16,20 @@
 package com.datasqrl.flinkrunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -124,5 +130,87 @@ class SqlExecutorTest {
 
     List<String> paths = config.get(PipelineOptions.CLASSPATHS);
     assertThat(paths).contains("file:/test.jar");
+  }
+
+  @Test
+  void given_awaitWorks_when_awaitCompletion_then_usesAwaitDirectly() throws Exception {
+    TableResult tableResult = mock(TableResult.class);
+
+    SqlExecutor.awaitCompletion(tableResult);
+
+    verify(tableResult).await();
+    verify(tableResult, never()).getJobClient();
+  }
+
+  @Test
+  void given_awaitThrows_when_awaitCompletion_then_fallsBackToPolling() throws Exception {
+    TableResult tableResult = mock(TableResult.class);
+    JobClient jobClient = mock(JobClient.class);
+
+    doThrow(new RuntimeException("Web Submission does not support await"))
+        .when(tableResult)
+        .await();
+    when(tableResult.getJobClient()).thenReturn(Optional.of(jobClient));
+    when(jobClient.getJobID()).thenReturn(new JobID());
+    when(jobClient.getJobStatus())
+        .thenReturn(CompletableFuture.completedFuture(JobStatus.RUNNING))
+        .thenReturn(CompletableFuture.completedFuture(JobStatus.FINISHED));
+
+    SqlExecutor.awaitCompletion(tableResult);
+
+    verify(tableResult).getJobClient();
+    verify(jobClient, atLeast(2)).getJobStatus();
+  }
+
+  @Test
+  void given_jobFails_when_awaitCompletion_then_throwsRuntimeException() throws Exception {
+    TableResult tableResult = mock(TableResult.class);
+    JobClient jobClient = mock(JobClient.class);
+    var jobId = new JobID();
+
+    doThrow(new RuntimeException("Web Submission does not support await"))
+        .when(tableResult)
+        .await();
+    when(tableResult.getJobClient()).thenReturn(Optional.of(jobClient));
+    when(jobClient.getJobID()).thenReturn(jobId);
+    when(jobClient.getJobStatus()).thenReturn(CompletableFuture.completedFuture(JobStatus.FAILED));
+
+    assertThatThrownBy(() -> SqlExecutor.awaitCompletion(tableResult))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("failed during execution");
+  }
+
+  @Test
+  void given_multipleStatementSets_when_executeScript_then_bothExecuted() throws Exception {
+    TableEnvironment mockTableEnv = mock(TableEnvironment.class);
+    TableResult firstResult = mock(TableResult.class);
+    TableResult secondResult = mock(TableResult.class);
+    JobClient jobClient = mock(JobClient.class);
+
+    when(mockTableEnv.executeSql(contains("OutA"))).thenReturn(firstResult);
+    when(mockTableEnv.executeSql(contains("OutB"))).thenReturn(secondResult);
+    when(firstResult.getJobClient()).thenReturn(Optional.of(jobClient));
+    when(jobClient.getJobID()).thenReturn(new JobID());
+    when(jobClient.getJobStatus())
+        .thenReturn(CompletableFuture.completedFuture(JobStatus.FINISHED));
+    doThrow(new RuntimeException("Web Submission does not support await"))
+        .when(firstResult)
+        .await();
+
+    SqlExecutor executor = new SqlExecutor(mockTableEnv);
+
+    String script =
+        "EXECUTE STATEMENT SET BEGIN\n"
+            + "INSERT INTO OutA SELECT * FROM InA;\n"
+            + "END;\n"
+            + "EXECUTE STATEMENT SET BEGIN\n"
+            + "INSERT INTO OutB SELECT * FROM InB;\n"
+            + "END";
+
+    TableResult result = executor.executeScript(script);
+
+    assertThat(result).isSameAs(secondResult);
+    verify(mockTableEnv).executeSql(contains("OutA"));
+    verify(mockTableEnv).executeSql(contains("OutB"));
   }
 }

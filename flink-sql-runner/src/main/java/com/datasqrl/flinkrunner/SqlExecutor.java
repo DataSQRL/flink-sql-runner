@@ -23,6 +23,8 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -30,6 +32,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
@@ -146,6 +149,11 @@ class SqlExecutor {
     }
   }
 
+  private static final Set<JobStatus> TERMINAL_STATES =
+      Set.of(JobStatus.FINISHED, JobStatus.CANCELED, JobStatus.FAILED);
+
+  private static final long JOB_POLL_INTERVAL_MS = 1000;
+
   private TableResult executeStatement(String statement, boolean intermediate) {
     TableResult tableResult = null;
     try {
@@ -153,7 +161,6 @@ class SqlExecutor {
       var statementSetMatcher = STATEMENT_SET_PATTERN.matcher(statement.trim());
 
       if (setMatcher.matches()) {
-        // Handle SET statements
         var key = setMatcher.group(1);
         var value = setMatcher.group(2);
         tEnv.getConfig().getConfiguration().setString(key, value);
@@ -163,14 +170,56 @@ class SqlExecutor {
         log.info("Executing statement:\n{}", statement);
         tableResult = tEnv.executeSql(statement);
         if (statementSetMatcher.find() && intermediate) {
-          log.debug("Make sure to wait intermediate statement set to finish...");
-          tableResult.await();
+          log.debug("Waiting for intermediate statement set to finish...");
+          awaitCompletion(tableResult);
         }
       }
     } catch (Exception e) {
       throw new RuntimeException("Error while executing stmt: " + statement, e);
     }
     return tableResult;
+  }
+
+  /**
+   * Waits for a {@link TableResult} to complete. First attempts {@link TableResult#await()}, which
+   * works in application mode. If that fails (e.g., in session mode where {@code
+   * WebSubmissionJobClient} does not support {@code getJobExecutionResult()}), falls back to
+   * polling the job status via {@code JobClient.getJobStatus()}.
+   */
+  @VisibleForTesting
+  static void awaitCompletion(TableResult tableResult)
+      throws InterruptedException, ExecutionException {
+    try {
+      tableResult.await();
+    } catch (Exception e) {
+      log.info(
+          "tableResult.await() not supported (likely session mode), falling back to job status polling");
+      pollJobUntilTerminal(tableResult);
+    }
+  }
+
+  private static void pollJobUntilTerminal(TableResult tableResult)
+      throws InterruptedException, ExecutionException {
+    var jobClient =
+        tableResult
+            .getJobClient()
+            .orElseThrow(
+                () -> new IllegalStateException("No JobClient available to poll job status"));
+
+    while (true) {
+      var status = jobClient.getJobStatus().get();
+      log.debug("Polling job status: {}", status);
+
+      if (TERMINAL_STATES.contains(status)) {
+        if (status == JobStatus.FAILED) {
+          throw new RuntimeException("Job " + jobClient.getJobID() + " failed during execution");
+        }
+        log.info("Job {} completed with status: {}", jobClient.getJobID(), status);
+        return;
+      }
+
+      Thread.sleep(JOB_POLL_INTERVAL_MS);
+    }
   }
 
   /**
