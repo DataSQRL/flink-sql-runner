@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Project Overview
 
@@ -102,3 +102,17 @@ New modules should:
 2. Include proper Maven coordinates under `com.datasqrl.flinkrunner`
 3. Add to parent POM modules section
 4. Include common dependencies from parent (Lombok, JUnit, etc.)
+
+## AI Decision Records (ADR)
+
+When working on non-trivial changes, create an ADR in `adr/<branch-name>.md` to maintain context across sessions:
+
+- **Location**: `adr/branch-name.md`
+- **When**: Before creating a PR or when context needs to be preserved
+- **Structure**:
+  - Summary: Goal and what was implemented (2-3 sentences)
+  - Key decisions: Technical choices and rationale
+  - Related: Links to issues, PRs, or other context
+- **Size**: Keep concise — aim for 300-500 words, never exceed 800
+- **Content**: Document WHY decisions were made, not WHAT was changed (that's in git diff)
+- **Commit**: Always commit and push ADR along with the code changes
