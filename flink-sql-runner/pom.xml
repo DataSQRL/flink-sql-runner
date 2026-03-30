@@ -214,6 +214,24 @@
       <version>${http.conn.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-sql-connector-mysql-cdc</artifactId>
+      <version>${flink.cdc.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-sql-connector-postgres-cdc</artifactId>
+      <version>${flink.cdc.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-sql-connector-sqlserver-cdc</artifactId>
+      <version>${flink.cdc.version}</version>
+    </dependency>
+
     <!-- Flink Formats -->
     <dependency>
       <groupId>org.apache.flink</groupId>
@@ -635,31 +653,6 @@
             <configuration>
               <includeArtifactIds>org.jacoco.agent</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-existing-jars</id>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <phase>process-resources</phase>
-            <configuration>
-              <outputDirectory>${project.build.directory}</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}/artifact</directory>
-                  <includes>
-                    <include>*.jar</include>
-                  </includes>
-                </resource>
-              </resources>
             </configuration>
           </execution>
         </executions>
