@@ -108,7 +108,7 @@
     <jdbi3.version>3.52.0</jdbi3.version>
     <json-path.version>3.0.0</json-path.version>
     <junit.version>6.0.3</junit.version>
-    <log4j.version>2.25.3</log4j.version>
+    <log4j.version>2.25.4</log4j.version>
     <lombok.version>1.18.44</lombok.version>
     <mockito.version>5.23.0</mockito.version>
     <netty.version>4.1.126.Final</netty.version>
