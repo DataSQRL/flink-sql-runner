@@ -1,0 +1,479 @@
+name: Test Cloud Compilation
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [synchronize, reopened, closed]
+
+jobs:
+  decide:
+    if: |
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '/test-cloud-compilation')
+      ) || (
+        github.event_name == 'pull_request' &&
+        (github.event.action == 'synchronize' || github.event.action == 'reopened') &&
+        !github.event.pull_request.draft
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      should_sync: ${{ steps.gate.outputs.should_sync }}
+      pr_number: ${{ steps.gate.outputs.pr_number }}
+      pr_head_ref: ${{ steps.gate.outputs.head_ref }}
+      pr_head_sha: ${{ steps.gate.outputs.head_sha }}
+      pr_base_ref: ${{ steps.gate.outputs.base_ref }}
+      pr_url: ${{ steps.gate.outputs.url }}
+      pr_title: ${{ steps.gate.outputs.title }}
+    steps:
+      - name: Authorize commenter
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          PERM=$(gh api \
+            "/repos/${{ github.repository }}/collaborators/${{ github.event.comment.user.login }}/permission" \
+            --jq .permission)
+          echo "User permission: $PERM"
+          case "$PERM" in
+            admin|write|maintain) echo "Authorized" ;;
+            *) echo "User does not have write access — refusing"; exit 1 ;;
+          esac
+
+      - name: Add eyes reaction
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          gh api -X POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content=eyes || true
+
+      - name: Resolve PR metadata and gate
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            PR_NUMBER=${{ github.event.issue.number }}
+          else
+            PR_NUMBER=${{ github.event.pull_request.number }}
+          fi
+
+          PR_DATA=$(gh api "/repos/${{ github.repository }}/pulls/${PR_NUMBER}")
+          HEAD_REF=$(echo "$PR_DATA" | jq -r .head.ref)
+          HEAD_SHA=$(echo "$PR_DATA" | jq -r .head.sha)
+          BASE_REF=$(echo "$PR_DATA" | jq -r .base.ref)
+          URL=$(echo "$PR_DATA"    | jq -r .html_url)
+          TITLE=$(echo "$PR_DATA"  | jq -r .title)
+
+          # For pull_request triggers, only proceed if a cloud-compilation branch
+          # already exists for this PR (i.e. /test-cloud-compilation was invoked
+          # at least once). For issue_comment, always proceed.
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if ! gh api "/repos/DataSQRL/cloud-compilation/branches/${HEAD_REF}" >/dev/null 2>&1; then
+              echo "No cloud-compilation branch exists for this PR yet — skipping auto-sync"
+              echo "should_sync=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "should_sync=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "pr_number=${PR_NUMBER}"
+            echo "head_ref=${HEAD_REF}"
+            echo "head_sha=${HEAD_SHA}"
+            echo "base_ref=${BASE_REF}"
+            echo "url=${URL}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "title<<__PR_TITLE_EOF__"
+            echo "${TITLE}"
+            echo "__PR_TITLE_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+  sync:
+    needs: decide
+    if: needs.decide.outputs.should_sync == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout flink-sql-runner repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.decide.outputs.pr_head_sha }}
+          path: flink-sql-runner
+
+      - name: Checkout cloud-compilation repo
+        uses: actions/checkout@v4
+        with:
+          repository: DataSQRL/cloud-compilation
+          token: ${{ secrets.BOT_PAT }}
+          ref: ${{ needs.decide.outputs.pr_base_ref }}
+          path: compilation
+
+      - name: Import GPG key
+        run: |
+          printf '%s\n' "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg_key.asc
+          gpg --batch --import /tmp/gpg_key.asc
+          rm /tmp/gpg_key.asc
+          gpg --list-secret-keys --keyid-format=long
+
+      - name: Configure git
+        run: |
+          cd compilation
+          git config user.name "Datasqrl - Automation Bot"
+          git config user.email "bot@datasqrl.com"
+          git config user.signingkey "${{ secrets.GPG_KEY_ID }}"
+          git config commit.gpgsign true
+
+      - name: Create or update branch
+        id: branch
+        env:
+          BRANCH_NAME: ${{ needs.decide.outputs.pr_head_ref }}
+          BASE_REF: ${{ needs.decide.outputs.pr_base_ref }}
+        run: |
+          cd compilation
+          echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+
+          git fetch origin
+          if git rev-parse --verify "origin/${BRANCH_NAME}" >/dev/null 2>&1; then
+            echo "Branch exists, checking out..."
+            git checkout "${BRANCH_NAME}"
+            git pull origin "${BRANCH_NAME}"
+          else
+            echo "Creating new branch from ${BASE_REF}..."
+            git checkout -b "${BRANCH_NAME}"
+          fi
+
+      - name: Update flink-sql-runner version
+        env:
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+        run: |
+          cd compilation
+          PR_TAG="pr-${PR_NUMBER}"
+
+          python3 - "$PR_TAG" <<'PY'
+          import re, sys
+          pr_tag = sys.argv[1]
+
+          app_yaml = "cloud-compilation/src/main/resources/application.yaml"
+          with open(app_yaml) as f:
+              text = f.read()
+          new_text, n = re.subn(
+              r'(  flink-sql-runner:\n    version: )\S+',
+              lambda m: m.group(1) + pr_tag,
+              text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit(f"Failed to locate flink-sql-runner.version in {app_yaml}")
+          with open(app_yaml, "w") as f:
+              f.write(new_text)
+
+          override_yaml = "integration-tests/config/application-override.yaml"
+          with open(override_yaml) as f:
+              text = f.read()
+          new_text, n = re.subn(
+              r'flinkSqlRunner: "[^"]*"',
+              'flinkSqlRunner: "ghcr.io/datasqrl/flink-sql-runner"',
+              text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit(f"Failed to locate flinkSqlRunner image in {override_yaml}")
+          with open(override_yaml, "w") as f:
+              f.write(new_text)
+          PY
+
+          git add cloud-compilation/src/main/resources/application.yaml
+          git add integration-tests/config/application-override.yaml
+
+      - name: Update flink-sql-runner commit tracking
+        env:
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+          PR_SHA: ${{ needs.decide.outputs.pr_head_sha }}
+        run: |
+          cd compilation
+          mkdir -p .github
+          {
+            echo "flink-sql-runner PR #${PR_NUMBER}"
+            echo "Commit: ${PR_SHA}"
+            echo "Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          } > .github/flink-sql-runner-pr-info.txt
+          git add .github/flink-sql-runner-pr-info.txt
+
+      - name: Commit and push changes
+        env:
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+          PR_SHA: ${{ needs.decide.outputs.pr_head_sha }}
+        run: |
+          cd compilation
+          echo "Git status before commit:"
+          git status
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -s -S \
+              -m "Test flink-sql-runner PR #${PR_NUMBER}: Sync with commit ${PR_SHA}"
+            git push origin "${{ steps.branch.outputs.branch_name }}"
+          fi
+
+      - name: Create or update PR
+        id: cc-pr
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+          PR_TITLE: ${{ needs.decide.outputs.pr_title }}
+          PR_URL: ${{ needs.decide.outputs.pr_url }}
+          BASE_REF: ${{ needs.decide.outputs.pr_base_ref }}
+        run: |
+          cd compilation
+
+          FULL_TITLE="Test flink-sql-runner PR #${PR_NUMBER}: ${PR_TITLE}"
+          BODY=$(cat <<EOF
+          Automated PR to test changes from flink-sql-runner PR DataSQRL/flink-sql-runner#${PR_NUMBER}
+
+          ## Changes
+          - Updated \`cloud-compilation/src/main/resources/application.yaml\` flink-sql-runner version to \`pr-${PR_NUMBER}\`
+          - Updated \`integration-tests/config/application-override.yaml\` to pull \`flinkSqlRunner\` image from \`ghcr.io/datasqrl/flink-sql-runner\` (where flink-sql-runner publishes PR images)
+
+          ## flink-sql-runner PR
+          ${PR_URL}
+
+          ## Status
+          - [ ] E2E tests passing
+          - [ ] Ready for manual review if needed
+
+          **Note:** This PR must be closed manually after the flink-sql-runner PR is merged.
+          EOF
+          )
+
+          EXISTING_PR=$(gh pr list --head "${{ steps.branch.outputs.branch_name }}" --json number --jq '.[0].number' || echo "")
+
+          if [ -z "$EXISTING_PR" ]; then
+            echo "Creating new PR..."
+            gh pr create \
+              --title "${FULL_TITLE}" \
+              --body "${BODY}" \
+              --base "${BASE_REF}" \
+              --head "${{ steps.branch.outputs.branch_name }}" \
+              --label "flink-sql-runner"
+            CREATED=true
+          else
+            echo "Updating existing PR #${EXISTING_PR}..."
+            gh pr edit "${EXISTING_PR}" \
+              --title "${FULL_TITLE}" \
+              --body "${BODY}"
+            CREATED=false
+          fi
+
+          COMPILATION_PR_URL=$(gh pr list --head "${{ steps.branch.outputs.branch_name }}" --json url --jq '.[0].url')
+          echo "url=${COMPILATION_PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "created=${CREATED}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on flink-sql-runner PR
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+          CC_PR_URL: ${{ steps.cc-pr.outputs.url }}
+        run: |
+          COMMENT_BODY="🔄 Cloud-compilation PR has been created/updated: ${CC_PR_URL}
+
+          This PR will test the flink-sql-runner changes against cloud-compilation integration tests."
+
+          EXISTING_COMMENT=$(gh pr view "${PR_NUMBER}" \
+            --repo "${{ github.repository }}" \
+            --json comments \
+            --jq '.comments[] | select(.body | contains("Cloud-compilation PR has been created/updated")) | .id' \
+            | head -1 || echo "")
+
+          if [ -z "$EXISTING_COMMENT" ]; then
+            gh pr comment "${PR_NUMBER}" \
+              --repo "${{ github.repository }}" \
+              --body "${COMMENT_BODY}"
+          else
+            echo "Comment already exists, skipping..."
+          fi
+
+      - name: Add rocket reaction
+        if: success() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          gh api -X POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content=rocket || true
+
+      - name: Add failure reaction
+        if: failure() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          gh api -X POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content=confused || true
+
+  revert-on-merge:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check whether cloud-compilation branch exists
+        id: branch_exists
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if gh api "/repos/DataSQRL/cloud-compilation/branches/${BRANCH_NAME}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No cloud-compilation branch — nothing to revert"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout cloud-compilation repo
+        if: steps.branch_exists.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: DataSQRL/cloud-compilation
+          token: ${{ secrets.BOT_PAT }}
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: Import GPG key
+        if: steps.branch_exists.outputs.exists == 'true'
+        run: |
+          printf '%s\n' "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg_key.asc
+          gpg --batch --import /tmp/gpg_key.asc
+          rm /tmp/gpg_key.asc
+
+      - name: Configure git
+        if: steps.branch_exists.outputs.exists == 'true'
+        run: |
+          git config user.name "Datasqrl - Automation Bot"
+          git config user.email "bot@datasqrl.com"
+          git config user.signingkey "${{ secrets.GPG_KEY_ID }}"
+          git config commit.gpgsign true
+
+      - name: Revert PR-test changes
+        if: steps.branch_exists.outputs.exists == 'true'
+        id: revert
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git checkout "${BRANCH_NAME}"
+
+          # Restore the files we touched back to the base branch state.
+          git checkout "origin/${BASE_REF}" -- \
+            cloud-compilation/src/main/resources/application.yaml \
+            integration-tests/config/application-override.yaml || true
+
+          # Drop the PR tracking file if it exists.
+          if [ -f .github/flink-sql-runner-pr-info.txt ]; then
+            git rm .github/flink-sql-runner-pr-info.txt
+          fi
+
+          if git diff --staged --quiet; then
+            echo "No revert changes to commit"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -s -S \
+              -m "Revert flink-sql-runner PR #${PR_NUMBER} test overrides after merge"
+            git push origin "${BRANCH_NAME}"
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Close or comment on cloud-compilation PR
+        if: steps.branch_exists.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CC_PR=$(gh pr list \
+            --repo DataSQRL/cloud-compilation \
+            --head "${BRANCH_NAME}" \
+            --json number --jq '.[0].number' || echo "")
+
+          if [ -z "$CC_PR" ]; then
+            echo "No cloud-compilation PR open for this branch."
+            exit 0
+          fi
+
+          git fetch origin "${BRANCH_NAME}" "${BASE_REF}"
+          if git diff --quiet "origin/${BASE_REF}" "origin/${BRANCH_NAME}"; then
+            gh pr close "${CC_PR}" \
+              --repo DataSQRL/cloud-compilation \
+              --delete-branch \
+              --comment "Automatically closed: all test overrides have been reverted after flink-sql-runner PR #${PR_NUMBER} was merged."
+          else
+            gh pr comment "${CC_PR}" \
+              --repo DataSQRL/cloud-compilation \
+              --body "✅ flink-sql-runner PR #${PR_NUMBER} merged. Test overrides reverted, but branch still has changes vs ${BASE_REF} — manual review needed."
+          fi
+
+      - name: Comment on flink-sql-runner PR
+        if: steps.branch_exists.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CC_PR_URL=$(gh pr list \
+            --repo DataSQRL/cloud-compilation \
+            --head "${BRANCH_NAME}" \
+            --state all \
+            --json url --jq '.[0].url' || echo "")
+
+          if [ -n "$CC_PR_URL" ]; then
+            gh pr comment "${PR_NUMBER}" \
+              --repo "${{ github.repository }}" \
+              --body "✅ Cloud-compilation PR has been cleaned up: ${CC_PR_URL}"
+          fi
+
+  comment-on-close-without-merge:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Comment on cloud-compilation PR (if exists)
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CC_PR=$(gh pr list \
+            --repo DataSQRL/cloud-compilation \
+            --head "${BRANCH_NAME}" \
+            --json number --jq '.[0].number' || echo "")
+
+          if [ -n "$CC_PR" ]; then
+            gh pr comment "${CC_PR}" \
+              --repo DataSQRL/cloud-compilation \
+              --body "⚠️ flink-sql-runner PR #${PR_NUMBER} was closed without merging. This PR can be closed."
+          fi
