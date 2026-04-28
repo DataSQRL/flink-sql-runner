@@ -4,7 +4,7 @@ on:
   issue_comment:
     types: [created]
   pull_request:
-    types: [synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, labeled, unlabeled, closed]
 
 jobs:
   decide:
@@ -15,7 +15,7 @@ jobs:
         contains(github.event.comment.body, '/test-cloud-compilation')
       ) || (
         github.event_name == 'pull_request' &&
-        (github.event.action == 'synchronize' || github.event.action == 'reopened') &&
+        github.event.action != 'closed' &&
         !github.event.pull_request.draft
       )
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
       - name: Authorize commenter
         if: github.event_name == 'issue_comment'
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PERM=$(gh api \
             "/repos/${{ github.repository }}/collaborators/${{ github.event.comment.user.login }}/permission" \
@@ -48,7 +48,7 @@ jobs:
       - name: Add eyes reaction
         if: github.event_name == 'issue_comment'
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -70,22 +70,23 @@ jobs:
           HEAD_REF=$(echo "$PR_DATA" | jq -r .head.ref)
           HEAD_SHA=$(echo "$PR_DATA" | jq -r .head.sha)
           BASE_REF=$(echo "$PR_DATA" | jq -r .base.ref)
-          URL=$(echo "$PR_DATA"    | jq -r .html_url)
-          TITLE=$(echo "$PR_DATA"  | jq -r .title)
+          URL=$(echo    "$PR_DATA" | jq -r .html_url)
+          TITLE=$(echo  "$PR_DATA" | jq -r .title)
+          HAS_LABEL=$(echo "$PR_DATA" | jq -r '.labels | any(.name == "cloud-compilation")')
 
-          # For pull_request triggers, only proceed if a cloud-compilation branch
-          # already exists for this PR (i.e. /test-cloud-compilation was invoked
-          # at least once). For issue_comment, always proceed.
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            if ! gh api "/repos/DataSQRL/cloud-compilation/branches/${HEAD_REF}" >/dev/null 2>&1; then
-              echo "No cloud-compilation branch exists for this PR yet — skipping auto-sync"
-              echo "should_sync=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+          # Sync when:
+          #   - the workflow was triggered by /test-cloud-compilation, or
+          #   - the PR carries the `cloud-compilation` label.
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            SHOULD_SYNC=true
+          elif [[ "$HAS_LABEL" == "true" ]]; then
+            SHOULD_SYNC=true
+          else
+            SHOULD_SYNC=false
           fi
 
-          echo "should_sync=true" >> "$GITHUB_OUTPUT"
           {
+            echo "should_sync=${SHOULD_SYNC}"
             echo "pr_number=${PR_NUMBER}"
             echo "head_ref=${HEAD_REF}"
             echo "head_sha=${HEAD_SHA}"
@@ -98,10 +99,54 @@ jobs:
             echo "__PR_TITLE_EOF__"
           } >> "$GITHUB_OUTPUT"
 
-  sync:
+  add-label-from-comment:
+    needs: decide
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add cloud-compilation label
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+        run: |
+          # Idempotent — adding an already-present label is a no-op.
+          # BOT_PAT is used so any resulting `pull_request: labeled` event
+          # actually re-triggers downstream workflows; GITHUB_TOKEN won't.
+          gh pr edit "${PR_NUMBER}" \
+            --repo "${{ github.repository }}" \
+            --add-label "cloud-compilation"
+
+  skip-compilation-check:
+    needs: decide
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.decide.outputs.should_sync == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post passing status for cloud-compilation/build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: 'success',
+              context: 'cloud-compilation/build',
+              description: 'Skipped — cloud-compilation label not set'
+            });
+
+  sync-compilation-pr:
     needs: decide
     if: needs.decide.outputs.should_sync == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: sync-cc-${{ needs.decide.outputs.pr_number }}
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: write
@@ -121,18 +166,30 @@ jobs:
           path: compilation
 
       - name: Import GPG key
+        id: gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          printf '%s\n' "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg_key.asc
-          gpg --batch --import /tmp/gpg_key.asc
-          rm /tmp/gpg_key.asc
-          gpg --list-secret-keys --keyid-format=long
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
+            | awk -F: '/^sec/ {print $5; exit}')
+          if [ -z "$KEY_ID" ]; then
+            echo "Failed to determine GPG key id"
+            exit 1
+          fi
+          mkdir -p ~/.gnupg
+          echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
+        env:
+          KEY_ID: ${{ steps.gpg.outputs.key_id }}
         run: |
           cd compilation
           git config user.name "Datasqrl - Automation Bot"
           git config user.email "bot@datasqrl.com"
-          git config user.signingkey "${{ secrets.GPG_KEY_ID }}"
+          git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 
       - name: Create or update branch
@@ -250,11 +307,7 @@ jobs:
           ## flink-sql-runner PR
           ${PR_URL}
 
-          ## Status
-          - [ ] E2E tests passing
-          - [ ] Ready for manual review if needed
-
-          **Note:** This PR must be closed manually after the flink-sql-runner PR is merged.
+          **Note:** This PR will be auto-cleaned up when the flink-sql-runner PR is merged or closed.
           EOF
           )
 
@@ -268,22 +321,19 @@ jobs:
               --base "${BASE_REF}" \
               --head "${{ steps.branch.outputs.branch_name }}" \
               --label "flink-sql-runner"
-            CREATED=true
           else
             echo "Updating existing PR #${EXISTING_PR}..."
             gh pr edit "${EXISTING_PR}" \
               --title "${FULL_TITLE}" \
               --body "${BODY}"
-            CREATED=false
           fi
 
           COMPILATION_PR_URL=$(gh pr list --head "${{ steps.branch.outputs.branch_name }}" --json url --jq '.[0].url')
           echo "url=${COMPILATION_PR_URL}" >> "$GITHUB_OUTPUT"
-          echo "created=${CREATED}" >> "$GITHUB_OUTPUT"
 
       - name: Comment on flink-sql-runner PR
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
           CC_PR_URL: ${{ steps.cc-pr.outputs.url }}
         run: |
@@ -308,7 +358,7 @@ jobs:
       - name: Add rocket reaction
         if: success() && github.event_name == 'issue_comment'
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -318,7 +368,7 @@ jobs:
       - name: Add failure reaction
         if: failure() && github.event_name == 'issue_comment'
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -358,18 +408,31 @@ jobs:
           fetch-depth: 0
 
       - name: Import GPG key
+        id: gpg
         if: steps.branch_exists.outputs.exists == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          printf '%s\n' "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg_key.asc
-          gpg --batch --import /tmp/gpg_key.asc
-          rm /tmp/gpg_key.asc
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
+            | awk -F: '/^sec/ {print $5; exit}')
+          if [ -z "$KEY_ID" ]; then
+            echo "Failed to determine GPG key id"
+            exit 1
+          fi
+          mkdir -p ~/.gnupg
+          echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
         if: steps.branch_exists.outputs.exists == 'true'
+        env:
+          KEY_ID: ${{ steps.gpg.outputs.key_id }}
         run: |
           git config user.name "Datasqrl - Automation Bot"
           git config user.email "bot@datasqrl.com"
-          git config user.signingkey "${{ secrets.GPG_KEY_ID }}"
+          git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 
       - name: Revert PR-test changes
@@ -382,12 +445,10 @@ jobs:
         run: |
           git checkout "${BRANCH_NAME}"
 
-          # Restore the files we touched back to the base branch state.
           git checkout "origin/${BASE_REF}" -- \
             cloud-compilation/src/main/resources/application.yaml \
             integration-tests/config/application-override.yaml || true
 
-          # Drop the PR tracking file if it exists.
           if [ -f .github/flink-sql-runner-pr-info.txt ]; then
             git rm .github/flink-sql-runner-pr-info.txt
           fi
@@ -446,7 +507,7 @@ jobs:
             --json url --jq '.[0].url' || echo "")
 
           if [ -n "$CC_PR_URL" ]; then
-            gh pr comment "${PR_NUMBER}" \
+            GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh pr comment "${PR_NUMBER}" \
               --repo "${{ github.repository }}" \
               --body "✅ Cloud-compilation PR has been cleaned up: ${CC_PR_URL}"
           fi
