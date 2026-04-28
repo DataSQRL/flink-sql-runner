@@ -210,7 +210,24 @@ In addition to the configuration options exposed by the original kafka connector
 | scan.deser-failure.topic   | -       | String | The topic for the dead-letter-queue that failed messages are written to. Required when the handler is configured to `kafka`.      |
 
 > [!NOTE]  
-> The dead-letter-queue producer will use the same Kafka configuration, that is provided for the Flink SQL table that reads the data.
+> The dead-letter-queue producer will use the same Kafka configuration that is provided for the Flink SQL table that reads the data.
+
+### Conflict Handling for PostgreSQL Sinks
+
+The [JDBC connector for PostgreSQL](connectors/postgresql-connector) (`jdbc-sqrl`) supports configurable behavior when an inserted row conflicts with an existing row on the primary key. The action is selected via the following options:
+
+| Options                           | Default | Type   | Description                                                                                                                                          |
+|-----------------------------------|---------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| sink.on-conflict.action           | update  | Enum   | One of `update`, `timestamp`, or `ignore`. Selects how primary-key conflicts are resolved on the sink.                                               |
+| sink.on-conflict.timestamp-column | -       | String | The column used to compare incoming and existing rows when the action is `timestamp`. Required when `sink.on-conflict.action` is set to `timestamp`. |
+
+The `sink.on-conflict.action` values map to the following PostgreSQL `ON CONFLICT` behaviors:
+
+- `update`: The existing row is overwritten with the incoming row (`ON CONFLICT (...) DO UPDATE SET ...`). This is the default.
+- `timestamp`: The existing row is overwritten only if the incoming row's `sink.on-conflict.timestamp-column` value is strictly greater than the existing row's. 
+  Otherwise, the conflicting insert is silently skipped, so out-of-order events do not roll back newer state.
+- `ignore`: The existing row is kept, and the conflicting insert is silently skipped (`ON CONFLICT (...) DO NOTHING`).
+
 
 ### JSONB Type
 

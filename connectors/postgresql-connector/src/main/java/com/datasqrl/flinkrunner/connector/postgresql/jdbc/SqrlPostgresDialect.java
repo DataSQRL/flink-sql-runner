@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
+import com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.OnConflictAction;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
 import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.core.database.dialect.JdbcDialectConverter;
 import org.apache.flink.table.api.ValidationException;
@@ -34,6 +37,7 @@ import org.apache.flink.table.types.logical.RowType.RowField;
  *
  * <p>SQRL: Add quoting to identifiers
  */
+@RequiredArgsConstructor
 public class SqrlPostgresDialect extends AbstractDialect {
 
   private static final long serialVersionUID = -6927341136238028282L;
@@ -46,6 +50,9 @@ public class SqrlPostgresDialect extends AbstractDialect {
   // https://www.postgresql.org/docs/12/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
   private static final int MAX_DECIMAL_PRECISION = 1000;
   private static final int MIN_DECIMAL_PRECISION = 1;
+
+  private final OnConflictAction onConflictAction;
+  @Nullable private final String onConflictTimestampCol;
 
   @Override
   public JdbcDialectConverter getRowConverter(RowType rowType) {
@@ -62,23 +69,46 @@ public class SqrlPostgresDialect extends AbstractDialect {
     return Optional.of("org.postgresql.Driver");
   }
 
-  /** Postgres upsert query. It use ON CONFLICT ... DO UPDATE SET.. to replace into Postgres. */
+  /** Postgres upsert query. */
   @Override
   public Optional<String> getUpsertStatement(
       String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+    var insertStatement = getInsertIntoStatement(tableName, fieldNames);
     var uniqueColumns =
         Arrays.stream(uniqueKeyFields).map(this::quoteIdentifier).collect(Collectors.joining(", "));
-    var updateClause =
-        Arrays.stream(fieldNames)
-            .map(f -> quoteIdentifier(f) + "=EXCLUDED." + quoteIdentifier(f))
-            .collect(Collectors.joining(", "));
-    return Optional.of(
-        getInsertIntoStatement(tableName, fieldNames)
-            + " ON CONFLICT ("
-            + uniqueColumns
-            + ")"
-            + " DO UPDATE SET "
-            + updateClause);
+
+    return switch (onConflictAction) {
+      case IGNORE ->
+          Optional.of(insertStatement + " ON CONFLICT (" + uniqueColumns + ") DO NOTHING");
+      case UPDATE ->
+          Optional.of(
+              insertStatement
+                  + " ON CONFLICT ("
+                  + uniqueColumns
+                  + ") DO UPDATE SET "
+                  + buildUpdateClause(fieldNames));
+      case TIMESTAMP -> {
+        var quotedTsCol = quoteIdentifier(onConflictTimestampCol);
+        yield Optional.of(
+            insertStatement
+                + " ON CONFLICT ("
+                + uniqueColumns
+                + ") DO UPDATE SET "
+                + buildUpdateClause(fieldNames)
+                + " WHERE EXCLUDED."
+                + quotedTsCol
+                + " > "
+                + quoteIdentifier(tableName)
+                + "."
+                + quotedTsCol);
+      }
+    };
+  }
+
+  private String buildUpdateClause(String[] fieldNames) {
+    return Arrays.stream(fieldNames)
+        .map(f -> quoteIdentifier(f) + "=EXCLUDED." + quoteIdentifier(f))
+        .collect(Collectors.joining(", "));
   }
 
   @Override
