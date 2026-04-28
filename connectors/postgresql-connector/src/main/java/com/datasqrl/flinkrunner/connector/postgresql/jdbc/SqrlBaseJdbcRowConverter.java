@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
-import static com.datasqrl.connector.postgresql.type.FlinkArrayTypeUtil.getBaseFlinkArrayType;
-import static com.datasqrl.connector.postgresql.type.FlinkArrayTypeUtil.isScalarArray;
-import static com.datasqrl.connector.postgresql.type.PostgresArrayTypeConverter.getArrayScalarName;
+import static com.datasqrl.flinkrunner.connector.postgresql.type.FlinkArrayTypeUtil.getBaseFlinkArrayType;
+import static com.datasqrl.flinkrunner.connector.postgresql.type.FlinkArrayTypeUtil.isScalarArray;
+import static com.datasqrl.flinkrunner.connector.postgresql.type.PostgresArrayTypeConverter.getArrayScalarName;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 
 import java.sql.Array;

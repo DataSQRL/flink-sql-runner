@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SqrlPostgresOptions {
@@ -38,7 +40,7 @@ public class SqrlPostgresOptions {
   public static final ConfigOption<String> SINK_ON_CONFLICT_COLUMN =
       ConfigOptions.key("sink.on-conflict.timestamp-column").stringType().noDefaultValue();
 
-  public static void validateOnConflictOptions(ReadableConfig tableOptions) {
+  public static void validateOnConflictOptions(ReadableConfig tableOptions, DataType dataType) {
     var onConflict = tableOptions.get(SINK_ON_CONFLICT);
     var timestampColumn = tableOptions.get(SINK_ON_CONFLICT_COLUMN);
 
@@ -49,6 +51,24 @@ public class SqrlPostgresOptions {
                   SINK_ON_CONFLICT.key(),
                   OnConflictAction.TIMESTAMP,
                   SINK_ON_CONFLICT_COLUMN.key()));
+    }
+
+    if (onConflict == OnConflictAction.TIMESTAMP) {
+      var fieldNames = DataType.getFieldNames(dataType);
+      var fieldIndex = fieldNames.indexOf(timestampColumn);
+
+      if (fieldIndex < 0) {
+        throw new IllegalArgumentException(
+            "'%s' is set to '%s', but no such column exists in the table schema."
+                .formatted(SINK_ON_CONFLICT_COLUMN.key(), timestampColumn));
+      }
+
+      var fieldType = DataType.getFieldDataTypes(dataType).get(fieldIndex).getLogicalType();
+      if (!fieldType.isAnyOf(LogicalTypeFamily.TIMESTAMP)) {
+        throw new IllegalArgumentException(
+            "'%s' is set to '%s', but the column type '%s' is not a TIMESTAMP type."
+                .formatted(SINK_ON_CONFLICT_COLUMN.key(), timestampColumn, fieldType));
+      }
     }
   }
 }

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
-import com.datasqrl.connector.postgresql.jdbc.SqrlPostgresOptions.OnConflictAction;
+import com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.OnConflictAction;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;

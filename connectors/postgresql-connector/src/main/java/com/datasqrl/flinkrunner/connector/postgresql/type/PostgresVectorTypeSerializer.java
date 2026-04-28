@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.type;
+package com.datasqrl.flinkrunner.connector.postgresql.type;
 
-import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonType;
-import com.datasqrl.flinkrunner.stdlib.json.FlinkJsonTypeSerializer;
+import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
+import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorTypeSerializer;
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
 import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcSerializationConverter;
 import org.apache.flink.table.data.RawValueData;
@@ -25,7 +26,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.postgresql.util.PGobject;
 
 @AutoService(JdbcTypeSerializer.class)
-public class PostgresJsonTypeSerializer
+public class PostgresVectorTypeSerializer
     implements JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter> {
 
   @Override
@@ -35,44 +36,42 @@ public class PostgresJsonTypeSerializer
 
   @Override
   public Class getConversionClass() {
-    return FlinkJsonType.class;
+    return FlinkVectorType.class;
   }
 
   @Override
   public String dialectTypeName() {
-    return "jsonb";
+    return "vector";
   }
 
   @Override
   public GenericDeserializationConverter<JdbcDeserializationConverter> getDeserializerConverter() {
     return () ->
         (val) -> {
-          FlinkJsonType t = (FlinkJsonType) val;
-          return t.getJson();
+          var t = (FlinkVectorType) val;
+          return t.getValue();
         };
   }
 
   @Override
   public GenericSerializationConverter<JdbcSerializationConverter> getSerializerConverter(
       LogicalType type) {
-    FlinkJsonTypeSerializer typeSerializer = new FlinkJsonTypeSerializer();
-
+    var flinkVectorTypeSerializer = new FlinkVectorTypeSerializer();
     return () ->
         (val, index, statement) -> {
           if (val != null && !val.isNullAt(index)) {
-            PGobject pgObject = new PGobject();
-            pgObject.setType("json");
-            RawValueData<FlinkJsonType> object = val.getRawValue(index);
-            FlinkJsonType vec = object.toObject(typeSerializer);
-            if (vec == null) {
-              statement.setObject(index, null);
-            } else {
-              pgObject.setValue(vec.getJson().toString());
+            RawValueData<FlinkVectorType> object = val.getRawValue(index);
+            var vec = object.toObject(flinkVectorTypeSerializer);
+
+            if (vec != null) {
+              var pgObject = new PGobject();
+              pgObject.setType("vector");
+              pgObject.setValue(Arrays.toString(vec.getValue()));
               statement.setObject(index, pgObject);
+              return;
             }
-          } else {
-            statement.setObject(index, null);
           }
+          statement.setObject(index, null);
         };
   }
 }

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
-import static com.datasqrl.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT;
-import static com.datasqrl.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT_COLUMN;
-import static com.datasqrl.connector.postgresql.jdbc.SqrlPostgresOptions.validateOnConflictOptions;
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT;
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT_COLUMN;
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.validateOnConflictOptions;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.DRIVER;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.LOOKUP_CACHE_MISSING_KEY;
@@ -82,7 +82,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
 
     helper.validate();
     validateConfigOptions(config);
-    validateOnConflictOptions(config);
+    validateOnConflictOptions(config, context.getPhysicalRowDataType());
     validateDataTypeWithJdbcDialect(
         config, context.getPhysicalRowDataType(), context.getClassLoader());
     var jdbcOptions = getJdbcOptions(config, context.getClassLoader());
