@@ -150,7 +150,21 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      statuses: write
     steps:
+      - name: Post pending status for cloud-compilation/build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ needs.decide.outputs.pr_head_sha }}',
+              state: 'pending',
+              context: 'cloud-compilation/build',
+              description: 'Syncing changes to cloud-compilation...'
+            });
+
       - name: Checkout flink-sql-runner repo
         uses: actions/checkout@v4
         with:
@@ -173,22 +187,32 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
             | awk -F: '/^sec/ {print $5; exit}')
-          if [ -z "$KEY_ID" ]; then
-            echo "Failed to determine GPG key id"
+          UID_LINE=$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^uid/ {print $10; exit}')
+          USER_NAME=$(echo "$UID_LINE" | sed -E 's/ *<[^>]+>$//')
+          USER_EMAIL=$(echo "$UID_LINE" | sed -E 's/.*<([^>]+)>.*/\1/')
+          if [ -z "$KEY_ID" ] || [ -z "$USER_EMAIL" ]; then
+            echo "Failed to determine GPG key id / uid (key_id=${KEY_ID}, uid=${UID_LINE})"
             exit 1
           fi
           mkdir -p ~/.gnupg
           echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
+          {
+            echo "key_id=${KEY_ID}"
+            echo "user_name=${USER_NAME}"
+            echo "user_email=${USER_EMAIL}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configure git
         env:
           KEY_ID: ${{ steps.gpg.outputs.key_id }}
+          USER_NAME: ${{ steps.gpg.outputs.user_name }}
+          USER_EMAIL: ${{ steps.gpg.outputs.user_email }}
         run: |
           cd compilation
-          git config user.name "Datasqrl - Automation Bot"
-          git config user.email "bot@datasqrl.com"
+          git config user.name "${USER_NAME}"
+          git config user.email "${USER_EMAIL}"
           git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 
@@ -355,6 +379,20 @@ jobs:
             echo "Comment already exists, skipping..."
           fi
 
+      - name: Post failure status for cloud-compilation/build
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ needs.decide.outputs.pr_head_sha }}',
+              state: 'failure',
+              context: 'cloud-compilation/build',
+              description: 'Sync to cloud-compilation failed'
+            });
+
       - name: Add rocket reaction
         if: success() && github.event_name == 'issue_comment'
         env:
@@ -416,22 +454,32 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
             | awk -F: '/^sec/ {print $5; exit}')
-          if [ -z "$KEY_ID" ]; then
-            echo "Failed to determine GPG key id"
+          UID_LINE=$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^uid/ {print $10; exit}')
+          USER_NAME=$(echo "$UID_LINE" | sed -E 's/ *<[^>]+>$//')
+          USER_EMAIL=$(echo "$UID_LINE" | sed -E 's/.*<([^>]+)>.*/\1/')
+          if [ -z "$KEY_ID" ] || [ -z "$USER_EMAIL" ]; then
+            echo "Failed to determine GPG key id / uid (key_id=${KEY_ID}, uid=${UID_LINE})"
             exit 1
           fi
           mkdir -p ~/.gnupg
           echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
+          {
+            echo "key_id=${KEY_ID}"
+            echo "user_name=${USER_NAME}"
+            echo "user_email=${USER_EMAIL}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configure git
         if: steps.branch_exists.outputs.exists == 'true'
         env:
           KEY_ID: ${{ steps.gpg.outputs.key_id }}
+          USER_NAME: ${{ steps.gpg.outputs.user_name }}
+          USER_EMAIL: ${{ steps.gpg.outputs.user_email }}
         run: |
-          git config user.name "Datasqrl - Automation Bot"
-          git config user.email "bot@datasqrl.com"
+          git config user.name "${USER_NAME}"
+          git config user.email "${USER_EMAIL}"
           git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 
