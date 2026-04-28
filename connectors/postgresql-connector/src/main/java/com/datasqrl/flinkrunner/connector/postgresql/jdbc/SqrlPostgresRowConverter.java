@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
-import com.datasqrl.connector.postgresql.type.JdbcTypeSerializer;
+import com.datasqrl.flinkrunner.connector.postgresql.type.JdbcTypeSerializer;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.ServiceLoader;

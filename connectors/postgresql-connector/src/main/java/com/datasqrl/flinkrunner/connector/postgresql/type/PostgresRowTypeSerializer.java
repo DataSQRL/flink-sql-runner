@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.type;
+package com.datasqrl.flinkrunner.connector.postgresql.type;
 
-import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorType;
-import com.datasqrl.flinkrunner.stdlib.vector.FlinkVectorTypeSerializer;
+import com.datasqrl.flinkrunner.format.json.SqrlRowDataToJsonConverters;
 import com.google.auto.service.AutoService;
-import java.util.Arrays;
 import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcDeserializationConverter;
 import org.apache.flink.connector.jdbc.core.database.dialect.AbstractDialectConverter.JdbcSerializationConverter;
-import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions.MapNullKeyMode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.Row;
 import org.postgresql.util.PGobject;
 
 @AutoService(JdbcTypeSerializer.class)
-public class PostgresVectorTypeSerializer
+public class PostgresRowTypeSerializer
     implements JdbcTypeSerializer<JdbcDeserializationConverter, JdbcSerializationConverter> {
 
   @Override
@@ -36,42 +38,44 @@ public class PostgresVectorTypeSerializer
 
   @Override
   public Class getConversionClass() {
-    return FlinkVectorType.class;
+    return Row[].class;
   }
 
   @Override
   public String dialectTypeName() {
-    return "vector";
+    return "jsonb";
   }
 
   @Override
   public GenericDeserializationConverter<JdbcDeserializationConverter> getDeserializerConverter() {
-    return () ->
-        (val) -> {
-          var t = (FlinkVectorType) val;
-          return t.getValue();
-        };
+    return () -> (val) -> null;
   }
 
   @Override
   public GenericSerializationConverter<JdbcSerializationConverter> getSerializerConverter(
       LogicalType type) {
-    var flinkVectorTypeSerializer = new FlinkVectorTypeSerializer();
+    var mapper = new ObjectMapper();
     return () ->
         (val, index, statement) -> {
           if (val != null && !val.isNullAt(index)) {
-            RawValueData<FlinkVectorType> object = val.getRawValue(index);
-            var vec = object.toObject(flinkVectorTypeSerializer);
+            var rowDataToJsonConverter =
+                new SqrlRowDataToJsonConverters(
+                    TimestampFormat.SQL, MapNullKeyMode.DROP, "null", false);
 
-            if (vec != null) {
-              var pgObject = new PGobject();
-              pgObject.setType("vector");
-              pgObject.setValue(Arrays.toString(vec.getValue()));
-              statement.setObject(index, pgObject);
-              return;
-            }
+            var arrayType = (ArrayType) type;
+            var objectNode = mapper.createObjectNode();
+            var convert =
+                rowDataToJsonConverter
+                    .createConverter(arrayType.getElementType())
+                    .convert(mapper, objectNode, val);
+
+            var pgObject = new PGobject();
+            pgObject.setType("json");
+            pgObject.setValue(convert.toString());
+            statement.setObject(index, pgObject);
+          } else {
+            statement.setObject(index, null);
           }
-          statement.setObject(index, null);
         };
   }
 }

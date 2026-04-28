@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.connector.postgresql.jdbc;
+package com.datasqrl.flinkrunner.connector.postgresql.jdbc;
 
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT;
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.SINK_ON_CONFLICT_COLUMN;
+import static com.datasqrl.flinkrunner.connector.postgresql.jdbc.SqrlPostgresOptions.validateOnConflictOptions;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.DRIVER;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.jdbc.core.table.JdbcConnectorOptions.LOOKUP_CACHE_MISSING_KEY;
@@ -78,9 +81,10 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
     final var config = helper.getOptions();
 
     helper.validate();
-    validateConfigOptions(config, context.getClassLoader());
+    validateConfigOptions(config);
+    validateOnConflictOptions(config, context.getPhysicalRowDataType());
     validateDataTypeWithJdbcDialect(
-        context.getPhysicalRowDataType(), config.get(URL), context.getClassLoader());
+        config, context.getPhysicalRowDataType(), context.getClassLoader());
     var jdbcOptions = getJdbcOptions(config, context.getClassLoader());
 
     return new JdbcDynamicTableSink(
@@ -92,21 +96,20 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
   }
 
   private static void validateDataTypeWithJdbcDialect(
-      DataType dataType, String url, ClassLoader classLoader) {
-    var dialect = loadDialect(url, classLoader);
+      ReadableConfig config, DataType dataType, ClassLoader classLoader) {
 
+    var dialect = loadDialect(config, classLoader);
     dialect.validate((RowType) dataType.getLogicalType());
   }
 
   private InternalJdbcConnectionOptions getJdbcOptions(
       ReadableConfig readableConfig, ClassLoader classLoader) {
-    final var url = readableConfig.get(URL);
     final var builder =
         InternalJdbcConnectionOptions.builder()
             .setClassLoader(classLoader)
-            .setDBUrl(url)
+            .setDBUrl(readableConfig.get(URL))
             .setTableName(readableConfig.get(TABLE_NAME))
-            .setDialect(loadDialect(url, classLoader))
+            .setDialect(loadDialect(readableConfig, classLoader))
             .setParallelism(readableConfig.getOptional(SINK_PARALLELISM).orElse(null))
             .setConnectionCheckTimeoutSeconds(
                 (int) readableConfig.get(MAX_RETRY_TIMEOUT).getSeconds());
@@ -117,13 +120,19 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
     return builder.build();
   }
 
-  private static JdbcDialect loadDialect(String url, ClassLoader classLoader) {
+  private static JdbcDialect loadDialect(ReadableConfig config, ClassLoader classLoader) {
+    var url = config.get(URL);
     var dialect = JdbcFactoryLoader.loadDialect(url, classLoader);
-    // sqrl: standard postgres dialect with extended dialect
-    if (dialect.dialectName().equalsIgnoreCase("PostgreSQL")) {
-      return new SqrlPostgresDialect();
+
+    if (!dialect.dialectName().equalsIgnoreCase("PostgreSQL")) {
+      return dialect;
     }
-    return dialect;
+
+    // sqrl: standard postgres dialect with extended dialect
+    var onConflict = config.get(SINK_ON_CONFLICT);
+    var onConflictTsCol = config.get(SINK_ON_CONFLICT_COLUMN);
+
+    return new SqrlPostgresDialect(onConflict, onConflictTsCol);
   }
 
   private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
@@ -183,6 +192,8 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
     optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
     optionalOptions.add(SINK_MAX_RETRIES);
     optionalOptions.add(SINK_PARALLELISM);
+    optionalOptions.add(SINK_ON_CONFLICT);
+    optionalOptions.add(SINK_ON_CONFLICT_COLUMN);
     optionalOptions.add(MAX_RETRY_TIMEOUT);
     optionalOptions.add(LookupOptions.CACHE_TYPE);
     optionalOptions.add(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_ACCESS);
@@ -210,10 +221,7 @@ public class SqrlJdbcDynamicTableFactory implements DynamicTableSinkFactory {
         .collect(Collectors.toSet());
   }
 
-  private void validateConfigOptions(ReadableConfig config, ClassLoader classLoader) {
-    var jdbcUrl = config.get(URL);
-    //        JdbcDialectLoader.load(jdbcUrl, classLoader);
-
+  private void validateConfigOptions(ReadableConfig config) {
     checkAllOrNone(config, new ConfigOption[] {USERNAME, PASSWORD});
 
     checkAllOrNone(
