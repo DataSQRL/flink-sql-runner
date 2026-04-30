@@ -70,7 +70,7 @@ docker run -d --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name runner \
-  datasqrl/flink-sql-runner:0.9.5-flink-2.2 \
+  datasqrl/flink-sql-runner:0.10.0-flink-2.2 \
   cluster
 ```
 
@@ -111,7 +111,7 @@ metadata:
   name: sql-example
 spec:
   image: datasqrl/flink-sql-runner:latest
-  flinkVersion: v1_19
+  flinkVersion: v2_2
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "1"
   serviceAccount: flink
@@ -124,7 +124,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.9.5/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.10.0/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -182,13 +182,13 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.9.5</version>
+  <version>0.10.0</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.9.5'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.10.0'
 ```
 ---
 
