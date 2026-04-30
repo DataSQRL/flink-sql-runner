@@ -165,7 +165,9 @@ public class AbstractITSupport {
       execCmd.add(savepointPath);
     }
 
-    execCmd.add("./plugins/flink-sql-runner/flink-sql-runner.uber.jar");
+    execCmd.add("-c");
+    execCmd.add("com.datasqrl.flinkrunner.CliRunner");
+    execCmd.add("noop.jar");
     execCmd.addAll(sqlRunnerArgs);
 
     var execRes = flinkContainer.execInContainer(execCmd.toArray(new String[0]));
