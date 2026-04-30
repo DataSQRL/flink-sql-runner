@@ -182,37 +182,27 @@ jobs:
       - name: Import GPG key
         id: gpg
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
             | awk -F: '/^sec/ {print $5; exit}')
-          UID_LINE=$(gpg --list-secret-keys --with-colons \
-            | awk -F: '/^uid/ {print $10; exit}')
-          USER_NAME=$(echo "$UID_LINE" | sed -E 's/ *<[^>]+>$//')
-          USER_EMAIL=$(echo "$UID_LINE" | sed -E 's/.*<([^>]+)>.*/\1/')
-          if [ -z "$KEY_ID" ] || [ -z "$USER_EMAIL" ]; then
-            echo "Failed to determine GPG key id / uid (key_id=${KEY_ID}, uid=${UID_LINE})"
+          if [ -z "$KEY_ID" ]; then
+            echo "Failed to determine GPG key id"
             exit 1
           fi
           mkdir -p ~/.gnupg
           echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          {
-            echo "key_id=${KEY_ID}"
-            echo "user_name=${USER_NAME}"
-            echo "user_email=${USER_EMAIL}"
-          } >> "$GITHUB_OUTPUT"
+          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
         env:
           KEY_ID: ${{ steps.gpg.outputs.key_id }}
-          USER_NAME: ${{ steps.gpg.outputs.user_name }}
-          USER_EMAIL: ${{ steps.gpg.outputs.user_email }}
         run: |
           cd compilation
-          git config user.name "${USER_NAME}"
-          git config user.email "${USER_EMAIL}"
+          git config user.name "Datasqrl - Automation Bot"
+          git config user.email "bot@datasqrl.com"
           git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 
@@ -449,37 +439,27 @@ jobs:
         id: gpg
         if: steps.branch_exists.outputs.exists == 'true'
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.BOT_GPG_PRIVATE_KEY }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons \
             | awk -F: '/^sec/ {print $5; exit}')
-          UID_LINE=$(gpg --list-secret-keys --with-colons \
-            | awk -F: '/^uid/ {print $10; exit}')
-          USER_NAME=$(echo "$UID_LINE" | sed -E 's/ *<[^>]+>$//')
-          USER_EMAIL=$(echo "$UID_LINE" | sed -E 's/.*<([^>]+)>.*/\1/')
-          if [ -z "$KEY_ID" ] || [ -z "$USER_EMAIL" ]; then
-            echo "Failed to determine GPG key id / uid (key_id=${KEY_ID}, uid=${UID_LINE})"
+          if [ -z "$KEY_ID" ]; then
+            echo "Failed to determine GPG key id"
             exit 1
           fi
           mkdir -p ~/.gnupg
           echo "default-key ${KEY_ID}" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          {
-            echo "key_id=${KEY_ID}"
-            echo "user_name=${USER_NAME}"
-            echo "user_email=${USER_EMAIL}"
-          } >> "$GITHUB_OUTPUT"
+          echo "key_id=${KEY_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
         if: steps.branch_exists.outputs.exists == 'true'
         env:
           KEY_ID: ${{ steps.gpg.outputs.key_id }}
-          USER_NAME: ${{ steps.gpg.outputs.user_name }}
-          USER_EMAIL: ${{ steps.gpg.outputs.user_email }}
         run: |
-          git config user.name "${USER_NAME}"
-          git config user.email "${USER_EMAIL}"
+          git config user.name "Datasqrl - Automation Bot"
+          git config user.email "bot@datasqrl.com"
           git config user.signingkey "${KEY_ID}"
           git config commit.gpgsign true
 

@@ -16,8 +16,6 @@
 
 FROM apache/flink:${flink-base-image}
 
-RUN mkdir -p /opt/flink/plugins/flink-sql-runner
-
 COPY flink-table-planner_2.12-*.jar /opt/flink/lib
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
 COPY hadoop-common-*.jar /opt/flink/lib
@@ -26,11 +24,11 @@ COPY hadoop-mapreduce-client-core-*.jar /opt/flink/lib
 COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib
-COPY flink-sql-runner.uber.jar /opt/flink/plugins/flink-sql-runner
+COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 RUN rm -rf /opt/flink/lib/flink-table-planner-loader-*.jar \
-    && ln -s /opt/flink/plugins/flink-sql-runner/flink-sql-runner.uber.jar /opt/flink/flink-sql-runner.jar \
+    && echo 'UEsDBBQACAgIAG2UllwAAAAAAAAAAAAAAAAUAAQATUVUQS1JTkYvTUFOSUZFU1QuTUb+ygAA803My0xLLS7RDUstKs7Mz7NSMNQz4HIuSk0sSU3Rdaq0UkjLyczL1i0uzNEtKs3LSy3i4gIAUEsHCL/cUjU2AAAANAAAAFBLAQIUABQACAgIAG2Ully/3FI1NgAAADQAAAAUAAQAAAAAAAAAAAAAAAAAAABNRVRBLUlORi9NQU5JRkVTVC5NRv7KAABQSwUGAAAAAAEAAQBGAAAAfAAAAAAA' | base64 -d > /opt/flink/noop.jar \
     && mkdir -p /opt/flink/hadoop-conf \
     && echo '<configuration><property><name>fs.s3a.aws.credentials.provider</name><value>com.amazonaws.auth.DefaultAWSCredentialsProviderChain</value></property></configuration>' > /opt/flink/hadoop-conf/core-site.xml
 
