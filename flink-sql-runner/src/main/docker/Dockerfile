@@ -25,6 +25,7 @@ COPY iceberg-flink-runtime-*.jar /opt/flink/lib
 COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
+COPY --chmod=755 sql-runner /opt/flink/bin/sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 RUN rm -rf /opt/flink/lib/flink-table-planner-loader-*.jar \

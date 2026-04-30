@@ -158,16 +158,14 @@ public class AbstractITSupport {
 
   protected String flinkRun(List<String> sqlRunnerArgs, @Nullable String savepointPath)
       throws Exception {
-    var execCmd = new ArrayList<>(List.of("flink", "run"));
+    var execCmd = new ArrayList<>(List.of("sql-runner"));
 
     if (savepointPath != null) {
       execCmd.add("-s");
       execCmd.add(savepointPath);
+      execCmd.add("--");
     }
 
-    execCmd.add("-c");
-    execCmd.add("com.datasqrl.flinkrunner.CliRunner");
-    execCmd.add("noop.jar");
     execCmd.addAll(sqlRunnerArgs);
 
     var execRes = flinkContainer.execInContainer(execCmd.toArray(new String[0]));

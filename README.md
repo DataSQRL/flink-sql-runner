@@ -78,14 +78,17 @@ docker run -d --rm -it \
 In a separate terminal, run:
 
 ```bash
-docker exec -it runner flink run flink-sql-runner.jar --sqlfile /flink/sql/flink.sql
+docker exec -it runner sql-runner --sqlfile /flink/sql/flink.sql
 ```
 
 The job will be submitted to the embedded JobManager and executed using the local TaskManager.
 
 > [!NOTE]  
-> The `flink-sql-runner.jar` is a symlink placed in the Flink root directory (`/opt/flink`) for easier access, but the actual file resides in its own plugin directory: `/opt/flink/plugins/flink-sql-runner`.
-> It is possible to add any Flink arguments or run any accessible JAR, just like with a vanilla `flink run` command.
+> The [`sql-runner`](https://github.com/DataSQRL/flink-sql-runner/blob/main/flink-sql-runner/src/main/docker/sql-runner) wrapper submits the runner through `flink run` so you do not need to specify the main class or placeholder JAR manually.
+> The placeholder JAR is necessary because `sql-runner.jar` is shipped under Flink's `lib/` fodler, while the Flink CLI still requires a job JAR argument for `flink run`.
+> By default, all arguments are passed to the SQL runner, for example `sql-runner --sqlfile /flink/sql/flink.sql`.
+> To pass options to `flink run`, put them before `--`; arguments after `--` are passed to the SQL runner, for example `sql-runner -s /path/to/savepoint -- --planfile /flink/plan.json`.
+> You can also omit using `sql-runner` and directly use `flink run`, just make sure to pass the main class and use the `noop.jar`.
 
 4\. Inspect output
 If your SQL uses the print connector as a sink, you can check logs via:
