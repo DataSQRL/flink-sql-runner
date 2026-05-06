@@ -129,6 +129,12 @@
     <!-- Custom Connectors -->
     <dependency>
       <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>datagen-connectors</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
       <artifactId>kafka-safe-connector</artifactId>
       <version>${project.version}</version>
     </dependency>
