@@ -58,7 +58,7 @@ jobs:
       - name: Resolve PR metadata and gate
         id: gate
         env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
             PR_NUMBER=${{ github.event.issue.number }}
