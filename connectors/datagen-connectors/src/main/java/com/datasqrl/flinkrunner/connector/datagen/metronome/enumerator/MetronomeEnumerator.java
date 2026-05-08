@@ -44,10 +44,11 @@ public final class MetronomeEnumerator
     } else if (!state.isAssigned()) {
       context.assignSplit(MetronomeSplit.initial(), subtaskId);
       state = MetronomeEnumeratorState.assigned();
-
-    } else {
-      context.signalNoMoreSplits(subtaskId);
     }
+
+    // Since we only have 1 split every time, there will be no more splits even right after
+    // assignment.
+    context.signalNoMoreSplits(subtaskId);
   }
 
   @Override
