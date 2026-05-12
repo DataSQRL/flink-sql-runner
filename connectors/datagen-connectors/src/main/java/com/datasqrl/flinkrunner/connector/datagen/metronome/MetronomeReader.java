@@ -68,8 +68,9 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * second boundary.
    *
    * <p>The emitted sequence number is derived from wall-clock epoch seconds relative to the first
-   * observed start second. If the reader wakes up late, repeated calls emit all missing sequence
-   * numbers with their intended event timestamps until the source catches up.
+   * observed start second. If the reader wakes up late or recovers from a checkpoint, repeated
+   * calls emit all missing sequence numbers with the current wall-clock timestamp until the source
+   * catches up.
    */
   @Override
   public InputStatus pollNext(ReaderOutput<RowData> output) {
@@ -93,11 +94,10 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
 
     if (lastEmittedNumber < targetNumber) {
       long nextNumber = lastEmittedNumber + 1;
-      long eventTimestampSec = startTimestampSec + nextNumber;
-      long eventTimestampMillis = eventTimestampSec * 1000L;
+      long eventTimestampMillis = currentTimestampSec * 1000L;
       var row =
           GenericRowData.of(
-              nextNumber, TimestampData.fromInstant(Instant.ofEpochSecond(eventTimestampSec)));
+              nextNumber, TimestampData.fromInstant(Instant.ofEpochSecond(currentTimestampSec)));
       lastEmittedNumber = nextNumber;
       output.collect(row, eventTimestampMillis);
 
