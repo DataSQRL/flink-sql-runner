@@ -16,6 +16,27 @@
 
 FROM apache/flink:${flink-base-image}
 
+ARG ASYNC_PROFILER_VERSION=4.4
+ARG TARGETARCH
+
+USER root
+
+RUN set -eux; \
+    case "${TARGETARCH:-$(uname -m)}" in \
+      x86_64) ASYNC_PROFILER_ARCH="x64" ;; \
+      amd64) ASYNC_PROFILER_ARCH="x64" ;; \
+      aarch64) ASYNC_PROFILER_ARCH="arm64" ;; \
+      arm64) ASYNC_PROFILER_ARCH="arm64" ;; \
+      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && apt-get update \
+    && curl -fsSL "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}.tar.gz" -o /tmp/async-profiler.tar.gz \
+    && tar -xzf /tmp/async-profiler.tar.gz -C /opt \
+    && mv "/opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}" /opt/async-profiler \
+    && ln -s /opt/async-profiler/bin/asprof /usr/local/bin/asprof \
+    && rm -f /tmp/async-profiler.tar.gz \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY flink-table-planner_2.12-*.jar /opt/flink/lib
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
 COPY hadoop-common-*.jar /opt/flink/lib
@@ -31,7 +52,10 @@ COPY --chmod=755 entrypoint.sh /entrypoint.sh
 RUN rm -rf /opt/flink/lib/flink-table-planner-loader-*.jar \
     && echo 'UEsDBBQACAgIAG2UllwAAAAAAAAAAAAAAAAUAAQATUVUQS1JTkYvTUFOSUZFU1QuTUb+ygAA803My0xLLS7RDUstKs7Mz7NSMNQz4HIuSk0sSU3Rdaq0UkjLyczL1i0uzNEtKs3LSy3i4gIAUEsHCL/cUjU2AAAANAAAAFBLAQIUABQACAgIAG2Ully/3FI1NgAAADQAAAAUAAQAAAAAAAAAAAAAAAAAAABNRVRBLUlORi9NQU5JRkVTVC5NRv7KAABQSwUGAAAAAAEAAQBGAAAAfAAAAAAA' | base64 -d > /opt/flink/noop.jar \
     && mkdir -p /opt/flink/hadoop-conf \
-    && echo '<configuration><property><name>fs.s3a.aws.credentials.provider</name><value>com.amazonaws.auth.DefaultAWSCredentialsProviderChain</value></property></configuration>' > /opt/flink/hadoop-conf/core-site.xml
+    && echo '<configuration><property><name>fs.s3a.aws.credentials.provider</name><value>com.amazonaws.auth.DefaultAWSCredentialsProviderChain</value></property></configuration>' > /opt/flink/hadoop-conf/core-site.xml \
+    && chown -R flink:flink /opt/flink
+
+USER flink
 
 ENV HADOOP_CONF_DIR="/opt/flink/hadoop-conf"
 
