@@ -22,17 +22,16 @@ ARG TARGETARCH
 USER root
 
 # Install JDK 17 (replacing the default JRE)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        openjdk-17-jdk-headless \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
+    && ln -sf /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/java-17-openjdk \
     && rm -rf /var/lib/apt/lists/*
 
-# Update JAVA_HOME to point to JDK (handles both amd64 and arm64)
-RUN ln -sf /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/java-17-openjdk
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
 
-RUN set -eux; \
+# Download and setup async-profiler
+RUN set -eu; \
     case "${TARGETARCH:-$(uname -m)}" in \
       x86_64) ASYNC_PROFILER_ARCH="x64" ;; \
       amd64) ASYNC_PROFILER_ARCH="x64" ;; \
@@ -40,7 +39,6 @@ RUN set -eux; \
       arm64) ASYNC_PROFILER_ARCH="arm64" ;; \
       *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
-    && apt-get update \
     && curl -fsSL "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}.tar.gz" -o /tmp/async-profiler.tar.gz \
     && tar -xzf /tmp/async-profiler.tar.gz -C /opt \
     && mv "/opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}" /opt/async-profiler \
