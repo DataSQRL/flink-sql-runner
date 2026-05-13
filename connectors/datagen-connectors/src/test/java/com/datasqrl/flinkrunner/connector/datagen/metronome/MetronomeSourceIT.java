@@ -73,7 +73,7 @@ class MetronomeSourceIT { // extends TableITCaseBase {
   }
 
   @Test
-  void restoresReaderProgressFromCheckpointedSplit() {
+  void restoresReaderProgressWithCurrentTimestampFromCheckpointedSplit() {
     long startTimestampSec = Instant.now().getEpochSecond() - 3L;
     var reader = new MetronomeReader(unusedReaderContext(), 3L);
     var output = new CollectingReaderOutput();
@@ -81,8 +81,13 @@ class MetronomeSourceIT { // extends TableITCaseBase {
     try {
       reader.addSplits(List.of(new MetronomeSplit(1L, startTimestampSec)));
 
+      long beforePollSec = Instant.now().getEpochSecond();
       assertThat(reader.pollNext(output)).isEqualTo(InputStatus.MORE_AVAILABLE);
+      long afterPollSec = Instant.now().getEpochSecond();
+
       assertThat(output.numbers()).containsExactly(2L);
+      assertThat(output.eventTimestampSecs().get(0)).isBetween(beforePollSec, afterPollSec);
+      assertThat(output.rowTimestampSecs().get(0)).isBetween(beforePollSec, afterPollSec);
       assertThat(reader.snapshotState(1L))
           .containsExactly(new MetronomeSplit(2L, startTimestampSec));
     } finally {
@@ -138,6 +143,7 @@ class MetronomeSourceIT { // extends TableITCaseBase {
   private static final class CollectingReaderOutput implements ReaderOutput<RowData> {
 
     private final List<RowData> rows = new ArrayList<>();
+    private final List<Long> eventTimestamps = new ArrayList<>();
 
     @Override
     public void collect(RowData record) {
@@ -147,6 +153,7 @@ class MetronomeSourceIT { // extends TableITCaseBase {
     @Override
     public void collect(RowData record, long timestamp) {
       rows.add(record);
+      eventTimestamps.add(timestamp);
     }
 
     @Override
@@ -168,6 +175,14 @@ class MetronomeSourceIT { // extends TableITCaseBase {
 
     private List<Long> numbers() {
       return rows.stream().map(row -> row.getLong(0)).toList();
+    }
+
+    private List<Long> eventTimestampSecs() {
+      return eventTimestamps.stream().map(timestamp -> timestamp / 1000L).toList();
+    }
+
+    private List<Long> rowTimestampSecs() {
+      return rows.stream().map(row -> row.getTimestamp(1, 3).toInstant().getEpochSecond()).toList();
     }
   }
 }
