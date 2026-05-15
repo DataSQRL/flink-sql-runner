@@ -32,11 +32,16 @@ public class MetronomeTableSource implements ScanTableSource, SupportsLimitPushD
   private static final int SOURCE_PARALLELISM = 1;
 
   private final DataType rowDataType;
+  private final boolean replayOnFailure;
 
   @Nullable private Long numberOfRows;
 
   public MetronomeTableSource(DataType rowDataType) {
-    this(rowDataType, null);
+    this(rowDataType, true, null);
+  }
+
+  public MetronomeTableSource(DataType rowDataType, boolean replayOnFailure) {
+    this(rowDataType, replayOnFailure, null);
   }
 
   @Override
@@ -46,12 +51,13 @@ public class MetronomeTableSource implements ScanTableSource, SupportsLimitPushD
 
   @Override
   public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
-    return SourceProvider.of(new MetronomeSource(numberOfRows), SOURCE_PARALLELISM);
+    return SourceProvider.of(
+        new MetronomeSource(replayOnFailure, numberOfRows), SOURCE_PARALLELISM);
   }
 
   @Override
   public DynamicTableSource copy() {
-    return new MetronomeTableSource(rowDataType, numberOfRows);
+    return new MetronomeTableSource(rowDataType, replayOnFailure, numberOfRows);
   }
 
   @Override
