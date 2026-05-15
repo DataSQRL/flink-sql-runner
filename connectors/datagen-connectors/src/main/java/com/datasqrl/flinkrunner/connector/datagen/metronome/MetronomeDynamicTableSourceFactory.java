@@ -18,6 +18,7 @@ package com.datasqrl.flinkrunner.connector.datagen.metronome;
 import com.google.auto.service.AutoService;
 import java.util.Set;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
@@ -32,14 +33,21 @@ public class MetronomeDynamicTableSourceFactory implements DynamicTableSourceFac
 
   public static final String IDENTIFIER = "metronome";
 
+  public static final ConfigOption<Boolean> REPLAY_MISSED_EVENTS =
+      ConfigOptions.key("replay-missed-events")
+          .booleanType()
+          .defaultValue(true)
+          .withDescription("Whether to emit sequence numbers missed while the source was down.");
+
   @Override
   public DynamicTableSource createDynamicTableSource(Context context) {
-    FactoryUtil.createTableFactoryHelper(this, context).validate();
+    var helper = FactoryUtil.createTableFactoryHelper(this, context);
+    helper.validate();
 
     var rowDataType = context.getPhysicalRowDataType();
     validateSchema(rowDataType);
 
-    return new MetronomeTableSource(rowDataType);
+    return new MetronomeTableSource(rowDataType, helper.getOptions().get(REPLAY_MISSED_EVENTS));
   }
 
   @Override
@@ -54,7 +62,7 @@ public class MetronomeDynamicTableSourceFactory implements DynamicTableSourceFac
 
   @Override
   public Set<ConfigOption<?>> optionalOptions() {
-    return Set.of();
+    return Set.of(REPLAY_MISSED_EVENTS);
   }
 
   private static void validateSchema(DataType rowDataType) {

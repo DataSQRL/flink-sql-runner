@@ -38,10 +38,11 @@ public class MetronomeSource implements Source<RowData, MetronomeSplit, Metronom
 
   @Serial private static final long serialVersionUID = 1L;
 
+  private final boolean replayMissedEvents;
   @Nullable private final Long numberOfRows;
 
   public MetronomeSource() {
-    this(null);
+    this(true, null);
   }
 
   @Override
@@ -51,7 +52,7 @@ public class MetronomeSource implements Source<RowData, MetronomeSplit, Metronom
 
   @Override
   public SourceReader<RowData, MetronomeSplit> createReader(SourceReaderContext readerContext) {
-    return new MetronomeReader(readerContext, numberOfRows);
+    return new MetronomeReader(readerContext, replayMissedEvents, numberOfRows);
   }
 
   @Override

@@ -38,6 +38,7 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   public static final long UNINITIALIZED = Long.MIN_VALUE;
 
   private final SourceReaderContext readerContext;
+  private final boolean replayMissedEvents;
   @Nullable private final Long numberOfRows;
   private final ScheduledExecutorService availabilityExecutor;
 
@@ -48,9 +49,11 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   private long lastEmittedNumber;
   private long startTimestampSec;
 
-  public MetronomeReader(SourceReaderContext readerContext, @Nullable Long numberOfRows) {
+  public MetronomeReader(
+      SourceReaderContext readerContext, boolean replayMissedEvents, @Nullable Long numberOfRows) {
     this.readerContext = readerContext;
     this.numberOfRows = numberOfRows;
+    this.replayMissedEvents = replayMissedEvents;
     this.availability = new CompletableFuture<>();
     this.availabilityExecutor =
         Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("metronome-source"));
@@ -68,9 +71,10 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * second boundary.
    *
    * <p>The emitted sequence number is derived from wall-clock epoch seconds relative to the first
-   * observed start second. If the reader wakes up late or recovers from a checkpoint, repeated
-   * calls emit all missing sequence numbers with the current wall-clock timestamp until the source
-   * catches up.
+   * observed start second. When missed-event replay is enabled, if the reader wakes up late or
+   * recovers from a checkpoint, repeated calls emit all missing sequence numbers with the current
+   * wall-clock timestamp until the source catches up. When replay is disabled, the source advances
+   * the schedule to the current wall-clock second and emits only the next sequence number.
    */
   @Override
   public InputStatus pollNext(ReaderOutput<RowData> output) {
@@ -99,9 +103,14 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
           GenericRowData.of(
               nextNumber, TimestampData.fromInstant(Instant.ofEpochSecond(currentTimestampSec)));
       lastEmittedNumber = nextNumber;
+      if (!replayMissedEvents) {
+        startTimestampSec = currentTimestampSec - lastEmittedNumber;
+      }
       output.collect(row, eventTimestampMillis);
 
-      return lastEmittedNumber < targetNumber ? InputStatus.MORE_AVAILABLE : nextStatus();
+      return replayMissedEvents && lastEmittedNumber < targetNumber
+          ? InputStatus.MORE_AVAILABLE
+          : nextStatus();
     }
 
     return nextStatus();
@@ -111,7 +120,7 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * Snapshots the assigned split as the reader's progress state.
    *
    * <p>The split carries the only source progress that must survive failover: the last emitted
-   * sequence number and the source's fixed start epoch second.
+   * sequence number and the source's effective start epoch second.
    */
   @Override
   public List<MetronomeSplit> snapshotState(long checkpointId) {

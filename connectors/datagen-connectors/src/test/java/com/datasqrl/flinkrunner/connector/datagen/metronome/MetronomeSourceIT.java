@@ -73,9 +73,27 @@ class MetronomeSourceIT { // extends TableITCaseBase {
   }
 
   @Test
+  @Timeout(30)
+  void acceptsDisabledReplayOptionInSqlDdl() throws Exception {
+    tEnv.executeSql(
+        """
+            CREATE TABLE metronome_source_no_replay (
+              num BIGINT,
+              ts TIMESTAMP_LTZ(3),
+              WATERMARK FOR ts AS ts
+            ) WITH (
+              'connector' = 'metronome',
+              'replay-missed-events' = 'false'
+            )""");
+
+    assertThat(collectRows("SELECT num FROM metronome_source_no_replay", 1))
+        .containsExactly(Row.of(1L));
+  }
+
+  @Test
   void restoresReaderProgressWithCurrentTimestampFromCheckpointedSplit() {
     long startTimestampSec = Instant.now().getEpochSecond() - 3L;
-    var reader = new MetronomeReader(unusedReaderContext(), 3L);
+    var reader = new MetronomeReader(unusedReaderContext(), true, 3L);
     var output = new CollectingReaderOutput();
 
     try {
@@ -90,6 +108,33 @@ class MetronomeSourceIT { // extends TableITCaseBase {
       assertThat(output.rowTimestampSecs().get(0)).isBetween(beforePollSec, afterPollSec);
       assertThat(reader.snapshotState(1L))
           .containsExactly(new MetronomeSplit(2L, startTimestampSec));
+    } finally {
+      reader.close();
+    }
+  }
+
+  @Test
+  void skipsMissedEventsWhenReplayIsDisabled() {
+    long startTimestampSec = Instant.now().getEpochSecond() - 3L;
+    var reader = new MetronomeReader(unusedReaderContext(), false, 3L);
+    var output = new CollectingReaderOutput();
+
+    try {
+      reader.addSplits(List.of(new MetronomeSplit(1L, startTimestampSec)));
+
+      long beforePollSec = Instant.now().getEpochSecond();
+      assertThat(reader.pollNext(output)).isEqualTo(InputStatus.NOTHING_AVAILABLE);
+      long afterPollSec = Instant.now().getEpochSecond();
+
+      assertThat(output.numbers()).containsExactly(2L);
+      assertThat(output.eventTimestampSecs().get(0)).isBetween(beforePollSec, afterPollSec);
+      assertThat(output.rowTimestampSecs().get(0)).isBetween(beforePollSec, afterPollSec);
+
+      var snapshot = reader.snapshotState(1L);
+      assertThat(snapshot).hasSize(1);
+      assertThat(snapshot.get(0).lastEmittedNumber()).isEqualTo(2L);
+      assertThat(snapshot.get(0).startTimestampSec())
+          .isBetween(beforePollSec - 2L, afterPollSec - 2L);
     } finally {
       reader.close();
     }
