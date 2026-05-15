@@ -38,7 +38,7 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   public static final long UNINITIALIZED = Long.MIN_VALUE;
 
   private final SourceReaderContext readerContext;
-  private final boolean replayMissedEvents;
+  private final boolean replayOnFailure;
   @Nullable private final Long numberOfRows;
   private final ScheduledExecutorService availabilityExecutor;
 
@@ -46,19 +46,24 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   private boolean noMoreSplits;
   private boolean closed;
   private boolean splitAssigned;
+  private boolean skipReplayOnRecovery;
   private long lastEmittedNumber;
   private long startTimestampSec;
 
   public MetronomeReader(
-      SourceReaderContext readerContext, boolean replayMissedEvents, @Nullable Long numberOfRows) {
+      SourceReaderContext readerContext, boolean replayOnFailure, @Nullable Long numberOfRows) {
     this.readerContext = readerContext;
     this.numberOfRows = numberOfRows;
-    this.replayMissedEvents = replayMissedEvents;
+    this.replayOnFailure = replayOnFailure;
     this.availability = new CompletableFuture<>();
     this.availabilityExecutor =
         Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("metronome-source"));
     this.lastEmittedNumber = 0L;
     this.startTimestampSec = UNINITIALIZED;
+  }
+
+  public MetronomeReader(SourceReaderContext readerContext, @Nullable Long numberOfRows) {
+    this(readerContext, true, numberOfRows);
   }
 
   @Override
@@ -71,10 +76,10 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * second boundary.
    *
    * <p>The emitted sequence number is derived from wall-clock epoch seconds relative to the first
-   * observed start second. When missed-event replay is enabled, if the reader wakes up late or
-   * recovers from a checkpoint, repeated calls emit all missing sequence numbers with the current
-   * wall-clock timestamp until the source catches up. When replay is disabled, the source advances
-   * the schedule to the current wall-clock second and emits only the next sequence number.
+   * observed start second. If the reader wakes up late, repeated calls emit all missing sequence
+   * numbers with the current wall-clock timestamp until the source catches up. If checkpoint
+   * recovery replay is disabled, only the first poll after restoring checkpointed progress skips
+   * the recovery backlog.
    */
   @Override
   public InputStatus pollNext(ReaderOutput<RowData> output) {
@@ -96,6 +101,10 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
       targetNumber = Math.min(targetNumber, numberOfRows);
     }
 
+    // One-shot checkpoint recovery skip; normal late wakeups still replay.
+    boolean skipReplay = skipReplayOnRecovery;
+    skipReplayOnRecovery = false;
+
     if (lastEmittedNumber < targetNumber) {
       long nextNumber = lastEmittedNumber + 1;
       long eventTimestampMillis = currentTimestampSec * 1000L;
@@ -103,12 +112,14 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
           GenericRowData.of(
               nextNumber, TimestampData.fromInstant(Instant.ofEpochSecond(currentTimestampSec)));
       lastEmittedNumber = nextNumber;
-      if (!replayMissedEvents) {
+      if (skipReplay) {
+        // Realign time so the restored backlog is dropped after this record.
         startTimestampSec = currentTimestampSec - lastEmittedNumber;
       }
       output.collect(row, eventTimestampMillis);
 
-      return replayMissedEvents && lastEmittedNumber < targetNumber
+      // Skip waits for the next tick; otherwise drain due records until caught up.
+      return !skipReplay && lastEmittedNumber < targetNumber
           ? InputStatus.MORE_AVAILABLE
           : nextStatus();
     }
@@ -143,6 +154,9 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
     for (var split : splits) {
       lastEmittedNumber = split.lastEmittedNumber();
       startTimestampSec = split.startTimestampSec();
+      // Non-initial split means checkpoint/savepoint recovery.
+      skipReplayOnRecovery =
+          !replayOnFailure && (startTimestampSec != UNINITIALIZED || lastEmittedNumber > 0L);
       splitAssigned = true;
       break;
     }

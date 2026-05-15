@@ -21,6 +21,7 @@ import com.datasqrl.flinkrunner.connector.datagen.metronome.split.MetronomeSplit
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -74,7 +75,7 @@ class MetronomeSourceIT { // extends TableITCaseBase {
 
   @Test
   @Timeout(30)
-  void acceptsDisabledReplayOptionInSqlDdl() throws Exception {
+  void acceptsDisabledReplayOnFailureOptionInSqlDdl() throws Exception {
     tEnv.executeSql(
         """
             CREATE TABLE metronome_source_no_replay (
@@ -83,7 +84,7 @@ class MetronomeSourceIT { // extends TableITCaseBase {
               WATERMARK FOR ts AS ts
             ) WITH (
               'connector' = 'metronome',
-              'replay-missed-events' = 'false'
+              'replay-on-failure' = 'false'
             )""");
 
     assertThat(collectRows("SELECT num FROM metronome_source_no_replay", 1))
@@ -114,9 +115,9 @@ class MetronomeSourceIT { // extends TableITCaseBase {
   }
 
   @Test
-  void skipsMissedEventsWhenReplayIsDisabled() {
+  void skipsMissedEventsOnCheckpointRecoveryWhenReplayOnFailureIsDisabled() {
     long startTimestampSec = Instant.now().getEpochSecond() - 3L;
-    var reader = new MetronomeReader(unusedReaderContext(), false, 3L);
+    var reader = new MetronomeReader(unusedReaderContext(), false, 5L);
     var output = new CollectingReaderOutput();
 
     try {
@@ -135,6 +136,28 @@ class MetronomeSourceIT { // extends TableITCaseBase {
       assertThat(snapshot.get(0).lastEmittedNumber()).isEqualTo(2L);
       assertThat(snapshot.get(0).startTimestampSec())
           .isBetween(beforePollSec - 2L, afterPollSec - 2L);
+    } finally {
+      reader.close();
+    }
+  }
+
+  @Test
+  void replaysNormalWakeUpLatenessWhenReplayOnFailureIsDisabled() throws Exception {
+    long startTimestampSec = Instant.now().getEpochSecond() - 3L;
+    var reader = new MetronomeReader(unusedReaderContext(), false, 5L);
+    var output = new CollectingReaderOutput();
+
+    try {
+      reader.addSplits(List.of(new MetronomeSplit(1L, startTimestampSec)));
+
+      assertThat(reader.pollNext(output)).isEqualTo(InputStatus.NOTHING_AVAILABLE);
+      var snapshot = reader.snapshotState(1L);
+      assertThat(snapshot).hasSize(1);
+
+      sleepUntilAtLeastSecond(snapshot.get(0).startTimestampSec() + 4L);
+
+      assertThat(reader.pollNext(output)).isEqualTo(InputStatus.MORE_AVAILABLE);
+      assertThat(output.numbers()).containsExactly(2L, 3L);
     } finally {
       reader.close();
     }
@@ -183,6 +206,12 @@ class MetronomeSourceIT { // extends TableITCaseBase {
         return null;
       }
     };
+  }
+
+  private static void sleepUntilAtLeastSecond(long epochSecond) throws InterruptedException {
+    while (Instant.now().getEpochSecond() < epochSecond) {
+      TimeUnit.MILLISECONDS.sleep(10L);
+    }
   }
 
   private static final class CollectingReaderOutput implements ReaderOutput<RowData> {

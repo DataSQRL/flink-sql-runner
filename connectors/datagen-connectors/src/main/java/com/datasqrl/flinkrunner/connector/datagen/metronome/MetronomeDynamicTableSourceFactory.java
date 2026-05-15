@@ -33,11 +33,12 @@ public class MetronomeDynamicTableSourceFactory implements DynamicTableSourceFac
 
   public static final String IDENTIFIER = "metronome";
 
-  public static final ConfigOption<Boolean> REPLAY_MISSED_EVENTS =
-      ConfigOptions.key("replay-missed-events")
+  public static final ConfigOption<Boolean> REPLAY_ON_FAILURE =
+      ConfigOptions.key("replay-on-failure")
           .booleanType()
           .defaultValue(true)
-          .withDescription("Whether to emit sequence numbers missed while the source was down.");
+          .withDescription(
+              "Whether to emit sequence numbers missed while recovering from a checkpoint.");
 
   @Override
   public DynamicTableSource createDynamicTableSource(Context context) {
@@ -47,7 +48,7 @@ public class MetronomeDynamicTableSourceFactory implements DynamicTableSourceFac
     var rowDataType = context.getPhysicalRowDataType();
     validateSchema(rowDataType);
 
-    return new MetronomeTableSource(rowDataType, helper.getOptions().get(REPLAY_MISSED_EVENTS));
+    return new MetronomeTableSource(rowDataType, helper.getOptions().get(REPLAY_ON_FAILURE));
   }
 
   @Override
@@ -62,7 +63,7 @@ public class MetronomeDynamicTableSourceFactory implements DynamicTableSourceFac
 
   @Override
   public Set<ConfigOption<?>> optionalOptions() {
-    return Set.of(REPLAY_MISSED_EVENTS);
+    return Set.of(REPLAY_ON_FAILURE);
   }
 
   private static void validateSchema(DataType rowDataType) {
