@@ -22,7 +22,6 @@ import com.datasqrl.flinkrunner.connector.datagen.metronome.split.MetronomeSplit
 import com.datasqrl.flinkrunner.connector.datagen.metronome.split.MetronomeSplitSerializer;
 import java.io.Serial;
 import javax.annotation.Nullable;
-import lombok.AllArgsConstructor;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -33,20 +32,18 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.data.RowData;
 
 /** Source that produces a single global metronome sequence with event-time timestamps. */
-@AllArgsConstructor
 public class MetronomeSource implements Source<RowData, MetronomeSplit, MetronomeEnumeratorState> {
 
   @Serial private static final long serialVersionUID = 1L;
 
-  private final boolean replayOnFailure;
   @Nullable private final Long numberOfRows;
 
   public MetronomeSource() {
-    this(true, null);
+    this(null);
   }
 
   public MetronomeSource(@Nullable Long numberOfRows) {
-    this(true, numberOfRows);
+    this.numberOfRows = numberOfRows;
   }
 
   @Override
@@ -56,7 +53,7 @@ public class MetronomeSource implements Source<RowData, MetronomeSplit, Metronom
 
   @Override
   public SourceReader<RowData, MetronomeSplit> createReader(SourceReaderContext readerContext) {
-    return new MetronomeReader(readerContext, replayOnFailure, numberOfRows);
+    return new MetronomeReader(readerContext, numberOfRows);
   }
 
   @Override

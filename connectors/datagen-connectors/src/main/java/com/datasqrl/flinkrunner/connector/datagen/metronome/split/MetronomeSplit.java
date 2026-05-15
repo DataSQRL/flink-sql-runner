@@ -15,15 +15,13 @@
  */
 package com.datasqrl.flinkrunner.connector.datagen.metronome.split;
 
-import com.datasqrl.flinkrunner.connector.datagen.metronome.MetronomeReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 /** Single source split carrying metronome reader progress across checkpoints and recovery. */
-public record MetronomeSplit(long lastEmittedNumber, long startTimestampSec)
-    implements SourceSplit {
+public record MetronomeSplit(long lastEmittedNumber) implements SourceSplit {
 
   public static MetronomeSplit initial() {
-    return new MetronomeSplit(0L, MetronomeReader.UNINITIALIZED);
+    return new MetronomeSplit(0L);
   }
 
   @Override
