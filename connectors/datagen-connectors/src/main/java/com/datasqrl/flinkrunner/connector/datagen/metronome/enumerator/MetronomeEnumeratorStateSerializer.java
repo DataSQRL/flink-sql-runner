@@ -32,7 +32,7 @@ public final class MetronomeEnumeratorStateSerializer
 
   @Override
   public byte[] serialize(MetronomeEnumeratorState state) throws IOException {
-    var out = new DataOutputSerializer(18);
+    var out = new DataOutputSerializer(10);
     var pendingSplit = state.getPendingSplit();
 
     out.writeBoolean(state.isAssigned());
@@ -40,7 +40,6 @@ public final class MetronomeEnumeratorStateSerializer
 
     if (pendingSplit != null) {
       out.writeLong(pendingSplit.lastEmittedNumber());
-      out.writeLong(pendingSplit.startTimestampSec());
     }
 
     return out.getCopyOfBuffer();
@@ -54,7 +53,7 @@ public final class MetronomeEnumeratorStateSerializer
     boolean hasPendingSplit = in.readBoolean();
 
     return hasPendingSplit
-        ? MetronomeEnumeratorState.pending(new MetronomeSplit(in.readLong(), in.readLong()))
+        ? MetronomeEnumeratorState.pending(new MetronomeSplit(in.readLong()))
         : MetronomeEnumeratorState.of(assigned);
   }
 }
