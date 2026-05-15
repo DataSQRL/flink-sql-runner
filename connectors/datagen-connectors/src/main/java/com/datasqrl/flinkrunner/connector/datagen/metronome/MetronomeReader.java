@@ -38,7 +38,6 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   public static final long UNINITIALIZED = Long.MIN_VALUE;
 
   private final SourceReaderContext readerContext;
-  private final boolean replayOnFailure;
   @Nullable private final Long numberOfRows;
   private final ScheduledExecutorService availabilityExecutor;
 
@@ -46,24 +45,17 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   private boolean noMoreSplits;
   private boolean closed;
   private boolean splitAssigned;
-  private boolean skipReplayOnRecovery;
   private long lastEmittedNumber;
-  private long startTimestampSec;
+  private long lastEmissionTimestampMillis;
 
-  public MetronomeReader(
-      SourceReaderContext readerContext, boolean replayOnFailure, @Nullable Long numberOfRows) {
+  public MetronomeReader(SourceReaderContext readerContext, @Nullable Long numberOfRows) {
     this.readerContext = readerContext;
     this.numberOfRows = numberOfRows;
-    this.replayOnFailure = replayOnFailure;
     this.availability = new CompletableFuture<>();
     this.availabilityExecutor =
         Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("metronome-source"));
     this.lastEmittedNumber = 0L;
-    this.startTimestampSec = UNINITIALIZED;
-  }
-
-  public MetronomeReader(SourceReaderContext readerContext, @Nullable Long numberOfRows) {
-    this(readerContext, true, numberOfRows);
+    this.lastEmissionTimestampMillis = UNINITIALIZED;
   }
 
   @Override
@@ -75,11 +67,9 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * Emits the next due metronome row, or schedules the reader to become available at the next
    * second boundary.
    *
-   * <p>The emitted sequence number is derived from wall-clock epoch seconds relative to the first
-   * observed start second. If the reader wakes up late, repeated calls emit all missing sequence
-   * numbers with the current wall-clock timestamp until the source catches up. If checkpoint
-   * recovery replay is disabled, only the first poll after restoring checkpointed progress skips
-   * the recovery backlog.
+   * <p>The emitted sequence number is always the next number after the checkpointed progress. The
+   * reader never drains wall-clock backlog in a burst: after every emitted row, it records the
+   * current time so the next row cannot become due before a full second has elapsed.
    */
   @Override
   public InputStatus pollNext(ReaderOutput<RowData> output) {
@@ -91,37 +81,16 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
       return noMoreSplits ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
     }
 
-    long currentTimestampSec = currentTimestampSec();
-    if (startTimestampSec == UNINITIALIZED) {
-      startTimestampSec = currentTimestampSec;
-    }
+    var currentTimestamp = Instant.now();
+    long currentTimestampMillis = currentTimestamp.toEpochMilli();
 
-    long targetNumber = currentTimestampSec - startTimestampSec;
-    if (numberOfRows != null) {
-      targetNumber = Math.min(targetNumber, numberOfRows);
-    }
-
-    // One-shot checkpoint recovery skip; normal late wakeups still replay.
-    boolean skipReplay = skipReplayOnRecovery;
-    skipReplayOnRecovery = false;
-
-    if (lastEmittedNumber < targetNumber) {
+    if (isDue(currentTimestampMillis)
+        && (numberOfRows == null || lastEmittedNumber < numberOfRows)) {
       long nextNumber = lastEmittedNumber + 1;
-      long eventTimestampMillis = currentTimestampSec * 1000L;
-      var row =
-          GenericRowData.of(
-              nextNumber, TimestampData.fromInstant(Instant.ofEpochSecond(currentTimestampSec)));
+      var row = GenericRowData.of(nextNumber, TimestampData.fromInstant(currentTimestamp));
       lastEmittedNumber = nextNumber;
-      if (skipReplay) {
-        // Realign time so the restored backlog is dropped after this record.
-        startTimestampSec = currentTimestampSec - lastEmittedNumber;
-      }
-      output.collect(row, eventTimestampMillis);
-
-      // Skip waits for the next tick; otherwise drain due records until caught up.
-      return !skipReplay && lastEmittedNumber < targetNumber
-          ? InputStatus.MORE_AVAILABLE
-          : nextStatus();
+      lastEmissionTimestampMillis = currentTimestampMillis;
+      output.collect(row, currentTimestampMillis);
     }
 
     return nextStatus();
@@ -131,7 +100,7 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * Snapshots the assigned split as the reader's progress state.
    *
    * <p>The split carries the only source progress that must survive failover: the last emitted
-   * sequence number and the source's effective start epoch second.
+   * sequence number.
    */
   @Override
   public List<MetronomeSplit> snapshotState(long checkpointId) {
@@ -139,7 +108,7 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
       return List.of();
     }
 
-    return List.of(new MetronomeSplit(lastEmittedNumber, startTimestampSec));
+    return List.of(new MetronomeSplit(lastEmittedNumber));
   }
 
   /** Returns the current availability future used by the Flink runtime to avoid busy polling. */
@@ -153,10 +122,6 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
   public void addSplits(List<MetronomeSplit> splits) {
     for (var split : splits) {
       lastEmittedNumber = split.lastEmittedNumber();
-      startTimestampSec = split.startTimestampSec();
-      // Non-initial split means checkpoint/savepoint recovery.
-      skipReplayOnRecovery =
-          !replayOnFailure && (startTimestampSec != UNINITIALIZED || lastEmittedNumber > 0L);
       splitAssigned = true;
       break;
     }
@@ -181,8 +146,8 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
    * Determines the next source status after a poll cycle.
    *
    * <p>The source ends when bounded output is exhausted or the sequence reaches {@link
-   * Long#MAX_VALUE}. Otherwise, it replaces the availability future and schedules it for the next
-   * epoch-second boundary.
+   * Long#MAX_VALUE}. Otherwise, it replaces the availability future and schedules it one second
+   * later.
    */
   private InputStatus nextStatus() {
     if (lastEmittedNumber == Long.MAX_VALUE
@@ -191,36 +156,28 @@ public class MetronomeReader implements SourceReader<RowData, MetronomeSplit> {
       return InputStatus.END_OF_INPUT;
     }
 
-    if (noMoreSplits && startTimestampSec == UNINITIALIZED) {
-      return InputStatus.END_OF_INPUT;
-    }
-
     availability = new CompletableFuture<>();
-    scheduleAvailability(nanosUntilNextSecond());
+    scheduleAvailability();
 
     return InputStatus.NOTHING_AVAILABLE;
+  }
+
+  private boolean isDue(long currentTimestampMillis) {
+    return lastEmissionTimestampMillis == UNINITIALIZED
+        || currentTimestampMillis - lastEmissionTimestampMillis >= TimeUnit.SECONDS.toMillis(1);
   }
 
   private void completeAvailability() {
     availability.complete(null);
   }
 
-  /** Schedules completion of the current availability future using nanosecond delay precision. */
-  private void scheduleAvailability(long delayNanos) {
+  /** Schedules completion of the current availability future one second later. */
+  private void scheduleAvailability() {
     if (!closed) {
-      availabilityExecutor.schedule(this::completeAvailability, delayNanos, TimeUnit.NANOSECONDS);
+      // Capture the current future so stale timers cannot wake newer poll cycles
+      var scheduledAvailability = availability;
+      availabilityExecutor.schedule(
+          () -> scheduledAvailability.complete(null), 1, TimeUnit.SECONDS);
     }
-  }
-
-  /** Returns the current wall-clock epoch second used for sequence catch-up calculations. */
-  private static long currentTimestampSec() {
-    return Instant.now().getEpochSecond();
-  }
-
-  /** Returns the remaining nanoseconds until the next wall-clock epoch-second boundary. */
-  private static long nanosUntilNextSecond() {
-    int currentNano = Instant.now().getNano();
-
-    return TimeUnit.SECONDS.toNanos(1L) - currentNano;
   }
 }

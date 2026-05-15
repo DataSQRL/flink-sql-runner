@@ -30,9 +30,8 @@ public final class MetronomeSplitSerializer implements SimpleVersionedSerializer
 
   @Override
   public byte[] serialize(MetronomeSplit split) throws IOException {
-    var out = new DataOutputSerializer(16);
+    var out = new DataOutputSerializer(8);
     out.writeLong(split.lastEmittedNumber());
-    out.writeLong(split.startTimestampSec());
 
     return out.getCopyOfBuffer();
   }
@@ -41,6 +40,6 @@ public final class MetronomeSplitSerializer implements SimpleVersionedSerializer
   public MetronomeSplit deserialize(int version, byte[] serialized) throws IOException {
     var in = new DataInputDeserializer(serialized);
 
-    return new MetronomeSplit(in.readLong(), in.readLong());
+    return new MetronomeSplit(in.readLong());
   }
 }
