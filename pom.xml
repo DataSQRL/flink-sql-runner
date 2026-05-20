@@ -105,7 +105,7 @@
     <commons-math3.version>3.6.1</commons-math3.version>
     <feign.version>13.5</feign.version>
     <hadoop.version>3.3.4</hadoop.version>
-    <iceberg.version>1.10.1</iceberg.version>
+    <iceberg.version>1.10.2</iceberg.version>
     <jacoco.version>0.8.14</jacoco.version>
     <jdbi3.version>3.53.0</jdbi3.version>
     <json-path.version>3.0.0</json-path.version>
