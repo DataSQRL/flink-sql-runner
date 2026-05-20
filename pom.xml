@@ -87,7 +87,7 @@
     <maven.compiler.target>17</maven.compiler.target>
 
     <!-- Flink versions -->
-    <flink.version>2.2.0</flink.version>
+    <flink.version>2.2.1</flink.version>
     <flink.version.label>flink-2.2</flink.version.label>
     <flink-base-image>${flink.version}-java17</flink-base-image>
     <flink.cdc.version>3.6.0-2.2</flink.cdc.version>
