@@ -90,7 +90,7 @@ public class CliRunner extends BaseRunner {
   }
 
   public static void main(String[] args) throws Exception {
-    log.info("Executing flink-sql-runner: {}", Arrays.toString(args));
+    log.info("Starting Flink SQL runner: {}", Arrays.toString(args));
 
     var cmd = new CommandLine(new SqlRunner());
     cmd.setUnmatchedArgumentsAllowed(true);
@@ -112,16 +112,18 @@ public class CliRunner extends BaseRunner {
     }
 
     try {
-      new CliRunner(runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath)
-          .run();
+      var cliRunner =
+          new CliRunner(
+              runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath);
+
+      cliRunner.run();
+
     } catch (Throwable t) {
-      // Surface the failure so log scrapers and `kubectl logs` capture it. Without this, the
-      // exception is only reported through the Flink REST API and shows up as a Kubernetes
-      // Event but never reaches the JobManager pod logs.
-      log.error("flink-sql-runner failed", t);
+      // Make sure we log any error to be able to present it in a K8s env
+      log.error("Flink SQL runner failed", t);
       throw t;
     }
 
-    log.info("Finished flink-sql-runner execution");
+    log.info("Flink SQL runner finished");
   }
 }
