@@ -92,28 +92,36 @@ public class CliRunner extends BaseRunner {
   public static void main(String[] args) throws Exception {
     log.info("Executing flink-sql-runner: {}", Arrays.toString(args));
 
-    var cmd = new CommandLine(new SqlRunner());
-    cmd.setUnmatchedArgumentsAllowed(true);
+    try {
+      var cmd = new CommandLine(new SqlRunner());
+      cmd.setUnmatchedArgumentsAllowed(true);
 
-    var resCode = cmd.execute(args);
-    if (resCode != 0) {
-      System.exit(resCode);
+      var resCode = cmd.execute(args);
+      if (resCode != 0) {
+        System.exit(resCode);
+      }
+
+      if (cmd.isUsageHelpRequested()) {
+        return;
+      }
+
+      var runner = cmd.getCommand();
+
+      // Determine UDF path
+      if (runner.udfPath == null) {
+        runner.udfPath = System.getenv("UDF_PATH");
+      }
+
+      new CliRunner(runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath)
+          .run();
+
+      log.info("Finished flink-sql-runner execution");
+    } catch (Throwable t) {
+      // Surface the failure on stdout/stderr so log scrapers and `kubectl logs` capture it.
+      // Without this, the exception is only reported through the Flink REST API and shows up
+      // as a Kubernetes Event but never reaches the JobManager pod logs.
+      log.error("flink-sql-runner failed", t);
+      throw t;
     }
-
-    if (cmd.isUsageHelpRequested()) {
-      return;
-    }
-
-    SqlRunner runner = cmd.getCommand();
-
-    // Determine UDF path
-    if (runner.udfPath == null) {
-      runner.udfPath = System.getenv("UDF_PATH");
-    }
-
-    new CliRunner(runner.mode, runner.sqlFile, runner.planFile, runner.configDir, runner.udfPath)
-        .run();
-
-    log.info("Finished flink-sql-runner execution");
   }
 }
