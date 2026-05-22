@@ -15,6 +15,8 @@
  */
 package com.datasqrl.flinkrunner;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -70,5 +72,26 @@ class CliRunnerIT extends AbstractITSupport {
   void givenKafkaPlanScript_whenExecuting_thenSuccess() throws Exception {
     String jobId = flinkRun("--planfile", "/it/planfile/kafka_plan.json");
     assertJobIsRunning(jobId);
+  }
+
+  @Test
+  void givenFailingSqlScript_whenExecuting_thenLogsFailure() throws Exception {
+    var execRes =
+        flinkContainer.execInContainer("sql-runner", "--sqlfile", "/it/sqlfile/dummy_error.sql");
+    var commandOutput = execRes.getStdout() + execRes.getStderr();
+
+    assertThat(execRes.getExitCode()).isNotZero();
+
+    untilAssert(
+        () -> {
+          var logRes =
+              flinkContainer.execInContainer(
+                  "bash",
+                  "-c",
+                  "grep -R 'Flink SQL runner failed\\|DUMMY_ERROR' /opt/flink/log || true");
+          var loggedOutput = commandOutput + logRes.getStdout() + logRes.getStderr();
+
+          assertThat(loggedOutput).contains("Flink SQL runner failed").contains("DUMMY_ERROR");
+        });
   }
 }
