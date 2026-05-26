@@ -59,6 +59,7 @@
   </developers>
 
   <modules>
+    <module>env-utils</module>
     <module>formats</module>
     <module>stdlib</module>
     <module>connectors</module>
@@ -106,6 +107,7 @@
     <feign.version>13.5</feign.version>
     <hadoop.version>3.3.4</hadoop.version>
     <iceberg.version>1.10.2</iceberg.version>
+    <jackson.version>2.21.3</jackson.version>
     <jacoco.version>0.8.14</jacoco.version>
     <jdbi3.version>3.53.0</jdbi3.version>
     <json-path.version>3.0.0</json-path.version>
@@ -139,6 +141,14 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>

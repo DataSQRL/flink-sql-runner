@@ -15,6 +15,7 @@
  */
 package com.datasqrl.flinkrunner;
 
+import com.datasqrl.flinkrunner.utils.EnvVarResolver;
 import javax.annotation.Nullable;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
