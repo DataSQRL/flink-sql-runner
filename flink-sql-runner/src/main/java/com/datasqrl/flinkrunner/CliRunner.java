@@ -15,6 +15,7 @@
  */
 package com.datasqrl.flinkrunner;
 
+import com.datasqrl.flinkrunner.utils.EnvVarResolver;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
@@ -75,7 +76,7 @@ public class CliRunner extends BaseRunner {
       @Nullable String planFile,
       @Nullable String configDir,
       @Nullable String udfPath) {
-    this(mode, new EnvVarResolver(), sqlFile, planFile, configDir, udfPath);
+    this(mode, EnvVarResolver.withDeploymentDefaults(), sqlFile, planFile, configDir, udfPath);
   }
 
   @VisibleForTesting

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner;
+package com.datasqrl.flinkrunner.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,7 +25,7 @@ class EnvUtilsTest {
 
   @Test
   void givenSystemEnv_whenGetEnvWithDefaults_thenReturnsEnvWithDefaults() {
-    var env = EnvUtils.getEnvWithDefaults();
+    var env = EnvUtils.getEnvWithDeploymentDefaults();
 
     assertThat(env).isNotNull();
     assertThat(env).containsKey("DEPLOYMENT_ID");
@@ -34,7 +34,7 @@ class EnvUtilsTest {
 
   @Test
   void givenSystemEnv_whenGetEnvWithDefaults_thenDeploymentIdIsValidUuid() {
-    var env = EnvUtils.getEnvWithDefaults();
+    var env = EnvUtils.getEnvWithDeploymentDefaults();
 
     String deploymentId = env.get("DEPLOYMENT_ID");
     assertThat(deploymentId)
@@ -44,7 +44,7 @@ class EnvUtilsTest {
 
   @Test
   void givenSystemEnv_whenGetEnvWithDefaults_thenDeploymentTimestampIsValidLong() {
-    var env = EnvUtils.getEnvWithDefaults();
+    var env = EnvUtils.getEnvWithDeploymentDefaults();
 
     String timestamp = env.get("DEPLOYMENT_TIMESTAMP");
     assertThat(timestamp).isNotNull();
@@ -53,7 +53,7 @@ class EnvUtilsTest {
 
   @Test
   void givenSystemEnv_whenGetEnvWithDefaults_thenReturnsImmutableMap() {
-    var env = EnvUtils.getEnvWithDefaults();
+    var env = EnvUtils.getEnvWithDeploymentDefaults();
 
     assertThatThrownBy(() -> env.put("NEW_KEY", "value"))
         .isInstanceOf(UnsupportedOperationException.class);
@@ -61,7 +61,7 @@ class EnvUtilsTest {
 
   @Test
   void givenSystemEnv_whenGetEnvWithDefaults_thenIncludesSystemEnvironmentVariables() {
-    var env = EnvUtils.getEnvWithDefaults();
+    var env = EnvUtils.getEnvWithDeploymentDefaults();
     var systemEnv = System.getenv();
 
     // Verify that all system environment variables are present
@@ -72,8 +72,8 @@ class EnvUtilsTest {
 
   @Test
   void givenMultipleCalls_whenGetEnvWithDefaults_thenGeneratesDifferentDeploymentIds() {
-    var env1 = EnvUtils.getEnvWithDefaults();
-    var env2 = EnvUtils.getEnvWithDefaults();
+    var env1 = EnvUtils.getEnvWithDeploymentDefaults();
+    var env2 = EnvUtils.getEnvWithDeploymentDefaults();
 
     assertThat(env1.get("DEPLOYMENT_ID")).isNotEqualTo(env2.get("DEPLOYMENT_ID"));
   }
@@ -81,23 +81,12 @@ class EnvUtilsTest {
   @Test
   void givenMultipleCalls_whenGetEnvWithDefaults_thenGeneratesDifferentTimestamps()
       throws InterruptedException {
-    var env1 = EnvUtils.getEnvWithDefaults();
+    var env1 = EnvUtils.getEnvWithDeploymentDefaults();
     Thread.sleep(2); // Small delay to ensure different timestamps
-    var env2 = EnvUtils.getEnvWithDefaults();
+    var env2 = EnvUtils.getEnvWithDeploymentDefaults();
 
     long timestamp1 = Long.parseLong(env1.get("DEPLOYMENT_TIMESTAMP"));
     long timestamp2 = Long.parseLong(env2.get("DEPLOYMENT_TIMESTAMP"));
     assertThat(timestamp2).isGreaterThanOrEqualTo(timestamp1);
-  }
-
-  @Test
-  void givenConstructor_whenInvoked_thenThrowsUnsupportedOperationException() {
-    assertThatThrownBy(
-            () -> {
-              var constructor = EnvUtils.class.getDeclaredConstructor();
-              constructor.setAccessible(true);
-              constructor.newInstance();
-            })
-        .hasCauseInstanceOf(UnsupportedOperationException.class);
   }
 }

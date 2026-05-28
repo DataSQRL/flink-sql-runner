@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datasqrl.flinkrunner.utils.EnvVarResolver;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

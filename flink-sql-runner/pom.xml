@@ -118,6 +118,12 @@
     </dependency>
 
     <!-- Compile -->
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>env-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Custom Connectors -->
     <dependency>
       <groupId>com.datasqrl.flinkrunner</groupId>

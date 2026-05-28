@@ -15,6 +15,7 @@
  */
 package com.datasqrl.flinkrunner;
 
+import com.datasqrl.flinkrunner.utils.EnvVarResolver;
 import java.io.File;
 import java.io.IOException;
 import java.util.function.Supplier;
