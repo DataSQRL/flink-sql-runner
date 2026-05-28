@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner;
+package com.datasqrl.flinkrunner.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -40,7 +43,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    resolver = new EnvVarResolver(envVariables);
+    resolver = EnvVarResolver.of(envVariables);
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
@@ -54,7 +57,7 @@ class EnvVarResolverTest {
       })
   void givenMissingEnvVariables_whenResolveEnv_Vars_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of();
-    resolver = new EnvVarResolver(envVariables); // Empty map to simulate missing variables
+    resolver = EnvVarResolver.of(envVariables); // Empty map to simulate missing variables
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith(
@@ -73,7 +76,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "NAME", "exists");
-    resolver = new EnvVarResolver(envVariables);
+    resolver = EnvVarResolver.of(envVariables);
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage(
@@ -102,7 +105,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    resolver = new EnvVarResolver(envVariables);
+    resolver = EnvVarResolver.of(envVariables);
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
@@ -117,7 +120,7 @@ class EnvVarResolverTest {
       })
   void givenMissingEnvWithoutDefault_whenResolve_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of("A", "something");
-    resolver = new EnvVarResolver(envVariables);
+    resolver = EnvVarResolver.of(envVariables);
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("referenced, but not found");
@@ -133,8 +136,66 @@ class EnvVarResolverTest {
   })
   void givenFallbackWithColons_whenResolve_thenParseCorrectly(String command, String expected) {
     Map<String, String> envVariables = Map.of(); // No TOKEN set
-    resolver = new EnvVarResolver(envVariables);
+    resolver = EnvVarResolver.of(envVariables);
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
+  }
+
+  @Test
+  void givenNullOrBlankSource_whenResolve_thenReturnSource() {
+    resolver = EnvVarResolver.of(Map.of());
+
+    assertThat(resolver.resolve(null)).isNull();
+    assertThat(resolver.resolve("   ")).isEqualTo("   ");
+  }
+
+  @Test
+  void givenNonStrictResolver_whenMissingEnvVariables_thenLeavesPlaceholdersUnresolved() {
+    resolver = EnvVarResolver.of(Map.of("USER", "John"), false);
+
+    var result = resolver.resolve("Hello ${USER}, ${MISSING}!");
+
+    assertThat(result).isEqualTo("Hello John, ${MISSING}!");
+  }
+
+  @Test
+  void givenDeploymentDefaults_whenResolve_thenUseDefaultsAndSuppliedValues() {
+    resolver =
+        EnvVarResolver.withDeploymentDefaults(
+            Map.of(
+                "DEPLOYMENT_ID", "deployment-1",
+                "USER", "John"));
+
+    var result = resolver.resolve("${DEPLOYMENT_ID}|${DEPLOYMENT_TIMESTAMP}|${USER}");
+    var parts = result.split("\\|");
+
+    assertThat(parts).hasSize(3);
+    assertThat(parts[0]).isEqualTo("deployment-1");
+    assertThat(Long.parseLong(parts[1])).isGreaterThan(0);
+    assertThat(parts[2]).isEqualTo("John");
+  }
+
+  @Test
+  void givenNonStrictDeploymentDefaults_whenMissingNonDefaultEnvVariable_thenLeavesPlaceholder() {
+    resolver =
+        EnvVarResolver.withDeploymentDefaults(Map.of("DEPLOYMENT_ID", "deployment-1"), false);
+
+    var result = resolver.resolve("${DEPLOYMENT_ID}|${MISSING}");
+
+    assertThat(result).isEqualTo("deployment-1|${MISSING}");
+  }
+
+  @Test
+  void givenJsonSource_whenResolveInJson_thenResolveStringLeafNodes() throws IOException {
+    resolver = EnvVarResolver.of(Map.of("USER", "John"));
+
+    var result =
+        resolver.resolveInJson(
+            "{\"user\":\"${USER}\",\"nested\":{\"path\":\"${PATH:-/tmp}\"},\"count\":1}");
+    var json = new ObjectMapper().readTree(result);
+
+    assertThat(json.get("user").asText()).isEqualTo("John");
+    assertThat(json.get("count").asInt()).isEqualTo(1);
+    assertThat(json.get("nested").get("path").asText()).isEqualTo("/tmp");
   }
 }

@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datasqrl.flinkrunner;
+package com.datasqrl.flinkrunner.utils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /** Utility class for environment variable operations. */
-final class EnvUtils {
-
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class EnvUtils {
   /**
    * Returns a map of environment variables with deployment-specific defaults.
    *
@@ -35,15 +37,18 @@ final class EnvUtils {
    *
    * @return an immutable map containing all environment variables with defaults applied
    */
-  static Map<String, String> getEnvWithDefaults() {
+  public static Map<String, String> getEnvWithDeploymentDefaults() {
     var env = new HashMap<>(System.getenv());
-    env.putIfAbsent("DEPLOYMENT_ID", UUID.randomUUID().toString());
-    env.putIfAbsent("DEPLOYMENT_TIMESTAMP", String.valueOf(System.currentTimeMillis()));
+    getDeploymentDefaults().forEach(env::putIfAbsent);
 
     return Map.copyOf(env);
   }
 
-  private EnvUtils() {
-    throw new UnsupportedOperationException();
+  public static Map<String, String> getDeploymentDefaults() {
+    return Map.of(
+        "DEPLOYMENT_ID",
+        UUID.randomUUID().toString(),
+        "DEPLOYMENT_TIMESTAMP",
+        String.valueOf(System.currentTimeMillis()));
   }
 }
