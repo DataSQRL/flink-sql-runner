@@ -67,7 +67,7 @@
 
     <dependency>
       <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-flink-runtime-2.0</artifactId>
+      <artifactId>iceberg-flink-runtime-2.1</artifactId>
       <version>${iceberg.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -559,7 +559,7 @@
             <phase>prepare-package</phase>
             <configuration>
               <includeGroupIds>org.apache.iceberg</includeGroupIds>
-              <includeArtifactIds>iceberg-flink-runtime-2.0</includeArtifactIds>
+              <includeArtifactIds>iceberg-flink-runtime-2.1</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>
