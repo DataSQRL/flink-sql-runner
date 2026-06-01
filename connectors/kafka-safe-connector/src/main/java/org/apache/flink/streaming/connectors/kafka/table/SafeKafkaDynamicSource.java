@@ -15,6 +15,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -40,6 +41,7 @@ import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.RowData;
@@ -82,7 +84,10 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 /** A version-agnostic Kafka {@link ScanTableSource}. */
 @Internal
 public class SafeKafkaDynamicSource
-        implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
+        implements ScanTableSource,
+                SupportsReadingMetadata,
+                SupportsSourceWatermark,
+                SupportsWatermarkPushDown {
 
     private static final String KAFKA_TRANSFORMATION = "kafka";
 
@@ -98,6 +103,9 @@ public class SafeKafkaDynamicSource
 
     /** Watermark strategy that is used to generate per-partition watermark. */
     protected @Nullable WatermarkStrategy<RowData> watermarkStrategy;
+
+    /** Whether to use Kafka record timestamps to generate source watermarks. */
+    protected boolean sourceWatermarkEnabled;
 
     // --------------------------------------------------------------------------------------------
     // Format attributes
@@ -215,6 +223,7 @@ public class SafeKafkaDynamicSource
         this.producedDataType = physicalDataType;
         this.metadataKeys = Collections.emptyList();
         this.watermarkStrategy = null;
+        this.sourceWatermarkEnabled = false;
         // Kafka-specific attributes
         Preconditions.checkArgument(
                 (topics != null && topicPattern == null)
@@ -264,9 +273,7 @@ public class SafeKafkaDynamicSource
             @Override
             public DataStream<RowData> produceDataStream(
                     ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-                if (watermarkStrategy == null) {
-                    watermarkStrategy = WatermarkStrategy.noWatermarks();
-                }
+                final WatermarkStrategy<RowData> watermarkStrategy = getWatermarkStrategy();
                 DataStreamSource<RowData> sourceStream =
                         execEnv.fromSource(
                                 kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
@@ -341,6 +348,11 @@ public class SafeKafkaDynamicSource
     }
 
     @Override
+    public void applySourceWatermark() {
+        this.sourceWatermarkEnabled = true;
+    }
+
+    @Override
     public DynamicTableSource copy() {
         final SafeKafkaDynamicSource copy =
                 new SafeKafkaDynamicSource(
@@ -366,6 +378,7 @@ public class SafeKafkaDynamicSource
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
+        copy.sourceWatermarkEnabled = sourceWatermarkEnabled;
         return copy;
     }
 
@@ -403,6 +416,7 @@ public class SafeKafkaDynamicSource
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy)
+                && sourceWatermarkEnabled == that.sourceWatermarkEnabled
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -429,6 +443,7 @@ public class SafeKafkaDynamicSource
                 upsertMode,
                 tableIdentifier,
                 watermarkStrategy,
+                sourceWatermarkEnabled,
                 parallelism);
     }
 
@@ -507,6 +522,18 @@ public class SafeKafkaDynamicSource
         kafkaSourceBuilder.setProperties(properties).setDeserializer(kafkaDeserializer);
 
         return kafkaSourceBuilder.build();
+    }
+
+    private WatermarkStrategy<RowData> getWatermarkStrategy() {
+        if (watermarkStrategy != null) {
+            return watermarkStrategy;
+        }
+
+        if (sourceWatermarkEnabled) {
+            return KafkaRecordTimestampWatermarkStrategy.INSTANCE;
+        }
+
+        return WatermarkStrategy.noWatermarks();
     }
 
     private OffsetResetStrategy getResetStrategy(String offsetResetConfig) {
