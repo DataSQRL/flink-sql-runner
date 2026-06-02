@@ -15,6 +15,7 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.io.Serial;
 import java.time.Duration;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 
 /** Adaptive watermark strategy based on Kafka record timestamps. */
 @Internal
@@ -37,18 +39,36 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
   static final long MIN_OUT_OF_ORDERNESS_MILLIS = 50L;
   static final long MAX_OUT_OF_ORDERNESS_MILLIS = Duration.ofDays(1).toMillis();
 
-  private static final double OUT_OF_ORDERNESS_QUANTILE = 0.95D;
+  static final double OUT_OF_ORDERNESS_QUANTILE = 0.95D;
 
-  public static final KafkaRecordTimestampWatermarkStrategy INSTANCE =
-      new KafkaRecordTimestampWatermarkStrategy();
+  private final WatermarkEmitStrategy emitStrategy;
+  private final SourceWatermarkConfig configuration;
 
-  private KafkaRecordTimestampWatermarkStrategy() {}
+  public KafkaRecordTimestampWatermarkStrategy() {
+    this(WatermarkEmitStrategy.ON_PERIODIC);
+  }
+
+  public KafkaRecordTimestampWatermarkStrategy(WatermarkEmitStrategy emitStrategy) {
+    this(
+        emitStrategy,
+        new SourceWatermarkConfig(
+            MIN_RECORDS,
+            MIN_OUT_OF_ORDERNESS_MILLIS,
+            MAX_OUT_OF_ORDERNESS_MILLIS,
+            OUT_OF_ORDERNESS_QUANTILE));
+  }
+
+  public KafkaRecordTimestampWatermarkStrategy(
+      WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig configuration) {
+    this.emitStrategy = emitStrategy;
+    this.configuration = configuration;
+  }
 
   @Override
   public WatermarkGenerator<RowData> createWatermarkGenerator(
       WatermarkGeneratorSupplier.Context context) {
 
-    return new AdaptiveKafkaRecordTimestampWatermarkGenerator();
+    return new AdaptiveKafkaRecordTimestampWatermarkGenerator(emitStrategy, configuration);
   }
 
   /**
@@ -75,6 +95,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
      */
     private final long[] latenessSamples = new long[SAMPLE_SIZE];
 
+    private final WatermarkEmitStrategy emitStrategy;
+    private final SourceWatermarkConfig configuration;
+
     /** Highest Kafka record timestamp observed by this generator. */
     private long maxTimestamp = Long.MIN_VALUE;
 
@@ -89,6 +112,12 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     /** Next slot in the circular lateness sample buffer. */
     private int nextSampleIndex;
 
+    private AdaptiveKafkaRecordTimestampWatermarkGenerator(
+        WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig configuration) {
+      this.emitStrategy = emitStrategy;
+      this.configuration = configuration;
+    }
+
     @Override
     public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
       if (maxTimestamp != Long.MIN_VALUE) {
@@ -100,11 +129,23 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
       maxTimestamp = Math.max(maxTimestamp, eventTimestamp);
       recordCount++;
+
+      if (emitStrategy.isOnEvent()) {
+        emitIfReady(output);
+      }
     }
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-      if (recordCount < MIN_RECORDS || maxTimestamp == Long.MIN_VALUE) {
+      if (!emitStrategy.isOnPeriodic()) {
+        return;
+      }
+
+      emitIfReady(output);
+    }
+
+    private void emitIfReady(WatermarkOutput output) {
+      if (recordCount < configuration.getMinRecords() || maxTimestamp == Long.MIN_VALUE) {
         // Avoid emitting during warm-up, so limited early samples won't distort the estimate.
         return;
       }
@@ -121,7 +162,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private long calculateOutOfOrdernessMillis() {
       int sampleCount = (int) Math.min(recordCount - 1, SAMPLE_SIZE);
       if (sampleCount <= 0) {
-        return MIN_OUT_OF_ORDERNESS_MILLIS;
+        return configuration.getMinOutOfOrdernessMillis();
       }
 
       long[] samples = Arrays.copyOf(latenessSamples, sampleCount);
@@ -130,11 +171,13 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       // Use a high quantile rather than the maximum, so a single pathological record does not stall
       // all event-time progress until it rotates out of the sample buffer.
       int quantileIndex =
-          Math.min(sampleCount - 1, (int) Math.ceil(sampleCount * OUT_OF_ORDERNESS_QUANTILE) - 1);
+          Math.min(
+              sampleCount - 1,
+              (int) Math.ceil(sampleCount * configuration.getOutOfOrdernessQuantile()) - 1);
 
       return Math.min(
-          MAX_OUT_OF_ORDERNESS_MILLIS,
-          Math.max(MIN_OUT_OF_ORDERNESS_MILLIS, samples[quantileIndex]));
+          configuration.getMaxOutOfOrdernessMillis(),
+          Math.max(configuration.getMinOutOfOrdernessMillis(), samples[quantileIndex]));
     }
   }
 }

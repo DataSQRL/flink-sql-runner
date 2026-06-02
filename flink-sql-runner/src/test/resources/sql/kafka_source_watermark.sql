@@ -9,6 +9,12 @@ CREATE TABLE source_events (
   'properties.bootstrap.servers' = 'redpanda:9092',
   'properties.group.id' = 'source-watermark-it',
   'scan.startup.mode' = 'earliest-offset',
+  'scan.watermark.emit.strategy' = 'on-event',
+  'scan.watermark.idle-timeout' = '1 s',
+  'scan.source-watermark.min-records' = '250',
+  'scan.source-watermark.min-out-of-orderness' = '50 ms',
+  'scan.source-watermark.max-out-of-orderness' = '86400000 ms',
+  'scan.source-watermark.out-of-orderness-quantile' = '0.95',
   'format' = 'json'
 );
 

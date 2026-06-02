@@ -17,12 +17,14 @@ package com.datasqrl.flinkrunner.connector.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link KafkaRecordTimestampWatermarkStrategy}. */
@@ -30,7 +32,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
   @Test
   void testDoesNotEmitBeforeWarmup() {
-    final WatermarkGenerator<RowData> generator = createGenerator();
+    final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
     for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS - 1; i++) {
@@ -43,7 +45,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
   @Test
   void testEmitsWatermarkFromKafkaRecordTimestampAfterWarmup() {
-    final WatermarkGenerator<RowData> generator = createGenerator();
+    final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
     for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
@@ -59,8 +61,38 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   }
 
   @Test
+  void testOnEventEmitStrategyEmitsWhenWarmupCompletes() {
+    final WatermarkGenerator<RowData> generator = createOnEventGenerator();
+    final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
+
+    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
+      generator.onEvent(null, i * 100L, output);
+    }
+
+    assertThat(output.watermarks)
+        .containsExactly(
+            (KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS - 1) * 100L
+                - KafkaRecordTimestampWatermarkStrategy.MIN_OUT_OF_ORDERNESS_MILLIS
+                - 1);
+  }
+
+  @Test
+  void testUsesConfiguredWarmupAndMinimumOutOfOrderness() {
+    final WatermarkGenerator<RowData> generator =
+        createOnPeriodicGenerator(new SourceWatermarkConfig(3, 10, 1000, 0.95D));
+    final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
+
+    generator.onEvent(null, 0L, output);
+    generator.onEvent(null, 100L, output);
+    generator.onEvent(null, 200L, output);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.watermarks).containsExactly(189L);
+  }
+
+  @Test
   void testWatermarksAreMonotonic() {
-    final WatermarkGenerator<RowData> generator = createGenerator();
+    final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
     for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
@@ -76,8 +108,20 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     assertThat(output.watermarks).hasSize(1);
   }
 
-  private static WatermarkGenerator<RowData> createGenerator() {
-    return KafkaRecordTimestampWatermarkStrategy.INSTANCE.createWatermarkGenerator(null);
+  private static WatermarkGenerator<RowData> createOnPeriodicGenerator() {
+    return new KafkaRecordTimestampWatermarkStrategy().createWatermarkGenerator(null);
+  }
+
+  private static WatermarkGenerator<RowData> createOnPeriodicGenerator(
+      SourceWatermarkConfig configuration) {
+    return new KafkaRecordTimestampWatermarkStrategy(
+            WatermarkEmitStrategy.ON_PERIODIC, configuration)
+        .createWatermarkGenerator(null);
+  }
+
+  private static WatermarkGenerator<RowData> createOnEventGenerator() {
+    return new KafkaRecordTimestampWatermarkStrategy(WatermarkEmitStrategy.ON_EVENT)
+        .createWatermarkGenerator(null);
   }
 
   private static final class CollectingWatermarkOutput implements WatermarkOutput {

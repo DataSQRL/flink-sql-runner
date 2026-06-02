@@ -17,6 +17,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import com.google.auto.service.AutoService;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -47,6 +48,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FactoryUtil.TableFactoryHelper;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.types.RowKind;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -67,6 +69,11 @@ import java.util.stream.Stream;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.sourceWatermarkConfiguration;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -102,6 +109,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateTableSinkOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateTableSourceOptions;
+import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
 
 /**
  * Factory for creating configured instances of {@link SafeKafkaDynamicSource} and {@link
@@ -160,6 +169,12 @@ public class SafeKafkaDynamicTableFactory
         options.add(TRANSACTION_NAMING_STRATEGY);
         options.add(SCAN_DESER_FAILURE_HANDLER);
         options.add(SCAN_DESER_FAILURE_TOPIC);
+        options.add(WATERMARK_EMIT_STRATEGY);
+        options.add(SOURCE_IDLE_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
+        options.add(SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS);
+        options.add(SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS);
+        options.add(SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE);
         return options;
     }
 
@@ -250,7 +265,10 @@ public class SafeKafkaDynamicTableFactory
                 boundedOptions.boundedTimestampMillis,
                 context.getObjectIdentifier().asSummaryString(),
                 parallelism,
-                deserFailureHandler);
+                deserFailureHandler,
+                tableOptions.get(WATERMARK_EMIT_STRATEGY),
+                tableOptions.getOptional(SOURCE_IDLE_TIMEOUT),
+                sourceWatermarkConfiguration(tableOptions));
     }
 
     @Override
@@ -418,7 +436,10 @@ public class SafeKafkaDynamicTableFactory
             long endTimestampMillis,
             String tableIdentifier,
             Integer parallelism,
-            DeserFailureHandler deserFailureHandler) {
+            DeserFailureHandler deserFailureHandler,
+            WatermarkEmitStrategy sourceWatermarkEmitStrategy,
+            Optional<Duration> sourceWatermarkIdleTimeout,
+            SourceWatermarkConfig sourceWatermarkConfig) {
         return new SafeKafkaDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
@@ -438,7 +459,10 @@ public class SafeKafkaDynamicTableFactory
                 false,
                 tableIdentifier,
                 parallelism,
-                deserFailureHandler);
+                deserFailureHandler,
+                sourceWatermarkEmitStrategy,
+                sourceWatermarkIdleTimeout,
+                sourceWatermarkConfig);
     }
 
     protected KafkaDynamicSink createKafkaTableSink(

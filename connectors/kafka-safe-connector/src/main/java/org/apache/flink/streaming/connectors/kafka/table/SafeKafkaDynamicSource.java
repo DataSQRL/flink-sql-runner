@@ -16,6 +16,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -52,6 +53,7 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
@@ -63,6 +65,7 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -106,6 +109,15 @@ public class SafeKafkaDynamicSource
 
     /** Whether to use Kafka record timestamps to generate source watermarks. */
     protected boolean sourceWatermarkEnabled;
+
+    /** Emit strategy for source watermarks. */
+    protected final WatermarkEmitStrategy sourceWatermarkEmitStrategy;
+
+    /** Idle timeout for source watermarks. */
+    protected final Optional<Duration> sourceWatermarkIdleTimeout;
+
+    /** Adaptive source watermark configuration. */
+    protected final SourceWatermarkConfig sourceWatermarkConfig;
 
     // --------------------------------------------------------------------------------------------
     // Format attributes
@@ -205,7 +217,10 @@ public class SafeKafkaDynamicSource
             boolean upsertMode,
             String tableIdentifier,
             @Nullable Integer parallelism,
-            DeserFailureHandler deserFailureHandler) {
+            DeserFailureHandler deserFailureHandler,
+            WatermarkEmitStrategy sourceWatermarkEmitStrategy,
+            Optional<Duration> sourceWatermarkIdleTimeout,
+            SourceWatermarkConfig sourceWatermarkConfig) {
         // Format attributes
         this.physicalDataType =
                 Preconditions.checkNotNull(
@@ -248,6 +263,18 @@ public class SafeKafkaDynamicSource
         this.tableIdentifier = tableIdentifier;
         this.parallelism = parallelism;
         this.deserFailureHandler = deserFailureHandler;
+        this.sourceWatermarkEmitStrategy =
+                Preconditions.checkNotNull(
+                        sourceWatermarkEmitStrategy,
+                        "Source watermark emit strategy must not be null.");
+        this.sourceWatermarkIdleTimeout =
+                Preconditions.checkNotNull(
+                        sourceWatermarkIdleTimeout,
+                        "Source watermark idle timeout must not be null.");
+        this.sourceWatermarkConfig =
+                Preconditions.checkNotNull(
+                    sourceWatermarkConfig,
+                        "Source watermark configuration must not be null.");
     }
 
     @Override
@@ -374,7 +401,10 @@ public class SafeKafkaDynamicSource
                         upsertMode,
                         tableIdentifier,
                         parallelism,
-                        deserFailureHandler);
+                        deserFailureHandler,
+                        sourceWatermarkEmitStrategy,
+                        sourceWatermarkIdleTimeout,
+                    sourceWatermarkConfig);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
@@ -417,6 +447,9 @@ public class SafeKafkaDynamicSource
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy)
                 && sourceWatermarkEnabled == that.sourceWatermarkEnabled
+                && sourceWatermarkEmitStrategy == that.sourceWatermarkEmitStrategy
+                && Objects.equals(sourceWatermarkIdleTimeout, that.sourceWatermarkIdleTimeout)
+                && Objects.equals(sourceWatermarkConfig, that.sourceWatermarkConfig)
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -444,6 +477,9 @@ public class SafeKafkaDynamicSource
                 tableIdentifier,
                 watermarkStrategy,
                 sourceWatermarkEnabled,
+                sourceWatermarkEmitStrategy,
+                sourceWatermarkIdleTimeout,
+            sourceWatermarkConfig,
                 parallelism);
     }
 
@@ -530,7 +566,15 @@ public class SafeKafkaDynamicSource
         }
 
         if (sourceWatermarkEnabled) {
-            return KafkaRecordTimestampWatermarkStrategy.INSTANCE;
+            WatermarkStrategy<RowData> sourceWatermarkStrategy =
+                    new KafkaRecordTimestampWatermarkStrategy(
+                            sourceWatermarkEmitStrategy, sourceWatermarkConfig);
+            if (sourceWatermarkIdleTimeout.isPresent()) {
+                sourceWatermarkStrategy =
+                        sourceWatermarkStrategy.withIdleness(sourceWatermarkIdleTimeout.get());
+            }
+
+            return sourceWatermarkStrategy;
         }
 
         return WatermarkStrategy.noWatermarks();
