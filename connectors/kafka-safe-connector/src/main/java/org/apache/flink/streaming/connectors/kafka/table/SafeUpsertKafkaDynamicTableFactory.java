@@ -56,6 +56,10 @@ import java.util.stream.Stream;
 
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.*;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;
@@ -136,6 +140,10 @@ public class SafeUpsertKafkaDynamicTableFactory
         options.add(SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS);
         options.add(SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS);
         options.add(SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL);
         return options;
     }
 

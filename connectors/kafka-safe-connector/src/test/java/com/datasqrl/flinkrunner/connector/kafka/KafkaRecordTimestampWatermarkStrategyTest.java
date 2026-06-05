@@ -15,6 +15,8 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.MIN_RECORDS_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
@@ -35,7 +37,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
-    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS - 1; i++) {
+    for (int i = 0; i < MIN_RECORDS_DEFAULT - 1; i++) {
       generator.onEvent(null, i, output);
     }
     generator.onPeriodicEmit(output);
@@ -48,16 +50,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
-    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
+    for (int i = 0; i < MIN_RECORDS_DEFAULT; i++) {
       generator.onEvent(null, i * 100L, output);
     }
     generator.onPeriodicEmit(output);
 
     assertThat(output.watermarks)
         .containsExactly(
-            (KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS - 1) * 100L
-                - KafkaRecordTimestampWatermarkStrategy.MIN_OUT_OF_ORDERNESS_MILLIS
-                - 1);
+            (MIN_RECORDS_DEFAULT - 1) * 100L - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1);
   }
 
   @Test
@@ -65,21 +65,20 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     final WatermarkGenerator<RowData> generator = createOnEventGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
-    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
+    for (int i = 0; i < MIN_RECORDS_DEFAULT; i++) {
       generator.onEvent(null, i * 100L, output);
     }
 
     assertThat(output.watermarks)
         .containsExactly(
-            (KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS - 1) * 100L
-                - KafkaRecordTimestampWatermarkStrategy.MIN_OUT_OF_ORDERNESS_MILLIS
-                - 1);
+            (MIN_RECORDS_DEFAULT - 1) * 100L - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1);
   }
 
   @Test
   void testUsesConfiguredWarmupAndMinimumOutOfOrderness() {
     final WatermarkGenerator<RowData> generator =
-        createOnPeriodicGenerator(new SourceWatermarkConfig(3, 10, 1000, 0.95D));
+        createOnPeriodicGenerator(
+            new SourceWatermarkConfig(3, 10, 1000, 0.95D, 0, 10_000, 1000, 5000));
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
     generator.onEvent(null, 0L, output);
@@ -95,12 +94,12 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     final WatermarkGenerator<RowData> generator = createOnPeriodicGenerator();
     final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
 
-    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
+    for (int i = 0; i < MIN_RECORDS_DEFAULT; i++) {
       generator.onEvent(null, i * 100L, output);
     }
     generator.onPeriodicEmit(output);
 
-    for (int i = 0; i < KafkaRecordTimestampWatermarkStrategy.MIN_RECORDS; i++) {
+    for (int i = 0; i < MIN_RECORDS_DEFAULT; i++) {
       generator.onEvent(null, 0L, output);
     }
     generator.onPeriodicEmit(output);
@@ -108,8 +107,58 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     assertThat(output.watermarks).hasSize(1);
   }
 
+  @Test
+  void testIdleAdvanceEmitsAfterSilenceBeforeWarmupCompletes() {
+    final MutableMillisClock clock = new MutableMillisClock();
+    final WatermarkGenerator<RowData> generator =
+        new KafkaRecordTimestampWatermarkStrategy(
+                WatermarkEmitStrategy.ON_PERIODIC,
+                new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 5000),
+                clock,
+                currentTimeMillis -> true)
+            .createWatermarkGenerator(null);
+    final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
+
+    generator.onEvent(null, 10_000L, output);
+    generator.onPeriodicEmit(output);
+
+    clock.advanceMillis(999);
+    generator.onPeriodicEmit(output);
+
+    clock.advanceMillis(1);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.watermarks).containsExactly(949L);
+
+    clock.advanceMillis(10_000);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.watermarks).containsExactly(949L, 10_949L);
+  }
+
+  @Test
+  void testIdleAdvanceDoesNotEmitWhenReadinessCheckFails() {
+    final MutableMillisClock clock = new MutableMillisClock();
+    final WatermarkGenerator<RowData> generator =
+        new KafkaRecordTimestampWatermarkStrategy(
+                WatermarkEmitStrategy.ON_PERIODIC,
+                new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 5000),
+                clock,
+                currentTimeMillis -> false)
+            .createWatermarkGenerator(null);
+    final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
+
+    generator.onEvent(null, 10_000L, output);
+    clock.advanceMillis(11_000);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.watermarks).isEmpty();
+  }
+
   private static WatermarkGenerator<RowData> createOnPeriodicGenerator() {
-    return new KafkaRecordTimestampWatermarkStrategy().createWatermarkGenerator(null);
+    return new KafkaRecordTimestampWatermarkStrategy(
+            WatermarkEmitStrategy.ON_PERIODIC, new SourceWatermarkConfig())
+        .createWatermarkGenerator(null);
   }
 
   private static WatermarkGenerator<RowData> createOnPeriodicGenerator(
@@ -120,7 +169,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   }
 
   private static WatermarkGenerator<RowData> createOnEventGenerator() {
-    return new KafkaRecordTimestampWatermarkStrategy(WatermarkEmitStrategy.ON_EVENT)
+    return new KafkaRecordTimestampWatermarkStrategy(
+            WatermarkEmitStrategy.ON_EVENT, new SourceWatermarkConfig())
         .createWatermarkGenerator(null);
   }
 
@@ -138,5 +188,20 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     @Override
     public void markActive() {}
+  }
+
+  private static final class MutableMillisClock
+      implements KafkaRecordTimestampWatermarkStrategy.MillisClock {
+
+    private long currentTimeMillis;
+
+    @Override
+    public long currentTimeMillis() {
+      return currentTimeMillis;
+    }
+
+    private void advanceMillis(long millis) {
+      currentTimeMillis += millis;
+    }
   }
 }

@@ -568,8 +568,15 @@ public class SafeKafkaDynamicSource
         if (sourceWatermarkEnabled) {
             WatermarkStrategy<RowData> sourceWatermarkStrategy =
                     new KafkaRecordTimestampWatermarkStrategy(
-                            sourceWatermarkEmitStrategy, sourceWatermarkConfig);
-            if (sourceWatermarkIdleTimeout.isPresent()) {
+                            sourceWatermarkEmitStrategy,
+                            sourceWatermarkConfig,
+                            properties,
+                            topics);
+
+            // Skip Flink idleness when idle advancement is enabled, otherwise the source
+            // may be marked idle before this strategy can emit wall-clock-derived watermarks.
+            if (sourceWatermarkIdleTimeout.isPresent()
+                    && sourceWatermarkConfig.idleAdvanceTimeoutMillis() <= 0) {
                 sourceWatermarkStrategy =
                         sourceWatermarkStrategy.withIdleness(sourceWatermarkIdleTimeout.get());
             }

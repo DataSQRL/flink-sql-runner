@@ -17,9 +17,12 @@ package com.datasqrl.flinkrunner.connector.kafka;
 
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.io.Serial;
-import java.time.Duration;
+import java.io.Serializable;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
@@ -34,41 +37,50 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
   @Serial private static final long serialVersionUID = 1L;
 
-  static final int MIN_RECORDS = 250;
-  static final int SAMPLE_SIZE = 4096;
-  static final long MIN_OUT_OF_ORDERNESS_MILLIS = 50L;
-  static final long MAX_OUT_OF_ORDERNESS_MILLIS = Duration.ofDays(1).toMillis();
-
-  static final double OUT_OF_ORDERNESS_QUANTILE = 0.95D;
+  private static final int SAMPLE_SIZE = 4096;
 
   private final WatermarkEmitStrategy emitStrategy;
-  private final SourceWatermarkConfig configuration;
-
-  public KafkaRecordTimestampWatermarkStrategy() {
-    this(WatermarkEmitStrategy.ON_PERIODIC);
-  }
-
-  public KafkaRecordTimestampWatermarkStrategy(WatermarkEmitStrategy emitStrategy) {
-    this(
-        emitStrategy,
-        new SourceWatermarkConfig(
-            MIN_RECORDS,
-            MIN_OUT_OF_ORDERNESS_MILLIS,
-            MAX_OUT_OF_ORDERNESS_MILLIS,
-            OUT_OF_ORDERNESS_QUANTILE));
-  }
+  private final SourceWatermarkConfig sourceWatermarkConfig;
+  private final MillisClock clock;
+  private final IdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
 
   public KafkaRecordTimestampWatermarkStrategy(
-      WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig configuration) {
+      WatermarkEmitStrategy emitStrategy,
+      SourceWatermarkConfig sourceWatermarkConfig,
+      Properties kafkaProperties,
+      List<String> topics) {
+    this(
+        emitStrategy,
+        sourceWatermarkConfig,
+        System::currentTimeMillis,
+        new KafkaAdminIdleAdvanceReadinessChecker(kafkaProperties, topics, sourceWatermarkConfig));
+  }
+
+  @VisibleForTesting
+  KafkaRecordTimestampWatermarkStrategy(
+      WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig sourceWatermarkConfig) {
+    this(
+        emitStrategy, sourceWatermarkConfig, System::currentTimeMillis, currentTimeMillis -> false);
+  }
+
+  @VisibleForTesting
+  KafkaRecordTimestampWatermarkStrategy(
+      WatermarkEmitStrategy emitStrategy,
+      SourceWatermarkConfig sourceWatermarkConfig,
+      MillisClock clock,
+      IdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
     this.emitStrategy = emitStrategy;
-    this.configuration = configuration;
+    this.sourceWatermarkConfig = sourceWatermarkConfig;
+    this.clock = clock;
+    this.idleAdvanceReadinessChecker = idleAdvanceReadinessChecker;
   }
 
   @Override
   public WatermarkGenerator<RowData> createWatermarkGenerator(
       WatermarkGeneratorSupplier.Context context) {
 
-    return new AdaptiveKafkaRecordTimestampWatermarkGenerator(emitStrategy, configuration);
+    return new AdaptiveKafkaRecordTimestampWatermarkGenerator(
+        emitStrategy, sourceWatermarkConfig, clock, idleAdvanceReadinessChecker);
   }
 
   /**
@@ -96,10 +108,15 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private final long[] latenessSamples = new long[SAMPLE_SIZE];
 
     private final WatermarkEmitStrategy emitStrategy;
-    private final SourceWatermarkConfig configuration;
+    private final SourceWatermarkConfig config;
+    private final MillisClock clock;
+    private final IdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
 
     /** Highest Kafka record timestamp observed by this generator. */
     private long maxTimestamp = Long.MIN_VALUE;
+
+    /** Processing time when the latest record was observed. */
+    private long lastRecordWallClockMillis = Long.MIN_VALUE;
 
     /** Last emitted watermark, used to preserve Flink's monotonic watermark contract. */
     private long lastEmittedWatermark = Long.MIN_VALUE;
@@ -113,9 +130,14 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private int nextSampleIndex;
 
     private AdaptiveKafkaRecordTimestampWatermarkGenerator(
-        WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig configuration) {
+        WatermarkEmitStrategy emitStrategy,
+        SourceWatermarkConfig config,
+        MillisClock clock,
+        IdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
       this.emitStrategy = emitStrategy;
-      this.configuration = configuration;
+      this.config = config;
+      this.clock = clock;
+      this.idleAdvanceReadinessChecker = idleAdvanceReadinessChecker;
     }
 
     @Override
@@ -128,6 +150,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       }
 
       maxTimestamp = Math.max(maxTimestamp, eventTimestamp);
+      lastRecordWallClockMillis = clock.currentTimeMillis();
       recordCount++;
 
       if (emitStrategy.isOnEvent()) {
@@ -137,15 +160,15 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-      if (!emitStrategy.isOnPeriodic()) {
-        return;
+      if (emitStrategy.isOnPeriodic()) {
+        emitIfReady(output);
       }
 
-      emitIfReady(output);
+      emitIdleWatermarkIfReady(output);
     }
 
     private void emitIfReady(WatermarkOutput output) {
-      if (recordCount < configuration.getMinRecords() || maxTimestamp == Long.MIN_VALUE) {
+      if (recordCount < config.minRecords() || maxTimestamp == Long.MIN_VALUE) {
         // Avoid emitting during warm-up, so limited early samples won't distort the estimate.
         return;
       }
@@ -159,10 +182,47 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       }
     }
 
+    private void emitIdleWatermarkIfReady(WatermarkOutput output) {
+      long idleAdvanceTimeoutMillis = config.idleAdvanceTimeoutMillis();
+
+      if (idleAdvanceTimeoutMillis <= 0
+          || recordCount == 0
+          || maxTimestamp == Long.MIN_VALUE
+          || lastRecordWallClockMillis == Long.MIN_VALUE) {
+        return;
+      }
+
+      long currentTimeMillis = clock.currentTimeMillis();
+      long idleDurationMillis = currentTimeMillis - lastRecordWallClockMillis;
+      if (idleDurationMillis < idleAdvanceTimeoutMillis) {
+        return;
+      }
+
+      if (!idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+        return;
+      }
+
+      long outOfOrdernessMillis = calculateOutOfOrdernessMillis();
+
+      // Move forward from the last Kafka timestamp by wall-clock idle time, then subtract the
+      // observed lateness estimate and configured safety margin to avoid closing windows too early.
+      long watermark =
+          maxTimestamp
+              + idleDurationMillis
+              - outOfOrdernessMillis
+              - config.idleAdvanceSafetyMarginMillis()
+              - 1;
+
+      if (watermark > lastEmittedWatermark) {
+        output.emitWatermark(new Watermark(watermark));
+        lastEmittedWatermark = watermark;
+      }
+    }
+
     private long calculateOutOfOrdernessMillis() {
       int sampleCount = (int) Math.min(recordCount - 1, SAMPLE_SIZE);
       if (sampleCount <= 0) {
-        return configuration.getMinOutOfOrdernessMillis();
+        return config.minOutOfOrdernessMillis();
       }
 
       long[] samples = Arrays.copyOf(latenessSamples, sampleCount);
@@ -172,12 +232,17 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       // all event-time progress until it rotates out of the sample buffer.
       int quantileIndex =
           Math.min(
-              sampleCount - 1,
-              (int) Math.ceil(sampleCount * configuration.getOutOfOrdernessQuantile()) - 1);
+              sampleCount - 1, (int) Math.ceil(sampleCount * config.outOfOrdernessQuantile()) - 1);
 
       return Math.min(
-          configuration.getMaxOutOfOrdernessMillis(),
-          Math.max(configuration.getMinOutOfOrdernessMillis(), samples[quantileIndex]));
+          config.maxOutOfOrdernessMillis(),
+          Math.max(config.minOutOfOrdernessMillis(), samples[quantileIndex]));
     }
+  }
+
+  @FunctionalInterface
+  interface MillisClock extends Serializable {
+
+    long currentTimeMillis();
   }
 }
