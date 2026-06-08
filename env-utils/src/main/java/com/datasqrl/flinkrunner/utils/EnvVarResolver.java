@@ -21,11 +21,13 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -36,106 +38,15 @@ import lombok.extern.slf4j.Slf4j;
  * non-strict mode.
  */
 @Slf4j
+@SuperBuilder
 public class EnvVarResolver {
 
-  private static final Pattern ENVIRONMENT_VARIABLE_PATTERN = Pattern.compile("\\$\\{(.*?)\\}");
+  private static final Pattern ENVIRONMENT_VARIABLE_PATTERN =
+      Pattern.compile("\\$\\{(?!\\{)(.*?)\\}");
 
-  private final Map<String, String> envVars;
-  private final ObjectMapper objectMapper;
-  private final boolean strict;
-
-  private EnvVarResolver(Map<String, String> envVars, boolean strict) {
-    this.envVars = envVars;
-    this.strict = strict;
-    objectMapper = initObjectMapper();
-  }
-
-  /**
-   * Creates a strict resolver backed by the current process environment.
-   *
-   * @return a resolver backed by {@link System#getenv()}
-   */
-  public static EnvVarResolver of() {
-    return of(true);
-  }
-
-  /**
-   * Creates a resolver backed by the current process environment.
-   *
-   * @param strict whether missing variables should fail resolution
-   * @return a resolver backed by {@link System#getenv()}
-   */
-  public static EnvVarResolver of(boolean strict) {
-    return of(System.getenv(), strict);
-  }
-
-  /**
-   * Creates a strict resolver backed by the supplied environment variables.
-   *
-   * @param envVars environment variables used for placeholder resolution
-   * @return a resolver backed by the supplied environment variables
-   */
-  public static EnvVarResolver of(Map<String, String> envVars) {
-    return of(envVars, true);
-  }
-
-  /**
-   * Creates a resolver backed by the supplied environment variables.
-   *
-   * @param envVars environment variables used for placeholder resolution
-   * @param strict whether missing variables should fail resolution
-   * @return a resolver backed by the supplied environment variables
-   */
-  public static EnvVarResolver of(Map<String, String> envVars, boolean strict) {
-    return new EnvVarResolver(envVars, strict);
-  }
-
-  /**
-   * Creates a strict resolver backed by the current process environment plus deployment defaults.
-   *
-   * @return a resolver with deployment defaults applied
-   */
-  public static EnvVarResolver withDeploymentDefaults() {
-    return withDeploymentDefaults(true);
-  }
-
-  /**
-   * Creates a resolver backed by the current process environment plus deployment defaults.
-   *
-   * @param strict whether missing variables should fail resolution
-   * @return a resolver with deployment defaults applied
-   */
-  public static EnvVarResolver withDeploymentDefaults(boolean strict) {
-    return new EnvVarResolver(EnvUtils.getEnvWithDeploymentDefaults(), strict);
-  }
-
-  /**
-   * Creates a strict resolver backed by the supplied environment variables plus deployment
-   * defaults.
-   *
-   * @param envVars environment variables used for placeholder resolution
-   * @return a resolver with deployment defaults applied
-   */
-  public static EnvVarResolver withDeploymentDefaults(Map<String, String> envVars) {
-    return withDeploymentDefaults(envVars, true);
-  }
-
-  /**
-   * Creates a resolver backed by the supplied environment variables plus deployment defaults.
-   *
-   * <p>Deployment defaults are only added when the supplied map does not already contain those
-   * keys.
-   *
-   * @param envVars environment variables used for placeholder resolution
-   * @param strict whether missing variables should fail resolution
-   * @return a resolver with deployment defaults applied
-   */
-  public static EnvVarResolver withDeploymentDefaults(Map<String, String> envVars, boolean strict) {
-    var modifiedEnvVars = new HashMap<>(envVars);
-    EnvUtils.getDeploymentDefaults().forEach(modifiedEnvVars::putIfAbsent);
-
-    return new EnvVarResolver(Map.copyOf(modifiedEnvVars), strict);
-  }
+  @Builder.Default private final Map<String, String> envVars = System.getenv();
+  @Builder.Default private final boolean strict = true;
+  @Builder.Default private final Set<String> exclusions = Set.of();
 
   /**
    * Resolves environment variables referenced in a given source string. Searches for environment
@@ -174,6 +85,11 @@ public class EnvVarResolver {
         key = rawKey;
       }
 
+      // If excluded, don't do anything
+      if (exclusions.contains(key)) {
+        continue;
+      }
+
       if (envVars.containsKey(key)) {
         var envValue = envVars.get(key);
         matcher.appendReplacement(res, Matcher.quoteReplacement(envValue));
@@ -205,6 +121,7 @@ public class EnvVarResolver {
    * @throws IOException if the JSON processing fails in any way
    */
   public String resolveInJson(String jsonSrc) throws IOException {
+    var objectMapper = initObjectMapper();
     var res = objectMapper.readValue(jsonSrc, Map.class);
 
     return objectMapper.writeValueAsString(res);

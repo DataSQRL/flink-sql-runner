@@ -143,7 +143,9 @@ helm install sql-example -f <your-helm-values>.yaml <your-helm-chart>
 
 ### Environment Variable Substitution
 
-Flink SQL Runner automatically substitutes environment variables in your configuration files, SQL scripts, and compiled plans for secrets and environment specific configuration. Environment variables must be of the form `${ENV_VARIABLE}` and inside of strings.
+Flink SQL Runner automatically substitutes environment variables in your configuration files, SQL scripts, and compiled plans for secrets and environment specific configuration.
+Environment variables must be of the form `${ENV_VARIABLE}` and inside of strings.
+They also support bash-style defaults using `${ENV_VARIABLE:-default}` or `${ENV_VARIABLE:=default}`.
 
 For example, `${DATA_PATH}` is an environment variable inside the connector configuration of a table that is substituted at runtime:
 ```sql

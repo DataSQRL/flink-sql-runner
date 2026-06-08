@@ -20,7 +20,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import lombok.experimental.SuperBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -43,7 +46,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    resolver = EnvVarResolver.of(envVariables);
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
@@ -57,7 +60,7 @@ class EnvVarResolverTest {
       })
   void givenMissingEnvVariables_whenResolveEnv_Vars_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of();
-    resolver = EnvVarResolver.of(envVariables); // Empty map to simulate missing variables
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith(
@@ -76,7 +79,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "NAME", "exists");
-    resolver = EnvVarResolver.of(envVariables);
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage(
@@ -105,7 +108,7 @@ class EnvVarResolverTest {
         Map.of(
             "USER", "John",
             "PATH", "/usr/bin");
-    resolver = EnvVarResolver.of(envVariables);
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
@@ -120,7 +123,7 @@ class EnvVarResolverTest {
       })
   void givenMissingEnvWithoutDefault_whenResolve_thenThrowException(String command) {
     Map<String, String> envVariables = Map.of("A", "something");
-    resolver = EnvVarResolver.of(envVariables);
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     assertThatThrownBy(() -> resolver.resolve(command))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("referenced, but not found");
@@ -136,14 +139,44 @@ class EnvVarResolverTest {
   })
   void givenFallbackWithColons_whenResolve_thenParseCorrectly(String command, String expected) {
     Map<String, String> envVariables = Map.of(); // No TOKEN set
-    resolver = EnvVarResolver.of(envVariables);
+    resolver = EnvVarResolver.builder().envVars(envVariables).build();
     var result = resolver.resolve(command);
     assertThat(result).isEqualTo(expected);
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "'${{SECRET}}', '${{SECRET}}'",
+    "'Token=${{SECRET}}', 'Token=${{SECRET}}'",
+    "'Host=${HOST}, password=${{DB_PASSWORD}}', 'Host=db.example.com, password=${{DB_PASSWORD}}'"
+  })
+  void givenSecretEnvTemplate_whenResolve_thenLeaveUnchanged(String command, String expected) {
+    resolver = EnvVarResolver.builder().envVars(Map.of("HOST", "db.example.com")).build();
+
+    var result = resolver.resolve(command);
+
+    assertThat(result).isEqualTo(expected);
+  }
+
+  @Test
+  void givenExcludedEnvVariables_whenResolve_thenLeavePlaceholdersUnchanged() {
+    resolver =
+        EnvVarResolver.builder()
+            .envVars(
+                Map.of(
+                    "USER", "John",
+                    "EXCLUDED", "ignored"))
+            .exclusions(Set.of("EXCLUDED", "MISSING_EXCLUDED"))
+            .build();
+
+    var result = resolver.resolve("${USER}|${EXCLUDED}|${EXCLUDED:-fallback}|${MISSING_EXCLUDED}");
+
+    assertThat(result).isEqualTo("John|${EXCLUDED}|${EXCLUDED:-fallback}|${MISSING_EXCLUDED}");
+  }
+
   @Test
   void givenNullOrBlankSource_whenResolve_thenReturnSource() {
-    resolver = EnvVarResolver.of(Map.of());
+    resolver = EnvVarResolver.builder().envVars(Map.of()).build();
 
     assertThat(resolver.resolve(null)).isNull();
     assertThat(resolver.resolve("   ")).isEqualTo("   ");
@@ -151,7 +184,7 @@ class EnvVarResolverTest {
 
   @Test
   void givenNonStrictResolver_whenMissingEnvVariables_thenLeavesPlaceholdersUnresolved() {
-    resolver = EnvVarResolver.of(Map.of("USER", "John"), false);
+    resolver = EnvVarResolver.builder().envVars(Map.of("USER", "John")).strict(false).build();
 
     var result = resolver.resolve("Hello ${USER}, ${MISSING}!");
 
@@ -161,10 +194,13 @@ class EnvVarResolverTest {
   @Test
   void givenDeploymentDefaults_whenResolve_thenUseDefaultsAndSuppliedValues() {
     resolver =
-        EnvVarResolver.withDeploymentDefaults(
-            Map.of(
-                "DEPLOYMENT_ID", "deployment-1",
-                "USER", "John"));
+        EnvVarResolver.builder()
+            .envVars(
+                withDeploymentDefaults(
+                    Map.of(
+                        "DEPLOYMENT_ID", "deployment-1",
+                        "USER", "John")))
+            .build();
 
     var result = resolver.resolve("${DEPLOYMENT_ID}|${DEPLOYMENT_TIMESTAMP}|${USER}");
     var parts = result.split("\\|");
@@ -178,7 +214,10 @@ class EnvVarResolverTest {
   @Test
   void givenNonStrictDeploymentDefaults_whenMissingNonDefaultEnvVariable_thenLeavesPlaceholder() {
     resolver =
-        EnvVarResolver.withDeploymentDefaults(Map.of("DEPLOYMENT_ID", "deployment-1"), false);
+        EnvVarResolver.builder()
+            .envVars(withDeploymentDefaults(Map.of("DEPLOYMENT_ID", "deployment-1")))
+            .strict(false)
+            .build();
 
     var result = resolver.resolve("${DEPLOYMENT_ID}|${MISSING}");
 
@@ -187,7 +226,7 @@ class EnvVarResolverTest {
 
   @Test
   void givenJsonSource_whenResolveInJson_thenResolveStringLeafNodes() throws IOException {
-    resolver = EnvVarResolver.of(Map.of("USER", "John"));
+    resolver = EnvVarResolver.builder().envVars(Map.of("USER", "John")).build();
 
     var result =
         resolver.resolveInJson(
@@ -197,5 +236,37 @@ class EnvVarResolverTest {
     assertThat(json.get("user").asText()).isEqualTo("John");
     assertThat(json.get("count").asInt()).isEqualTo(1);
     assertThat(json.get("nested").get("path").asText()).isEqualTo("/tmp");
+  }
+
+  @Test
+  void givenSubclass_whenBuild_thenInheritedBuilderFieldsAreApplied() {
+    resolver =
+        TestEnvVarResolver.builder()
+            .envVars(Map.of("USER", "John"))
+            .strict(false)
+            .prefix("resolved=")
+            .build();
+
+    var result = resolver.resolve("${USER}:${MISSING}");
+
+    assertThat(result).isEqualTo("resolved=John:${MISSING}");
+  }
+
+  private Map<String, String> withDeploymentDefaults(Map<String, String> envVars) {
+    var modifiedEnvVars = new HashMap<>(envVars);
+    EnvUtils.getDeploymentDefaults().forEach(modifiedEnvVars::putIfAbsent);
+
+    return Map.copyOf(modifiedEnvVars);
+  }
+
+  @SuperBuilder
+  private static class TestEnvVarResolver extends EnvVarResolver {
+
+    private final String prefix;
+
+    @Override
+    public String resolve(String src) {
+      return prefix + super.resolve(src);
+    }
   }
 }

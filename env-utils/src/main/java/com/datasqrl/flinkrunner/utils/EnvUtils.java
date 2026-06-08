@@ -38,7 +38,20 @@ public final class EnvUtils {
    * @return an immutable map containing all environment variables with defaults applied
    */
   public static Map<String, String> getEnvWithDeploymentDefaults() {
-    var env = new HashMap<>(System.getenv());
+    return addDeploymentDefaults(System.getenv());
+  }
+
+  /**
+   * Returns a copy of the supplied environment variables with deployment-specific defaults added.
+   *
+   * <p>Deployment defaults are only added when the supplied map does not already contain those
+   * keys. Existing values are preserved.
+   *
+   * @param envVars environment variables to augment with deployment defaults
+   * @return an immutable map containing the supplied variables plus any missing deployment defaults
+   */
+  public static Map<String, String> addDeploymentDefaults(Map<String, String> envVars) {
+    var env = new HashMap<>(envVars);
     getDeploymentDefaults().forEach(env::putIfAbsent);
 
     return Map.copyOf(env);
