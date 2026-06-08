@@ -94,7 +94,7 @@
     <flink.cdc.version>3.6.0-2.2</flink.cdc.version>
     <http.conn.version>0.25.0</http.conn.version>
     <jdbc.conn.version>4.0.0-2.0</jdbc.conn.version>
-    <kafka.conn.version>4.0.1-2.0</kafka.conn.version>
+    <kafka.conn.version>5.0.0-2.2</kafka.conn.version>
 
     <!-- Dependency versions -->
     <assertj.version>3.27.7</assertj.version>
