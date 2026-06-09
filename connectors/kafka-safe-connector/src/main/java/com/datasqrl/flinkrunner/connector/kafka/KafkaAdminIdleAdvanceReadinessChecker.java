@@ -96,11 +96,12 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements IdleAdvanceReadine
                 var timestampType = config.get(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG);
                 return TimestampType.LOG_APPEND_TIME.toString().equals(timestampType.value());
               });
-    } catch (AuthorizationException e) {
-      throw new RuntimeException(
-          "Cannot check idle watermark advance readiness: insufficient Kafka permissions.", e);
-
     } catch (Exception e) {
+      if (e.getCause() instanceof AuthorizationException ae) {
+        throw new RuntimeException(
+            "Cannot check idle watermark advance readiness: insufficient Kafka permissions.", ae);
+      }
+
       log.debug("Failed to check idle watermark advance readiness", e);
       return false;
     }
