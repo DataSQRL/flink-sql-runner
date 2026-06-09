@@ -107,6 +107,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private final SourceWatermarkConfig config;
     private final MillisClock clock;
     private final IdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
+    private final long createdWallClockMillis;
 
     /** Highest Kafka record timestamp observed by this generator. */
     private long maxTimestamp = Long.MIN_VALUE;
@@ -116,6 +117,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
     /** Last emitted watermark, used to preserve Flink's monotonic watermark contract. */
     private long lastEmittedWatermark = Long.MIN_VALUE;
+
+    /** Whether this output was marked idle before receiving any records. */
+    private boolean idle;
 
     /**
      * Number of records observed, including the first record that cannot produce a lateness sample.
@@ -134,10 +138,16 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       this.config = config;
       this.clock = clock;
       this.idleAdvanceReadinessChecker = idleAdvanceReadinessChecker;
+      this.createdWallClockMillis = clock.currentTimeMillis();
     }
 
     @Override
     public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
+      if (idle) {
+        output.markActive();
+        idle = false;
+      }
+
       if (maxTimestamp != Long.MIN_VALUE) {
         // Sample lateness before updating maxTimestamp, so the sample reflects disorder relative to
         // the already observed stream frontier.
@@ -181,14 +191,20 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private void emitIdleWatermarkIfReady(WatermarkOutput output) {
       long idleAdvanceTimeoutMillis = config.idleAdvanceTimeoutMillis();
 
-      if (idleAdvanceTimeoutMillis <= 0
-          || recordCount == 0
-          || maxTimestamp == Long.MIN_VALUE
-          || lastRecordWallClockMillis == Long.MIN_VALUE) {
+      if (idleAdvanceTimeoutMillis <= 0) {
         return;
       }
 
       long currentTimeMillis = clock.currentTimeMillis();
+      if (recordCount == 0) {
+        markIdleIfReady(output, currentTimeMillis, currentTimeMillis - createdWallClockMillis);
+        return;
+      }
+
+      if (maxTimestamp == Long.MIN_VALUE || lastRecordWallClockMillis == Long.MIN_VALUE) {
+        return;
+      }
+
       long idleDurationMillis = currentTimeMillis - lastRecordWallClockMillis;
       if (idleDurationMillis < idleAdvanceTimeoutMillis) {
         return;
@@ -213,6 +229,21 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         output.emitWatermark(new Watermark(watermark));
         lastEmittedWatermark = watermark;
       }
+    }
+
+    private void markIdleIfReady(
+        WatermarkOutput output, long currentTimeMillis, long idleDurationMillis) {
+
+      if (idle || idleDurationMillis < config.idleAdvanceTimeoutMillis()) {
+        return;
+      }
+
+      if (!idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+        return;
+      }
+
+      output.markIdle();
+      idle = true;
     }
 
     private long calculateOutOfOrdernessMillis() {

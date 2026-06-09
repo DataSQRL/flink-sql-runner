@@ -155,6 +155,39 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     assertThat(output.watermarks).isEmpty();
   }
 
+  @Test
+  void testIdleAdvanceMarksNeverSeenOutputIdleAndReactivatesOnFirstRecord() {
+    final MutableMillisClock clock = new MutableMillisClock();
+    final WatermarkGenerator<RowData> generator =
+        new KafkaRecordTimestampWatermarkStrategy(
+                WatermarkEmitStrategy.ON_PERIODIC,
+                new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 5000),
+                clock,
+                currentTimeMillis -> true)
+            .createWatermarkGenerator(null);
+    final CollectingWatermarkOutput output = new CollectingWatermarkOutput();
+
+    clock.advanceMillis(999);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.idleCount).isZero();
+
+    clock.advanceMillis(1);
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.idleCount).isOne();
+    assertThat(output.activeCount).isZero();
+    assertThat(output.watermarks).isEmpty();
+
+    generator.onPeriodicEmit(output);
+
+    assertThat(output.idleCount).isOne();
+
+    generator.onEvent(null, 10_000L, output);
+
+    assertThat(output.activeCount).isOne();
+  }
+
   private static WatermarkGenerator<RowData> createOnPeriodicGenerator() {
     return new KafkaRecordTimestampWatermarkStrategy(
             WatermarkEmitStrategy.ON_PERIODIC, new SourceWatermarkConfig())
@@ -177,6 +210,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   private static final class CollectingWatermarkOutput implements WatermarkOutput {
 
     private final List<Long> watermarks = new ArrayList<>();
+    private int idleCount;
+    private int activeCount;
 
     @Override
     public void emitWatermark(Watermark watermark) {
@@ -184,10 +219,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     }
 
     @Override
-    public void markIdle() {}
+    public void markIdle() {
+      idleCount++;
+    }
 
     @Override
-    public void markActive() {}
+    public void markActive() {
+      activeCount++;
+    }
   }
 
   private static final class MutableMillisClock
