@@ -28,11 +28,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.TopicConfig;
+import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.record.TimestampType;
 
 /** Readiness checker for idle source-watermark advancement backed by Kafka AdminClient metadata. */
 @Slf4j
-class KafkaAdminIdleAdvanceReadinessChecker implements IdleAdvanceReadinessChecker {
+public class KafkaAdminIdleAdvanceReadinessChecker implements IdleAdvanceReadinessChecker {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -50,10 +51,12 @@ class KafkaAdminIdleAdvanceReadinessChecker implements IdleAdvanceReadinessCheck
   private transient long lastCheckMillis = Long.MIN_VALUE;
   private transient boolean lastCheckReady;
 
-  KafkaAdminIdleAdvanceReadinessChecker(
+  public KafkaAdminIdleAdvanceReadinessChecker(
       Properties kafkaProperties, List<String> topics, SourceWatermarkConfig config) {
+    checkArgument(
+        topics != null && !topics.isEmpty(),
+        "Watermark idle advance only supports the 'topic' configuration");
     this.kafkaProperties = kafkaProperties;
-    checkArgument(topics != null && !topics.isEmpty(), "topics must not be empty");
     this.topics = List.copyOf(topics);
     this.brokerCheckTimeoutMillis = config.idleAdvanceBrokerCheckTimeoutMillis();
     this.brokerCheckTtlMillis = config.idleAdvanceBrokerCheckTtlMillis();
@@ -93,9 +96,12 @@ class KafkaAdminIdleAdvanceReadinessChecker implements IdleAdvanceReadinessCheck
                 var timestampType = config.get(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG);
                 return TimestampType.LOG_APPEND_TIME.toString().equals(timestampType.value());
               });
+    } catch (AuthorizationException e) {
+      throw new RuntimeException(
+          "Cannot check idle watermark advance readiness: insufficient Kafka permissions.", e);
 
     } catch (Exception e) {
-      log.debug("Failed to check broker and topic timestamp type", e);
+      log.debug("Failed to check idle watermark advance readiness", e);
       return false;
     }
   }

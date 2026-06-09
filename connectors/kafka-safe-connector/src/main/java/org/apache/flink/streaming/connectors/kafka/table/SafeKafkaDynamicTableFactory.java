@@ -16,9 +16,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
-import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
-import com.google.auto.service.AutoService;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
@@ -50,11 +47,16 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.types.RowKind;
+
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
+import com.google.auto.service.AutoService;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -69,11 +71,11 @@ import java.util.stream.Stream;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
-import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;

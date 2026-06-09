@@ -15,8 +15,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
-import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -57,6 +55,9 @@ import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker;
+import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
+import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -273,8 +274,7 @@ public class SafeKafkaDynamicSource
                         "Source watermark idle timeout must not be null.");
         this.sourceWatermarkConfig =
                 Preconditions.checkNotNull(
-                    sourceWatermarkConfig,
-                        "Source watermark configuration must not be null.");
+                        sourceWatermarkConfig, "Source watermark configuration must not be null.");
     }
 
     @Override
@@ -404,7 +404,7 @@ public class SafeKafkaDynamicSource
                         deserFailureHandler,
                         sourceWatermarkEmitStrategy,
                         sourceWatermarkIdleTimeout,
-                    sourceWatermarkConfig);
+                        sourceWatermarkConfig);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
@@ -479,7 +479,7 @@ public class SafeKafkaDynamicSource
                 sourceWatermarkEnabled,
                 sourceWatermarkEmitStrategy,
                 sourceWatermarkIdleTimeout,
-            sourceWatermarkConfig,
+                sourceWatermarkConfig,
                 parallelism);
     }
 
@@ -566,17 +566,27 @@ public class SafeKafkaDynamicSource
         }
 
         if (sourceWatermarkEnabled) {
-            WatermarkStrategy<RowData> sourceWatermarkStrategy =
-                    new KafkaRecordTimestampWatermarkStrategy(
-                            sourceWatermarkEmitStrategy,
-                            sourceWatermarkConfig,
-                            properties,
-                            topics);
+            boolean idleAdvanceEnabled = sourceWatermarkConfig.idleAdvanceTimeoutMillis() > 0;
+            WatermarkStrategy<RowData> sourceWatermarkStrategy;
+            if (idleAdvanceEnabled) {
+                KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker =
+                        new KafkaAdminIdleAdvanceReadinessChecker(
+                                properties, topics, sourceWatermarkConfig);
 
-            // Skip Flink idleness when idle advancement is enabled, otherwise the source
+                sourceWatermarkStrategy =
+                        new KafkaRecordTimestampWatermarkStrategy(
+                                sourceWatermarkEmitStrategy,
+                                sourceWatermarkConfig,
+                                idleAdvanceReadinessChecker);
+            } else {
+                sourceWatermarkStrategy =
+                        new KafkaRecordTimestampWatermarkStrategy(
+                                sourceWatermarkEmitStrategy, sourceWatermarkConfig);
+            }
+
+            // Only apply Flink idleness when idle advancement is disabled, otherwise the source
             // may be marked idle before this strategy can emit wall-clock-derived watermarks.
-            if (sourceWatermarkIdleTimeout.isPresent()
-                    && sourceWatermarkConfig.idleAdvanceTimeoutMillis() <= 0) {
+            if (sourceWatermarkIdleTimeout.isPresent() && !idleAdvanceEnabled) {
                 sourceWatermarkStrategy =
                         sourceWatermarkStrategy.withIdleness(sourceWatermarkIdleTimeout.get());
             }

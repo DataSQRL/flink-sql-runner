@@ -19,8 +19,6 @@ import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWat
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
@@ -47,17 +45,15 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
   public KafkaRecordTimestampWatermarkStrategy(
       WatermarkEmitStrategy emitStrategy,
       SourceWatermarkConfig sourceWatermarkConfig,
-      Properties kafkaProperties,
-      List<String> topics) {
+      KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
     this(
         emitStrategy,
         sourceWatermarkConfig,
         System::currentTimeMillis,
-        new KafkaAdminIdleAdvanceReadinessChecker(kafkaProperties, topics, sourceWatermarkConfig));
+        idleAdvanceReadinessChecker);
   }
 
-  @VisibleForTesting
-  KafkaRecordTimestampWatermarkStrategy(
+  public KafkaRecordTimestampWatermarkStrategy(
       WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig sourceWatermarkConfig) {
     this(
         emitStrategy, sourceWatermarkConfig, System::currentTimeMillis, currentTimeMillis -> false);

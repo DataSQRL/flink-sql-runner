@@ -15,8 +15,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
-import com.google.auto.service.AutoService;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -44,6 +42,9 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.google.auto.service.AutoService;
+
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -55,11 +56,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.*;
-import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;
