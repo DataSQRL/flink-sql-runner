@@ -15,8 +15,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
-import com.google.auto.service.AutoService;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -44,6 +42,9 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
+import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.google.auto.service.AutoService;
+
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -55,6 +56,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.*;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.sourceWatermarkConfiguration;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -82,6 +92,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopicPattern;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateScanBoundedMode;
+import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
 
 /** Upsert-Kafka factory. */
 @AutoService(Factory.class)
@@ -123,6 +135,16 @@ public class SafeUpsertKafkaDynamicTableFactory
         options.add(TRANSACTIONAL_ID_PREFIX);
         options.add(SCAN_PARALLELISM);
         options.add(TRANSACTION_NAMING_STRATEGY);
+        options.add(WATERMARK_EMIT_STRATEGY);
+        options.add(SOURCE_IDLE_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
+        options.add(SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS);
+        options.add(SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS);
+        options.add(SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT);
+        options.add(SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL);
         return options;
     }
 
@@ -183,7 +205,10 @@ public class SafeUpsertKafkaDynamicTableFactory
                 true,
                 context.getObjectIdentifier().asSummaryString(),
                 parallelism,
-                deserFailureHandler);
+                deserFailureHandler,
+                tableOptions.get(WATERMARK_EMIT_STRATEGY),
+                tableOptions.getOptional(SOURCE_IDLE_TIMEOUT),
+                sourceWatermarkConfiguration(tableOptions));
     }
 
     @Override

@@ -25,6 +25,7 @@ import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /** A specific {@link KafkaRecordDeserializationSchema} for {@link SafeKafkaDynamicSource}. */
