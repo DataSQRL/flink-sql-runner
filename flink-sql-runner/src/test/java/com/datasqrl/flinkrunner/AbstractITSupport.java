@@ -76,7 +76,24 @@ public class AbstractITSupport {
               DockerImageName.parse("docker.redpanda.com/redpandadata/redpanda:v23.1.2"))
           .withNetwork(sharedNetwork)
           .withNetworkAliases("redpanda")
-          .withExposedPorts(REDPANDA_PORT);
+          .withExposedPorts(REDPANDA_PORT)
+          .withCommand(
+              "redpanda",
+              "start",
+              "--overprovisioned",
+              "--smp",
+              "1",
+              "--memory",
+              "1G",
+              "--reserve-memory",
+              "0M",
+              "--node-id",
+              "0",
+              "--check=false",
+              "--kafka-addr",
+              "PLAINTEXT://0.0.0.0:9092",
+              "--advertise-kafka-addr",
+              "PLAINTEXT://redpanda:9092");
 
   protected static GenericContainer<?> flinkContainer;
 
@@ -85,8 +102,6 @@ public class AbstractITSupport {
   @SuppressWarnings("resource")
   @BeforeAll
   protected void init() throws Exception {
-    int redisPort = redpandaContainer.getMappedPort(REDPANDA_PORT);
-
     flinkContainer =
         new GenericContainer<>(DockerImageName.parse("flink-sql-runner"))
             .withNetwork(sharedNetwork)
@@ -94,7 +109,7 @@ public class AbstractITSupport {
             .withEnv("JDBC_URL", "jdbc:postgresql://postgres:5432/datasqrl")
             .withEnv("JDBC_USERNAME", "postgres")
             .withEnv("JDBC_PASSWORD", "postgres")
-            .withEnv("REDPANDA_PORT", String.valueOf(redisPort))
+            .withEnv("REDPANDA_PORT", String.valueOf(REDPANDA_PORT))
             .withFileSystemBind("target/test-classes/plans", "/it/planfile", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/sql", "/it/sqlfile", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/sqrl", "/it/sqrl", BindMode.READ_ONLY)

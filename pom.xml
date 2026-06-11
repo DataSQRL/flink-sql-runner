@@ -445,12 +445,12 @@
             </goals>
             <phase>validate</phase>
             <configuration>
-              <java>
+              <java combine.self="override">
                 <includes>
                   <include>**/org/apache/flink/**/*.java</include>
                 </includes>
                 <googleJavaFormat>
-                  <version>1.8</version>
+                  <version>1.10.0</version>
                   <style>AOSP</style>
                 </googleJavaFormat>
                 <!-- \# refers to the static imports -->
