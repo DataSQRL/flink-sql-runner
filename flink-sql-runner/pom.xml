@@ -213,8 +213,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.getindata</groupId>
-      <artifactId>flink-http-connector</artifactId>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-http</artifactId>
       <version>${http.conn.version}</version>
     </dependency>
 
