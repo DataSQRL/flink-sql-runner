@@ -71,6 +71,8 @@ import java.util.stream.Stream;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
+import static com.datasqrl.flinkrunner.connector.kafka.RateLimitOptions.SCAN_RATE_LIMIT_RECORDS_PER_SECOND;
+import static com.datasqrl.flinkrunner.connector.kafka.RateLimitOptions.scanRateLimitRecordsPerSecond;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN;
@@ -175,6 +177,7 @@ public class SafeKafkaDynamicTableFactory
         options.add(TRANSACTION_NAMING_STRATEGY);
         options.add(SCAN_DESER_FAILURE_HANDLER);
         options.add(SCAN_DESER_FAILURE_TOPIC);
+        options.add(SCAN_RATE_LIMIT_RECORDS_PER_SECOND);
         options.add(WATERMARK_EMIT_STRATEGY);
         options.add(SOURCE_IDLE_TIMEOUT);
         options.add(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
@@ -276,6 +279,7 @@ public class SafeKafkaDynamicTableFactory
                 context.getObjectIdentifier().asSummaryString(),
                 parallelism,
                 deserFailureHandler,
+                scanRateLimitRecordsPerSecond(tableOptions),
                 tableOptions.get(WATERMARK_EMIT_STRATEGY),
                 tableOptions.getOptional(SOURCE_IDLE_TIMEOUT),
                 sourceWatermarkConfiguration(tableOptions));
@@ -447,6 +451,7 @@ public class SafeKafkaDynamicTableFactory
             String tableIdentifier,
             Integer parallelism,
             DeserFailureHandler deserFailureHandler,
+            Optional<Double> rateLimitRecordsPerSecond,
             WatermarkEmitStrategy sourceWatermarkEmitStrategy,
             Optional<Duration> sourceWatermarkIdleTimeout,
             SourceWatermarkConfig sourceWatermarkConfig) {
@@ -470,6 +475,7 @@ public class SafeKafkaDynamicTableFactory
                 tableIdentifier,
                 parallelism,
                 deserFailureHandler,
+                rateLimitRecordsPerSecond,
                 sourceWatermarkEmitStrategy,
                 sourceWatermarkIdleTimeout,
                 sourceWatermarkConfig);

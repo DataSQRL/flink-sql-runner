@@ -20,11 +20,15 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -57,6 +61,7 @@ import org.apache.flink.util.Preconditions;
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
+import com.datasqrl.flinkrunner.connector.kafka.RateLimitedSource;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -199,6 +204,9 @@ public class SafeKafkaDynamicSource
 
     protected final DeserFailureHandler deserFailureHandler;
 
+    /** Maximum records per second emitted by this source. */
+    protected final Optional<Double> rateLimitRecordsPerSecond;
+
     public SafeKafkaDynamicSource(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -219,6 +227,7 @@ public class SafeKafkaDynamicSource
             String tableIdentifier,
             @Nullable Integer parallelism,
             DeserFailureHandler deserFailureHandler,
+            Optional<Double> rateLimitRecordsPerSecond,
             WatermarkEmitStrategy sourceWatermarkEmitStrategy,
             Optional<Duration> sourceWatermarkIdleTimeout,
             SourceWatermarkConfig sourceWatermarkConfig) {
@@ -264,6 +273,9 @@ public class SafeKafkaDynamicSource
         this.tableIdentifier = tableIdentifier;
         this.parallelism = parallelism;
         this.deserFailureHandler = deserFailureHandler;
+        this.rateLimitRecordsPerSecond =
+                Preconditions.checkNotNull(
+                        rateLimitRecordsPerSecond, "Rate limit must not be null.");
         this.sourceWatermarkEmitStrategy =
                 Preconditions.checkNotNull(
                         sourceWatermarkEmitStrategy,
@@ -293,7 +305,7 @@ public class SafeKafkaDynamicSource
         final TypeInformation<RowData> producedTypeInfo =
                 context.createTypeInformation(producedDataType);
 
-        final KafkaSource<RowData> kafkaSource =
+        final Source<RowData, ?, ?> kafkaSource =
                 createKafkaSource(keyDeserialization, valueDeserialization, producedTypeInfo);
 
         return new DataStreamScanProvider() {
@@ -303,7 +315,10 @@ public class SafeKafkaDynamicSource
                 final WatermarkStrategy<RowData> watermarkStrategy = getWatermarkStrategy();
                 DataStreamSource<RowData> sourceStream =
                         execEnv.fromSource(
-                                kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
+                                kafkaSource,
+                                watermarkStrategy,
+                                "KafkaSource-" + tableIdentifier,
+                                producedTypeInfo);
                 providerContext.generateUid(KAFKA_TRANSFORMATION).ifPresent(sourceStream::uid);
                 return sourceStream;
             }
@@ -402,6 +417,7 @@ public class SafeKafkaDynamicSource
                         tableIdentifier,
                         parallelism,
                         deserFailureHandler,
+                        rateLimitRecordsPerSecond,
                         sourceWatermarkEmitStrategy,
                         sourceWatermarkIdleTimeout,
                         sourceWatermarkConfig);
@@ -450,6 +466,7 @@ public class SafeKafkaDynamicSource
                 && sourceWatermarkEmitStrategy == that.sourceWatermarkEmitStrategy
                 && Objects.equals(sourceWatermarkIdleTimeout, that.sourceWatermarkIdleTimeout)
                 && Objects.equals(sourceWatermarkConfig, that.sourceWatermarkConfig)
+                && Objects.equals(rateLimitRecordsPerSecond, that.rateLimitRecordsPerSecond)
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -480,12 +497,13 @@ public class SafeKafkaDynamicSource
                 sourceWatermarkEmitStrategy,
                 sourceWatermarkIdleTimeout,
                 sourceWatermarkConfig,
+                rateLimitRecordsPerSecond,
                 parallelism);
     }
 
     // --------------------------------------------------------------------------------------------
 
-    protected KafkaSource<RowData> createKafkaSource(
+    protected Source<RowData, KafkaPartitionSplit, KafkaSourceEnumState> createKafkaSource(
             DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo) {
@@ -557,7 +575,19 @@ public class SafeKafkaDynamicSource
 
         kafkaSourceBuilder.setProperties(properties).setDeserializer(kafkaDeserializer);
 
-        return kafkaSourceBuilder.build();
+        KafkaSource<RowData> kafkaSource = kafkaSourceBuilder.build();
+        if (rateLimitRecordsPerSecond.isEmpty()) {
+            return kafkaSource;
+        }
+
+        return new RateLimitedSource<>(
+                kafkaSource, recordsPerSecondRateLimiterStrategy(rateLimitRecordsPerSecond.get()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static RateLimiterStrategy<KafkaPartitionSplit> recordsPerSecondRateLimiterStrategy(
+            double recordsPerSecond) {
+        return RateLimiterStrategy.perSecond(recordsPerSecond);
     }
 
     private WatermarkStrategy<RowData> getWatermarkStrategy() {
