@@ -43,6 +43,12 @@ import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Rate-limits emitted records while preserving all callbacks of the wrapped source.
+ *
+ * <p>Flink's built-in rate-limited reader does not forward Kafka's checkpoint-complete callback,
+ * which Kafka uses for offset commits.
+ */
 public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
     implements Source<T, SplitT, EnumChkT>, LineageVertexProvider {
 
@@ -137,12 +143,15 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
         return InputStatus.NOTHING_AVAILABLE;
       }
 
+      // pollNext() returns only InputStatus, not the emitted-record count. Count actual collect()
+      // calls and acquire permits after delegation.
       countingOutput.reset(output);
       InputStatus status = delegate.pollNext(countingOutput);
       int emittedRecords = countingOutput.getEmittedRecords();
       if (emittedRecords > 0) {
         rateLimitPermissionFuture = rateLimiter.acquire(emittedRecords).toCompletableFuture();
         if (status == InputStatus.MORE_AVAILABLE && !rateLimitPermissionFuture.isDone()) {
+          // Force the runtime through isAvailable() so it waits on the limiter before polling again.
           return InputStatus.NOTHING_AVAILABLE;
         }
       }
@@ -180,6 +189,7 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+      // KafkaSourceReader uses checkpoint completion for offset commits; keep it delegated.
       delegate.notifyCheckpointComplete(checkpointId);
       rateLimiter.notifyCheckpointComplete(checkpointId);
     }
@@ -196,6 +206,8 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
     }
   }
 
+  // Records can be emitted through either ReaderOutput or split-specific SourceOutput, so both
+  // paths need to be counted.
   private static final class CountingReaderOutput<T> implements ReaderOutput<T> {
 
     private ReaderOutput<T> delegate;
@@ -206,6 +218,8 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
       ReaderOutput<T> checkedDelegate =
           Preconditions.checkNotNull(delegate, "Delegate output must not be null.");
       if (this.delegate != checkedDelegate) {
+        // Split outputs are scoped to the current ReaderOutput. Invalidate cached delegates if
+        // Flink supplies a different output instance.
         splitOutputs.values().forEach(CountingSourceOutput::resetDelegateOutput);
       }
       this.delegate = checkedDelegate;
