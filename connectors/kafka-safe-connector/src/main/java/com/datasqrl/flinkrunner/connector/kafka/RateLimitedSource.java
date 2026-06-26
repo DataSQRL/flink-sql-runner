@@ -151,7 +151,8 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
       if (emittedRecords > 0) {
         rateLimitPermissionFuture = rateLimiter.acquire(emittedRecords).toCompletableFuture();
         if (status == InputStatus.MORE_AVAILABLE && !rateLimitPermissionFuture.isDone()) {
-          // Force the runtime through isAvailable() so it waits on the limiter before polling again.
+          // Force the runtime through isAvailable() so it waits on the limiter before polling
+          // again.
           return InputStatus.NOTHING_AVAILABLE;
         }
       }
