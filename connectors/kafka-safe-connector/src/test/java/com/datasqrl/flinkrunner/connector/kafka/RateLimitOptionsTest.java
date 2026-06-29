@@ -36,14 +36,14 @@ class RateLimitOptionsTest {
   @Test
   void returnsConfiguredRateLimit() {
     Configuration configuration = new Configuration();
-    configuration.set(SCAN_RATE_LIMIT_RECORDS_PER_SECOND, 123.45D);
+    configuration.set(SCAN_RATE_LIMIT_RECORDS_PER_SECOND, 123);
 
-    assertThat(scanRateLimitRecordsPerSecond(configuration)).contains(123.45D);
+    assertThat(scanRateLimitRecordsPerSecond(configuration)).contains(123);
   }
 
   @ParameterizedTest
-  @ValueSource(doubles = {0D, -1D, Double.NaN, Double.POSITIVE_INFINITY})
-  void rejectsInvalidRateLimits(double recordsPerSecond) {
+  @ValueSource(ints = {0, -1})
+  void rejectsInvalidRateLimits(int recordsPerSecond) {
     Configuration configuration = new Configuration();
     configuration.set(SCAN_RATE_LIMIT_RECORDS_PER_SECOND, recordsPerSecond);
 

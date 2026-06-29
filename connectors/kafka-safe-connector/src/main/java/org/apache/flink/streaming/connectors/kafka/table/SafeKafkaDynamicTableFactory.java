@@ -451,7 +451,7 @@ public class SafeKafkaDynamicTableFactory
             String tableIdentifier,
             Integer parallelism,
             DeserFailureHandler deserFailureHandler,
-            Optional<Double> rateLimitRecordsPerSecond,
+            Optional<Integer> rateLimitRecordsPerSecond,
             WatermarkEmitStrategy sourceWatermarkEmitStrategy,
             Optional<Duration> sourceWatermarkIdleTimeout,
             SourceWatermarkConfig sourceWatermarkConfig) {

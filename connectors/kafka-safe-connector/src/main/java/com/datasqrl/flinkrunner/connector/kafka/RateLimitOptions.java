@@ -23,23 +23,22 @@ import org.apache.flink.table.api.ValidationException;
 
 public class RateLimitOptions {
 
-  public static final ConfigOption<Double> SCAN_RATE_LIMIT_RECORDS_PER_SECOND =
+  public static final ConfigOption<Integer> SCAN_RATE_LIMIT_RECORDS_PER_SECOND =
       ConfigOptions.key("scan.rate-limit.records-per-second")
-          .doubleType()
+          .intType()
           .noDefaultValue()
           .withDescription(
               "Optional maximum number of records per second emitted by the Kafka source.");
 
-  public static Optional<Double> scanRateLimitRecordsPerSecond(ReadableConfig tableOptions) {
-    Optional<Double> recordsPerSecond =
+  public static Optional<Integer> scanRateLimitRecordsPerSecond(ReadableConfig tableOptions) {
+    Optional<Integer> recordsPerSecond =
         tableOptions.getOptional(SCAN_RATE_LIMIT_RECORDS_PER_SECOND);
 
     recordsPerSecond.ifPresent(
         value -> {
-          if (!Double.isFinite(value) || value <= 0D) {
+          if (value <= 0) {
             throw new ValidationException(
-                "'%s' must be a finite number greater than 0."
-                    .formatted(SCAN_RATE_LIMIT_RECORDS_PER_SECOND.key()));
+                "'%s' must be greater than 0.".formatted(SCAN_RATE_LIMIT_RECORDS_PER_SECOND.key()));
           }
         });
 

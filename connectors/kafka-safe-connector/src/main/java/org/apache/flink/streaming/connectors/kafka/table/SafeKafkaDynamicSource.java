@@ -205,7 +205,7 @@ public class SafeKafkaDynamicSource
     protected final DeserFailureHandler deserFailureHandler;
 
     /** Maximum records per second emitted by this source. */
-    protected final Optional<Double> rateLimitRecordsPerSecond;
+    protected final Optional<Integer> rateLimitRecordsPerSecond;
 
     public SafeKafkaDynamicSource(
             DataType physicalDataType,
@@ -227,7 +227,7 @@ public class SafeKafkaDynamicSource
             String tableIdentifier,
             @Nullable Integer parallelism,
             DeserFailureHandler deserFailureHandler,
-            Optional<Double> rateLimitRecordsPerSecond,
+            Optional<Integer> rateLimitRecordsPerSecond,
             WatermarkEmitStrategy sourceWatermarkEmitStrategy,
             Optional<Duration> sourceWatermarkIdleTimeout,
             SourceWatermarkConfig sourceWatermarkConfig) {
@@ -586,7 +586,7 @@ public class SafeKafkaDynamicSource
 
     @SuppressWarnings("unchecked")
     private static RateLimiterStrategy<KafkaPartitionSplit> recordsPerSecondRateLimiterStrategy(
-            double recordsPerSecond) {
+            int recordsPerSecond) {
         return RateLimiterStrategy.perSecond(recordsPerSecond);
     }
 
