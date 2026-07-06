@@ -261,6 +261,13 @@
       <version>${aws-msk-iam-auth.version}</version>
     </dependency>
 
+    <!-- Required for Iceberg file-size histogram metrics -->
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-dropwizard</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
+
     <!-- Runtime -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
