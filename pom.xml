@@ -89,7 +89,7 @@
 
     <!-- Flink versions -->
     <flink.version>2.3.0</flink.version>
-    <flink.version.label>flink-2.2</flink.version.label>
+    <flink.version.label>flink-2.3</flink.version.label>
     <flink-base-image>${flink.version}-java17</flink-base-image>
     <flink.cdc.version>3.6.0-2.2</flink.cdc.version>
     <http.conn.version>1.0.0-2.2</http.conn.version>
