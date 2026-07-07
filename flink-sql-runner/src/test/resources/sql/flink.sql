@@ -154,4 +154,4 @@ INSERT INTO `default_catalog`.`default_database`.`SpendingByDay_3`
   FROM `default_catalog`.`default_database`.`SpendingByDay`
   ON CONFLICT DO DEDUPLICATE
 ;
-END
+END;

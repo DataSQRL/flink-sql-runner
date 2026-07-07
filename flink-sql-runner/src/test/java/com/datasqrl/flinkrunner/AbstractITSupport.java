@@ -60,14 +60,14 @@ public class AbstractITSupport {
 
   @Container
   protected static final GenericContainer<?> postgresContainer =
-      new PostgreSQLContainer(DockerImageName.parse("postgres:17"))
+      new PostgreSQLContainer(DockerImageName.parse("postgres:18"))
           .withNetwork(sharedNetwork)
           .withNetworkAliases("postgres")
           .withDatabaseName("datasqrl")
           .withUsername("postgres")
           .withPassword("postgres")
           .withCopyFileToContainer(
-              MountableFile.forClasspathResource("sqrl/postgres-schema.sql"),
+              MountableFile.forClasspathResource("savepoint-test/postgres-schema.sql"),
               "/docker-entrypoint-initdb.d/init.sql");
 
   @Container
@@ -112,7 +112,8 @@ public class AbstractITSupport {
             .withEnv("REDPANDA_PORT", String.valueOf(REDPANDA_PORT))
             .withFileSystemBind("target/test-classes/plans", "/it/planfile", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/sql", "/it/sqlfile", BindMode.READ_ONLY)
-            .withFileSystemBind("target/test-classes/sqrl", "/it/sqrl", BindMode.READ_ONLY)
+            .withFileSystemBind(
+                "target/test-classes/savepoint-test", "/it/savepoint-test", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/config", "/it/config", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/udfs", "/it/udfs", BindMode.READ_ONLY)
             .withCommand("bash", "-c", "bin/start-cluster.sh && tail -f /dev/null")
