@@ -24,9 +24,9 @@ CREATE TABLE source_watermark_results (
 ) WITH (
   'connector' = 'jdbc',
   'driver' = 'org.postgresql.Driver',
-  'url' = '${JDBC_URL}',
-  'username' = '${JDBC_USERNAME}',
-  'password' = '${JDBC_PASSWORD}',
+  'url' = 'jdbc:postgresql://${POSTGRES_AUTHORITY}',
+  'username' = '${POSTGRES_USERNAME}',
+  'password' = '${POSTGRES_PASSWORD}',
   'table-name' = 'source_watermark_results'
 );
 
