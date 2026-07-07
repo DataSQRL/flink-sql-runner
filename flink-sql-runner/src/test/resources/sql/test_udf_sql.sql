@@ -44,7 +44,7 @@ CREATE TABLE blackhole_myorders (
     order_amount DECIMAL(10, 2),
     order_time TIMESTAMP(3)
 ) WITH (
-    'connector' = 'print' --todo back to blackhole
+    'connector' = 'blackhole'
 );
 
 -- Insert data into blackhole sinks using STATEMENT SET

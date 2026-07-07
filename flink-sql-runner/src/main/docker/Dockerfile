@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM apache/flink:${flink-base-image}
+FROM flink:${flink-base-image}
 
 ARG ASYNC_PROFILER_VERSION=4.4
 ARG TARGETARCH

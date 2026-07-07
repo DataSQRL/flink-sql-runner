@@ -1,6 +1,6 @@
 -- Updated Flink SQL using datagen connector and BIGINT for timestamps, with full pipeline and view updates
 
-CREATE TEMPORARY TABLE `transaction_1` (
+CREATE TEMPORARY TABLE `Transaction` (
   `transactionId` BIGINT NOT NULL,
   `cardNo` DOUBLE NOT NULL,
   `time` TIMESTAMP_LTZ(3) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TEMPORARY TABLE `transaction_1` (
   'fields.merchantId.max' = '100'
 );
 
-CREATE TEMPORARY TABLE `cardassignment_1` (
+CREATE TEMPORARY TABLE `CardAssignment` (
   `customerId` BIGINT NOT NULL,
   `cardNo` DOUBLE NOT NULL,
   `timestamp` TIMESTAMP_LTZ(3) NOT NULL,
@@ -40,7 +40,7 @@ CREATE TEMPORARY TABLE `cardassignment_1` (
   'fields.cardType.length' = '10'
 );
 
-CREATE TEMPORARY TABLE `merchant_1` (
+CREATE TEMPORARY TABLE `Merchant` (
   `merchantId` BIGINT NOT NULL,
   `name` VARCHAR(100) NOT NULL,
   `category` VARCHAR(50) NOT NULL,
@@ -57,152 +57,101 @@ CREATE TEMPORARY TABLE `merchant_1` (
   'fields.category.length' = '10'
 );
 
-CREATE TEMPORARY TABLE `_spendingbyday_1` (
-  `customerid` BIGINT NOT NULL,
-  `timeDay` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
-  `spending` DOUBLE NOT NULL,
-  PRIMARY KEY (`customerid`, `timeDay`) NOT ENFORCED
-) WITH (
-  'password' = '${JDBC_PASSWORD}',
-  'connector' = 'jdbc',
-  'driver' = 'org.postgresql.Driver',
-  'table-name' = '_spendingbyday_1',
-  'url' = '${JDBC_URL}',
-  'username' = '${JDBC_USERNAME}'
-);
-
-CREATE TEMPORARY TABLE `customertransaction_1` (
+CREATE VIEW `_Merchant`
+AS
+SELECT `merchantId`, `name`, `category`, `updatedTime`
+FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC NULLS LAST) AS `__sqrlinternal_rownum`
+  FROM `default_catalog`.`default_database`.`Merchant`) AS `t`
+WHERE `__sqrlinternal_rownum` = 1;
+CREATE VIEW `_CardAssignment`
+AS
+SELECT `customerId`, `cardNo`, `timestamp`, `cardType`
+FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC NULLS LAST) AS `__sqrlinternal_rownum`
+  FROM `default_catalog`.`default_database`.`CardAssignment`) AS `t`
+WHERE `__sqrlinternal_rownum` = 1;
+CREATE VIEW `CustomerTransaction`
+AS
+SELECT `t`.`transactionId`, `t`.`cardNo`, `t`.`time`, `t`.`amount`, `m`.`name` AS `merchantName`, `m`.`category`, `c`.`customerId`
+FROM `default_catalog`.`default_database`.`Transaction` AS `t`
+ INNER JOIN `_CardAssignment` FOR SYSTEM_TIME AS OF `t`.`time` AS `c` ON `t`.`cardNo` = `c`.`cardNo`
+ INNER JOIN `_Merchant` FOR SYSTEM_TIME AS OF `t`.`time` AS `m` ON `t`.`merchantId` = `m`.`merchantId`;
+CREATE VIEW `SpendingByCategory`
+AS
+SELECT `customerId`, `window_time` AS `timeWeek`, `category`, SUM(`amount`) AS `spending`
+FROM TABLE(TUMBLE(TABLE `CustomerTransaction`, DESCRIPTOR(`time`), INTERVAL '7' DAY))
+GROUP BY `customerId`, `window_start`, `window_end`, `window_time`, `category`;
+CREATE VIEW `SpendingByDay`
+AS
+SELECT `customerId`, `window_time` AS `timeDay`, SUM(`amount`) AS `spending`
+FROM TABLE(TUMBLE(TABLE `CustomerTransaction`, DESCRIPTOR(`time`), INTERVAL '1' DAY))
+GROUP BY `customerId`, `window_start`, `window_end`, `window_time`;
+CREATE TABLE `CustomerTransaction_1` (
   `transactionId` BIGINT NOT NULL,
   `cardNo` DOUBLE NOT NULL,
   `time` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
   `amount` DOUBLE NOT NULL,
   `merchantName` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
   `category` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
-  `customerid` BIGINT NOT NULL,
+  `customerId` BIGINT NOT NULL,
   PRIMARY KEY (`transactionId`, `time`) NOT ENFORCED
-) WITH (
-  'password' = '${JDBC_PASSWORD}',
-  'connector' = 'jdbc',
+)
+WITH (
+  'connector' = 'jdbc-sqrl',
   'driver' = 'org.postgresql.Driver',
-  'table-name' = 'customertransaction_1',
-  'url' = '${JDBC_URL}',
-  'username' = '${JDBC_USERNAME}'
+  'password' = '${POSTGRES_PASSWORD}',
+  'sink.on-conflict.action' = 'IGNORE',
+  'table-name' = 'CustomerTransaction',
+  'url' = 'jdbc:postgresql://${POSTGRES_AUTHORITY}',
+  'username' = '${POSTGRES_USERNAME}'
 );
-
-CREATE TEMPORARY TABLE `spendingbycategory_1` (
-  `customerid` BIGINT NOT NULL,
+CREATE TABLE `SpendingByCategory_2` (
+  `customerId` BIGINT NOT NULL,
   `timeWeek` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
   `category` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
   `spending` DOUBLE NOT NULL,
-  PRIMARY KEY (`customerid`, `timeWeek`, `category`) NOT ENFORCED
-) WITH (
-  'password' = '${JDBC_PASSWORD}',
-  'connector' = 'jdbc',
+  `__pk_hash` CHAR(32) CHARACTER SET `UTF-16LE`,
+  PRIMARY KEY (`__pk_hash`) NOT ENFORCED
+)
+WITH (
+  'connector' = 'jdbc-sqrl',
   'driver' = 'org.postgresql.Driver',
-  'table-name' = 'spendingbycategory_1',
-  'url' = '${JDBC_URL}',
-  'username' = '${JDBC_USERNAME}'
+  'password' = '${POSTGRES_PASSWORD}',
+  'sink.on-conflict.action' = 'IGNORE',
+  'table-name' = 'SpendingByCategory',
+  'url' = 'jdbc:postgresql://${POSTGRES_AUTHORITY}',
+  'username' = '${POSTGRES_USERNAME}'
+);
+CREATE TABLE `SpendingByDay_3` (
+  `customerId` BIGINT NOT NULL,
+  `timeDay` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+  `spending` DOUBLE NOT NULL,
+  `__pk_hash` CHAR(32) CHARACTER SET `UTF-16LE`,
+  PRIMARY KEY (`__pk_hash`) NOT ENFORCED
+)
+WITH (
+  'connector' = 'jdbc-sqrl',
+  'driver' = 'org.postgresql.Driver',
+  'password' = '${POSTGRES_PASSWORD}',
+  'sink.on-conflict.action' = 'IGNORE',
+  'table-name' = 'SpendingByDay',
+  'url' = 'jdbc:postgresql://${POSTGRES_AUTHORITY}',
+  'username' = '${POSTGRES_USERNAME}'
 );
 
-CREATE VIEW `table$1`
-AS
-SELECT *
-FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
-  FROM `merchant_1`) AS `t`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$2`
-AS
-SELECT *
-FROM (SELECT `customerId`, `cardNo`, `timestamp`, upper(`cardType`) as cardType, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
-  FROM `cardassignment_1`) AS `t1`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$3`
-AS
-SELECT `$cor0`.`customerId` AS `customerid`, CAST(FLOOR(`$cor0`.`time` TO DAY) + INTERVAL '1' DAY AS TIMESTAMP_LTZ(3)) AS `timeDay`, `$cor0`.`amount`, `$cor0`.`transactionId`, `$cor0`.`time`
-FROM (SELECT *
-  FROM `transaction_1` AS `$cor1`
-   INNER JOIN `table$2` FOR SYSTEM_TIME AS OF `$cor1`.`time` AS `t2` ON `$cor1`.`cardNo` = `t2`.`cardNo`) AS `$cor0`
- INNER JOIN `table$1` FOR SYSTEM_TIME AS OF `$cor0`.`time` AS `t0` ON `$cor0`.`merchantId` = `t0`.`merchantId`;
-
-CREATE VIEW `table$4`
-AS
-SELECT `customerid`, `window_time` AS `timeDay`, SUM(`amount`) AS `spending`
-FROM TABLE(TUMBLE(TABLE `table$3`, DESCRIPTOR(`time`), INTERVAL '86400' SECOND(8), INTERVAL '0' SECOND(1))) AS `t6`
-GROUP BY `customerid`, `window_start`, `window_end`, `window_time`;
-
-CREATE VIEW `table$5`
-AS
-SELECT *
-FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
-  FROM `merchant_1`) AS `t`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$6`
-AS
-SELECT *
-FROM (SELECT `customerId`, `cardNo`, `timestamp`, upper(`cardType`) as cardType, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
-  FROM `cardassignment_1`) AS `t1`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$7`
-AS
-SELECT `$cor2`.`transactionId`, `$cor2`.`cardNo`, `$cor2`.`time`, `$cor2`.`amount`, `t0`.`name` AS `merchantName`, `t0`.`category`, `$cor2`.`customerId` AS `customerid`
-FROM (SELECT *
-  FROM `transaction_1` AS `$cor3`
-   INNER JOIN `table$6` FOR SYSTEM_TIME AS OF `$cor3`.`time` AS `t2` ON `$cor3`.`cardNo` = `t2`.`cardNo`) AS `$cor2`
- INNER JOIN `table$5` FOR SYSTEM_TIME AS OF `$cor2`.`time` AS `t0` ON `$cor2`.`merchantId` = `t0`.`merchantId`;
-
-CREATE VIEW `table$8`
-AS
-SELECT *
-FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
-  FROM `merchant_1`) AS `t`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$9`
-AS
-SELECT *
-FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
-  FROM `cardassignment_1`) AS `t1`
-WHERE `_rownum` = 1;
-
-CREATE VIEW `table$10`
-AS
-SELECT 
-  `$cor6`.`customerId` AS `customerid`, 
-  CAST(FLOOR(`$cor6`.`time` TO DAY) + INTERVAL '1' DAY * (7 - EXTRACT(DOW FROM `$cor6`.`time`)) AS TIMESTAMP_LTZ(3)) AS `timeWeek`, 
-  `t0`.`category`, 
-  `$cor6`.`amount`, 
-  `$cor6`.`transactionId`, 
-  `$cor6`.`time`
-FROM (
-  SELECT *
-  FROM `transaction_1` AS `$cor7`
-  INNER JOIN `table$9` FOR SYSTEM_TIME AS OF `$cor7`.`time` AS `t2` 
-    ON `$cor7`.`cardNo` = `t2`.`cardNo`
-) AS `$cor6`
-INNER JOIN `table$8` FOR SYSTEM_TIME AS OF `$cor6`.`time` AS `t0` 
-  ON `$cor6`.`merchantId` = `t0`.`merchantId`;
-
-CREATE VIEW `table$11`
-AS
-SELECT `customerid`, `window_time` AS `timeWeek`, `category`, SUM(`amount`) AS `spending`
-FROM TABLE(TUMBLE(TABLE `table$10`, DESCRIPTOR(`time`), INTERVAL '604800' SECOND(9), INTERVAL '0' SECOND(1))) AS `t6`
-GROUP BY `customerid`, `category`, `window_start`, `window_end`, `window_time`;
-
 EXECUTE STATEMENT SET BEGIN
-INSERT INTO `_spendingbyday_1`
-(SELECT *
- FROM `table$4`)
+INSERT INTO `default_catalog`.`default_database`.`CustomerTransaction_1`
+  SELECT *
+  FROM `default_catalog`.`default_database`.`CustomerTransaction`
+  ON CONFLICT DO DEDUPLICATE
 ;
-INSERT INTO `customertransaction_1`
-(SELECT *
-  FROM `table$7`)
+INSERT INTO `default_catalog`.`default_database`.`SpendingByCategory_2`
+  SELECT `customerId`, `timeWeek`, `category`, `spending`, `hash_columns`(`customerId`, `timeWeek`, `category`, `spending`) AS `__pk_hash`
+  FROM `default_catalog`.`default_database`.`SpendingByCategory`
+  ON CONFLICT DO DEDUPLICATE
 ;
-INSERT INTO `spendingbycategory_1`
-(SELECT *
-   FROM `table$11`)
+INSERT INTO `default_catalog`.`default_database`.`SpendingByDay_3`
+  SELECT `customerId`, `timeDay`, `spending`, `hash_columns`(`customerId`, `timeDay`, `spending`) AS `__pk_hash`
+  FROM `default_catalog`.`default_database`.`SpendingByDay`
+  ON CONFLICT DO DEDUPLICATE
 ;
 END;

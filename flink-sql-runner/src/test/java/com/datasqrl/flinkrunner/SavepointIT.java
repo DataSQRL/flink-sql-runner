@@ -26,7 +26,7 @@ import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
+import java.util.List;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
@@ -56,12 +56,9 @@ public class SavepointIT extends AbstractITSupport {
     // change the compilation plan
     updateCompiledPlan(3);
 
-    var args = new ArrayList<String>();
-    var planFile = "/it/sqrl/compiled-plan.json";
-    args.add("--planfile");
-    args.add(planFile);
-    args.add("--config-dir");
-    args.add("/it/config/");
+    var args =
+        List.of(
+            "--planfile", "/it/savepoint-test/compiled-plan.json", "--config-dir", "/it/config/");
 
     var jobId = flinkRun(args);
     assertJobIsRunning(jobId);
@@ -149,9 +146,11 @@ public class SavepointIT extends AbstractITSupport {
 
   @SneakyThrows
   private void updateCompiledPlan(int newValue) {
-    var contents = Files.readString(Path.of("src/test/resources/sqrl/compiled-plan.json"), UTF_8);
+    var contents =
+        Files.readString(Path.of("src/test/resources/savepoint-test/compiled-plan.json"), UTF_8);
     contents = contents.replace("\"value\" : 2", "\"value\" : " + newValue);
-    Files.writeString(Path.of("target/test-classes/sqrl/compiled-plan.json"), contents, UTF_8);
+    Files.writeString(
+        Path.of("target/test-classes/savepoint-test/compiled-plan.json"), contents, UTF_8);
   }
 
   interface TransactionDao {

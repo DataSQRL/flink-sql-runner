@@ -19,16 +19,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
+import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class SqlUtilsTest {
 
+  static Stream<Arguments> testArgs() {
+    return Stream.of(
+        Arguments.of("flink.sql", 12),
+        Arguments.of("test_sql.sql", 6),
+        Arguments.of("test_udf_sql.sql", 6));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @CsvSource({"flink.sql,18", "test_sql.sql,6", "test_udf_sql.sql,6"})
+  @MethodSource("testArgs")
   void givenSource_when_thenSplitCorrectly(String filename, int numberOfStatements)
       throws Exception {
-    var script = Resources.toString(getClass().getResource("/sql/" + filename), Charsets.UTF_8);
+
+    var scriptUrl = getClass().getResource("/sql/" + filename);
+    assertThat(scriptUrl).isNotNull();
+
+    var script = Resources.toString(scriptUrl, Charsets.UTF_8);
     var stmts = SqlUtils.parseStatements(script);
     assertThat(stmts).isNotNull().isNotEmpty().hasSize(numberOfStatements);
   }
