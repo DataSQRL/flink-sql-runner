@@ -89,7 +89,7 @@ jobs:
       - name: Run integration tests
         run: mvn -B install -Dtest=skip
 
-  deploy:
+  maven-deploy:
     runs-on: ubuntu-latest
     needs: [ unit-test, integration-test, cache-dependencies ]
     if: |
@@ -136,7 +136,7 @@ jobs:
         if: github.ref_name == 'main'
         run: mvn -B clean deploy -Pci -DskipTests
 
-  uber-jar:
+  build-and-push-docker-image:
     runs-on: ubuntu-latest
     needs: [ unit-test, integration-test, cache-dependencies ]
     timeout-minutes: 30
