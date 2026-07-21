@@ -92,6 +92,7 @@ abstract class BaseRunner {
     if (StringUtils.isNotBlank(configDir)) {
       log.info("Loading Flink configuration from '{}'", configDir);
       conf = GlobalConfiguration.loadConfiguration(configDir);
+      resolveEnvVars(conf);
     }
 
     // Do not overwrite runtime given in YAML
@@ -100,6 +101,24 @@ abstract class BaseRunner {
     }
 
     return conf;
+  }
+
+  /**
+   * Resolves {@code ${VAR}} placeholders in Flink configuration values from the environment, the
+   * same mechanism already applied to the SQL script and compiled plan. Lets secrets (e.g. the
+   * Iceberg maintenance lock JDBC credentials) be injected via env vars instead of landing in the
+   * plaintext config.yaml ConfigMap. {@link Configuration#toMap()} returns a copy, so mutating
+   * {@code conf} while iterating it is safe.
+   */
+  private void resolveEnvVars(Configuration conf) {
+    conf.toMap()
+        .forEach(
+            (key, value) -> {
+              var resolved = resolver.resolve(value);
+              if (!resolved.equals(value)) {
+                conf.setString(key, resolved);
+              }
+            });
   }
 
   static String readTextFile(String path) throws IOException {
