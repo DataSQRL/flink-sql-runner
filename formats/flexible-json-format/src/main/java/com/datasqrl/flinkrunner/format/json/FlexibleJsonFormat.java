@@ -30,7 +30,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatFactory;
 import org.apache.flink.formats.json.JsonFormatOptionsUtil;
-import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -74,8 +73,8 @@ public class FlexibleJsonFormat
         final RowType rowType = (RowType) producedDataType.getLogicalType();
         final TypeInformation<RowData> rowDataTypeInfo =
             context.createTypeInformation(producedDataType);
-        JsonRowDataDeserializationSchema jsonRowDataDeserializationSchema =
-            new JsonRowDataDeserializationSchema(
+        var jsonRowDataDeserializationSchema =
+            new SqrlJsonRowDataDeserializationSchema(
                 rowType, rowDataTypeInfo, false, false, TimestampFormat.ISO_8601);
         return jsonRowDataDeserializationSchema;
       }
