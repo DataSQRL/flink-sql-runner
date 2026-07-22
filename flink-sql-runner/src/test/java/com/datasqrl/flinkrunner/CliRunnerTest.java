@@ -26,6 +26,7 @@ import com.datasqrl.flinkrunner.utils.EnvVarResolver;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -170,5 +171,28 @@ class CliRunnerTest {
     // Assert
     assertThat(finalConf.keySet()).hasSize(1);
     assertThat(finalConf.get(ExecutionOptions.RUNTIME_MODE)).isEqualTo(mode);
+  }
+
+  @Test
+  void initConfiguration_shouldResolveEnvVarPlaceholdersInConfig() throws IOException {
+    // Arrange — a secret injected via env var, e.g. the Iceberg maintenance lock password
+    Path configFile = tempDir.resolve("config.yaml");
+    Files.writeString(
+        configFile,
+        "flink-maintenance.lock.jdbc.password: ${ICEBERG_LOCK_PASSWORD}\ndummy.key: literal");
+
+    var resolver =
+        EnvVarResolver.builder().envVars(Map.of("ICEBERG_LOCK_PASSWORD", "s3cr3t")).build();
+    var cliRunner =
+        new CliRunner(
+            RuntimeExecutionMode.STREAMING, resolver, null, null, tempDir.toString(), null);
+
+    // Act
+    var finalConf = cliRunner.initConfiguration();
+
+    // Assert
+    assertThat(finalConf.toMap())
+        .containsEntry("flink-maintenance.lock.jdbc.password", "s3cr3t")
+        .containsEntry("dummy.key", "literal");
   }
 }

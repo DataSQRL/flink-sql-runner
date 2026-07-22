@@ -91,7 +91,7 @@ abstract class BaseRunner {
     var conf = new Configuration();
     if (StringUtils.isNotBlank(configDir)) {
       log.info("Loading Flink configuration from '{}'", configDir);
-      conf = GlobalConfiguration.loadConfiguration(configDir);
+      conf = resolveEnvVars(GlobalConfiguration.loadConfiguration(configDir));
     }
 
     // Do not overwrite runtime given in YAML
@@ -99,6 +99,20 @@ abstract class BaseRunner {
       conf.set(ExecutionOptions.RUNTIME_MODE, mode);
     }
 
+    return conf;
+  }
+
+  private Configuration resolveEnvVars(Configuration source) {
+    var conf = new Configuration(source);
+    source
+        .toMap()
+        .forEach(
+            (key, value) -> {
+              var resolved = resolver.resolve(value);
+              if (!resolved.equals(value)) {
+                conf.setString(key, resolved);
+              }
+            });
     return conf;
   }
 
