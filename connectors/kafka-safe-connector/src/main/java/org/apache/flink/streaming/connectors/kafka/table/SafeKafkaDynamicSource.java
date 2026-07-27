@@ -51,10 +51,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
@@ -87,8 +83,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 
 /** A version-agnostic Kafka {@link ScanTableSource}. */
 @Internal
@@ -698,28 +692,10 @@ public class SafeKafkaDynamicSource
         }
         DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
-            physicalFormatDataType = stripRowPrefix(physicalFormatDataType, prefix);
+            physicalFormatDataType =
+                    TableDataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }
         return format.createRuntimeDecoder(context, physicalFormatDataType);
-    }
-
-    /** Removes a string prefix from the fields of the given row data type. */
-    private static DataType stripRowPrefix(DataType dataType, String prefix) {
-        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
-        final RowType rowType = (RowType) dataType.getLogicalType();
-        final List<String> newFieldNames =
-                rowType.getFieldNames().stream()
-                        .map(
-                                s -> {
-                                    if (s.startsWith(prefix)) {
-                                        return s.substring(prefix.length());
-                                    }
-                                    return s;
-                                })
-                        .collect(Collectors.toList());
-        final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
-        return new FieldsDataType(
-                newRowType, dataType.getConversionClass(), dataType.getChildren());
     }
 
     // --------------------------------------------------------------------------------------------
