@@ -9,4 +9,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
     open-pull-requests-limit: 20
+
+  - package-ecosystem: "docker"
+    directory: "/flink-sql-runner/src/main/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
