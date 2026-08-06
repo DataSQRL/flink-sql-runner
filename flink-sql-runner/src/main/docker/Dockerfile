@@ -59,12 +59,6 @@ COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # noop.jar is an empty JAR. `flink run` requires a JAR positional argument, but the runner code
 # ships on the system classpath in lib/ (see bin/sql-runner), so this only satisfies the CLI.
-#
-# core-site.xml: Hadoop 3.3.4's default S3A credential chain omits WebIdentityTokenCredentialsProvider,
-# which IRSA needs on EKS (#290). The class named below is AWS SDK v1 and is deliberately the
-# *unrelocated* name -- flink-s3-fs-hadoop ships com/amazonaws/** unshaded, which is the only reason
-# this resolves. If that JAR is ever shaded, this silently stops applying and S3A IRSA breaks again.
-# Unrelated to MSK IAM auth, which uses the separate AWS SDK v2 (software.amazon.awssdk) chain.
 RUN echo 'UEsDBBQACAgIAG2UllwAAAAAAAAAAAAAAAAUAAQATUVUQS1JTkYvTUFOSUZFU1QuTUb+ygAA803My0xLLS7RDUstKs7Mz7NSMNQz4HIuSk0sSU3Rdaq0UkjLyczL1i0uzNEtKs3LSy3i4gIAUEsHCL/cUjU2AAAANAAAAFBLAQIUABQACAgIAG2Ully/3FI1NgAAADQAAAAUAAQAAAAAAAAAAAAAAAAAAABNRVRBLUlORi9NQU5JRkVTVC5NRv7KAABQSwUGAAAAAAEAAQBGAAAAfAAAAAAA' | base64 -d > /opt/flink/noop.jar \
     && mkdir -p /opt/flink/hadoop-conf \
     && echo '<configuration><property><name>fs.s3a.aws.credentials.provider</name><value>com.amazonaws.auth.DefaultAWSCredentialsProviderChain</value></property></configuration>' > /opt/flink/hadoop-conf/core-site.xml \
