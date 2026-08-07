@@ -217,6 +217,63 @@ In addition to the configuration options exposed by the original kafka connector
 > [!NOTE]  
 > The dead-letter-queue producer will use the same Kafka configuration that is provided for the Flink SQL table that reads the data.
 
+### Adaptive Kafka Source Watermarks
+
+The `kafka-safe` and `upsert-kafka-safe` connectors can generate source watermarks from Kafka record timestamps.
+Enable them with `SOURCE_WATERMARK()` on a Kafka timestamp metadata column:
+
+```sql
+CREATE TABLE events (
+  id BIGINT,
+  payload STRING,
+  kafka_timestamp TIMESTAMP_LTZ(3) METADATA FROM 'timestamp',
+  WATERMARK FOR kafka_timestamp AS SOURCE_WATERMARK()
+) WITH (
+  'connector' = 'kafka-safe',
+  'topic' = 'events',
+  'properties.bootstrap.servers' = 'kafka:9092',
+  'properties.group.id' = 'events-consumer',
+  'scan.startup.mode' = 'earliest-offset',
+  'format' = 'json'
+);
+```
+
+The generator waits until it has observed `scan.source-watermark.min-records` records, then subtracts an adaptive out-of-orderness delay from the greatest Kafka record timestamp seen.
+The delay is the configured quantile of recent record lateness samples, constrained by the configured minimum and maximum.
+This absorbs typical out-of-order records without allowing a rare late record to indefinitely delay event-time progress.
+Watermarks are monotonic and use the Kafka record timestamp, not an event-time field in the payload.
+
+| Option                                            | Default       | Description                                                                                                                               |
+|---------------------------------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `scan.source-watermark.min-records`               | `250`         | Records to observe before emitting adaptive source watermarks. Must be greater than zero.                                                 |
+| `scan.source-watermark.min-out-of-orderness`      | `50 ms`       | Lower bound for the adaptive out-of-orderness delay.                                                                                      |
+| `scan.source-watermark.max-out-of-orderness`      | `3 d`         | Upper bound for the adaptive out-of-orderness delay. Must be at least the minimum.                                                        |
+| `scan.source-watermark.out-of-orderness-quantile` | `0.95`        | Quantile of observed record lateness used as the delay. Must be greater than zero and no greater than one.                                |
+| `scan.watermark.emit.strategy`                    | Flink default | Flink source-watermark emission strategy: `on-event` emits as records arrive; `on-periodic` emits on Flink's periodic watermark interval. |
+| `scan.watermark.idle-timeout`                     | Flink default | Marks inactive source splits idle when idle advancement is disabled.                                                                      |
+
+#### Idle Watermark Advancement
+
+By default, a source watermark cannot advance after Kafka traffic stops, so a final event-time window may remain open.
+Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conservatively using wall-clock time after the source has been silent for that duration:
+
+```sql
+'scan.source-watermark.idle-advance-timeout' = '1 min',
+'scan.source-watermark.idle-advance-safety-margin' = '10 s'
+```
+
+Idle advancement supports only the `topic` table option, not `topic-pattern`. Configuring `topic-pattern` with idle advancement will result in a failure.
+The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration.
+If Kafka cannot be reached or the topic is not configured for `LogAppendTime`, idle advancement pauses rather than advancing unsafely.
+When idle advancement is enabled, do not set `scan.watermark.idle-timeout`: the connector deliberately does not apply Flink's regular idleness handling so its wall-clock-derived watermarks can be emitted.
+
+| Option                                                    | Default        | Description                                                                                       |
+|-----------------------------------------------------------|----------------|---------------------------------------------------------------------------------------------------|
+| `scan.source-watermark.idle-advance-timeout`              | `0` (disabled) | Silence duration before idle watermark advancement may begin. Must not be negative.               |
+| `scan.source-watermark.idle-advance-safety-margin`        | `10 s`         | Extra delay subtracted from wall-clock-derived watermarks to avoid closing windows too early.     |
+| `scan.source-watermark.idle-advance-broker-check-timeout` | `1 s`          | Timeout for the Kafka broker and topic timestamp-type readiness check. Must be greater than zero. |
+| `scan.source-watermark.idle-advance-broker-check-ttl`     | `10 s`         | How long the result of the broker readiness check is cached. Must be greater than zero.           |
+
 ### Conflict Handling for PostgreSQL Sinks
 
 The [JDBC connector for PostgreSQL](connectors/postgresql-connector) (`jdbc-sqrl`) supports configurable behavior when an inserted row conflicts with an existing row on the primary key. The action is selected via the following options:
