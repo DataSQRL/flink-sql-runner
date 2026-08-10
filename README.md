@@ -195,6 +195,47 @@ the runner to suit your needs.
 ```groovy
 implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.10.5'
 ```
+
+### Profiling with async-profiler
+
+The image ships [async-profiler](https://github.com/async-profiler/async-profiler) under `/opt/async-profiler`,
+with the `asprof` launcher on the `PATH`. No sidecar, extra image, or JVM agent argument is needed — it attaches
+to a running JVM.
+
+Find the JVM to profile, then attach to it:
+
+```bash
+kubectl exec -it <taskmanager-pod> -- jps -l
+# 1426 org.apache.flink.runtime.taskexecutor.TaskManagerRunner
+
+kubectl exec -it <taskmanager-pod> -- asprof -e cpu -d 30 -f /tmp/flame.html 1426
+kubectl cp <taskmanager-pod>:/tmp/flame.html ./flame.html
+```
+
+Profile the TaskManager, not the JobManager — the record processing happens there.
+
+Useful modes:
+
+| Command | What it shows |
+|---------|---------------|
+| `asprof -e cpu -d 30 -f /tmp/cpu.html <pid>` | Where CPU time goes (default choice) |
+| `asprof -e wall -t -d 30 -f /tmp/wall.html <pid>` | Wall-clock per thread — blocked/idle time, useful for backpressure |
+| `asprof -e alloc -d 30 -f /tmp/alloc.html <pid>` | Allocation pressure driving GC |
+| `asprof -e lock -d 30 -f /tmp/lock.html <pid>` | Lock contention |
+| `asprof -d 30 -o collapsed -f /tmp/out.txt <pid>` | Folded stacks, greppable and diffable |
+
+Notes:
+
+- Write output to a path inside the container (e.g. `/tmp`). The profiled JVM writes the file itself as the
+  `flink` user, so a mounted host volume usually fails with `Could not open output file`.
+- Only one profiling session per JVM at a time. `[ERROR] Profiler already started` means a previous run is still
+  active — collect it with `asprof stop -f /tmp/flame.html <pid>`.
+- For precise inlined-frame attribution, add `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` to
+  `env.java.opts.all`. It is not on by default; stacks are already usable without it.
+- CPU profiling falls back to `ctimer` when `perf_events` are restricted (the common case for an unprivileged
+  container), so no extra Kubernetes capabilities are required. To use hardware `perf_events` instead, the pod
+  needs `SYS_ADMIN` and a host `kernel.perf_event_paranoid` of `1` or lower.
+
 ---
 
 ## Flink Extensions
