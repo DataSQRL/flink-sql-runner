@@ -51,10 +51,17 @@
       <scope>provided</scope>
     </dependency>
 
+    <!--    <dependency>-->
+    <!--      <groupId>org.apache.flink</groupId>-->
+    <!--      <artifactId>flink-table-planner-loader</artifactId>-->
+    <!--      <version>${flink.version}</version>-->
+    <!--      <scope>provided</scope>-->
+    <!--    </dependency>-->
+
     <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-planner-loader</artifactId>
-      <version>${flink.version}</version>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>flink-table-planner-patch</artifactId>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -603,6 +610,18 @@
             <configuration>
               <includeGroupIds>org.apache.hadoop</includeGroupIds>
               <includeArtifactIds>hadoop-mapreduce-client-core</includeArtifactIds>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-patched-flink-table-planner</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <includeGroupIds>com.datasqrl.flinkrunner</includeGroupIds>
+              <includeArtifactIds>flink-table-planner-patch</includeArtifactIds>
               <outputDirectory>${project.build.directory}</outputDirectory>
             </configuration>
           </execution>

@@ -64,6 +64,7 @@
     <module>stdlib</module>
     <module>connectors</module>
     <module>testing</module>
+    <module>flink-table-planner-patch</module>
     <module>flink-sql-runner</module>
     <module>flink-sql-runner-dependencies</module>
   </modules>
@@ -91,6 +92,8 @@
     <flink.version>2.3.0</flink.version>
     <flink.version.label>flink-2.3</flink.version.label>
     <flink-base-image>${flink.version}-java17</flink-base-image>
+    <scala.version>2.12.20</scala.version>
+    <scala.binary.version>2.12</scala.binary.version>
     <flink.cdc.version>3.6.0-2.2</flink.cdc.version>
     <http.conn.version>1.0.0-2.2</http.conn.version>
     <jdbc.conn.version>4.1.0-2.2</jdbc.conn.version>
@@ -138,6 +141,7 @@
     <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
     <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
     <spotless-maven-plugin>3.1.0</spotless-maven-plugin>
+    <scala-maven-plugin.version>3.2.2</scala-maven-plugin.version>
     <sundr-maven-plugin.version>0.300.0</sundr-maven-plugin.version>
   </properties>
 
@@ -491,6 +495,7 @@
                 <exclude>**/m2e-target/**</exclude>
                 <exclude>**/bin/**</exclude>
                 <exclude>**/org/apache/flink/**/*.java</exclude>
+                <exclude>**/org/apache/flink/**/*.scala</exclude>
               </excludes>
             </licenseSet>
           </licenseSets>
