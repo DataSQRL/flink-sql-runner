@@ -17,13 +17,7 @@
  */
 
 /**
- * Holds a verbatim copy of {@code InternalSourceSplitMetricGroup} carrying the FLINK-40093 fix,
- * which is released upstream in Flink 2.3.1 but not in the 2.3.0 we pin. A split racing between
- * "paused" and "idle" is benign once {@code SourceOperator} can resume idle splits, so the warning
- * it used to log is demoted to info.
- *
- * <p>See {@link org.apache.flink.streaming.api.operators} for why these copies exist and when to
- * remove them.
+ * Backporting FLINK-40093 bugfix until Flink 2.3.1 released.
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-40093">FLINK-40093</a>
  */
