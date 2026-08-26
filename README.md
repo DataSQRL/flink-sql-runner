@@ -114,7 +114,7 @@ metadata:
   name: sql-example
 spec:
   image: datasqrl/flink-sql-runner:latest
-  flinkVersion: v2_2
+  flinkVersion: v2_3
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "1"
   serviceAccount: flink
