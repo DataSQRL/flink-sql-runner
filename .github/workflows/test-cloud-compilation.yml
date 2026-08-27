@@ -128,7 +128,7 @@ jobs:
       statuses: write
     steps:
       - name: Post passing status for cloud-compilation/build
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -153,7 +153,7 @@ jobs:
       statuses: write
     steps:
       - name: Post pending status for cloud-compilation/build
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -166,13 +166,13 @@ jobs:
             });
 
       - name: Checkout flink-sql-runner repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.decide.outputs.pr_head_sha }}
           path: flink-sql-runner
 
       - name: Checkout cloud-compilation repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: DataSQRL/cloud-compilation
           token: ${{ secrets.BOT_PAT }}
@@ -371,7 +371,7 @@ jobs:
 
       - name: Post failure status for cloud-compilation/build
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -428,7 +428,7 @@ jobs:
 
       - name: Checkout cloud-compilation repo
         if: steps.branch_exists.outputs.exists == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: DataSQRL/cloud-compilation
           token: ${{ secrets.BOT_PAT }}
