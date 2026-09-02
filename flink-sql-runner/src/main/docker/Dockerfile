@@ -21,9 +21,16 @@ ARG TARGETARCH
 
 USER root
 
-# Install JDK 17 (replacing the default JRE)
+# Install JDK 17 (replacing the default JRE) alongside the network diagnostics needed to
+# triage connector connectivity from inside a running TaskManager: dnsutils (dig/nslookup),
+# netcat-openbsd (nc), iproute2 (ss/ip) and unzip.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
+    && apt-get install -y --no-install-recommends \
+        openjdk-17-jdk-headless \
+        dnsutils \
+        netcat-openbsd \
+        iproute2 \
+        unzip \
     && ln -sf /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/java-17-openjdk \
     && rm -rf /var/lib/apt/lists/*
 
@@ -55,6 +62,9 @@ COPY iceberg-aws-bundle-*.jar /opt/flink/lib
 COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
 COPY --chmod=755 sql-runner /opt/flink/bin/sql-runner
+COPY --chmod=755 kafka-probe /opt/flink/bin/kafka-probe
+COPY KafkaProbe.java /opt/flink/bin/KafkaProbe.java
+COPY kafka-probe-log4j2.properties /opt/flink/bin/kafka-probe-log4j2.properties
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # noop.jar is an empty JAR. `flink run` requires a JAR positional argument, but the runner code

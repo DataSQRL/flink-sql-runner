@@ -236,6 +236,44 @@ Notes:
   container), so no extra Kubernetes capabilities are required. To use hardware `perf_events` instead, the pod
   needs `SYS_ADMIN` and a host `kernel.perf_event_paranoid` of `1` or lower.
 
+### Diagnosing Kafka connectivity
+
+The Flink Kafka enumerator collapses every pre-metadata failure into one opaque message:
+
+```
+org.apache.kafka.common.errors.TimeoutException: Timed out waiting for a node assignment. Call: listNodes
+```
+
+DNS, a blocked port, a TLS mismatch and rejected credentials are indistinguishable in that line. The image ships
+`kafka-probe` to separate them, using the connector classes already on the image classpath, so it exercises the
+same client the job does:
+
+```bash
+kubectl exec -it <taskmanager-pod> -- kafka-probe
+kubectl exec -it <taskmanager-pod> -- kafka-probe broker-1:9096,broker-2:9096 my.topic
+```
+
+With no arguments it reads `KAFKA_BOOTSTRAP_SERVERS` and `KAFKA_PROBE_TOPIC`, and picks up
+`SQRL_KAFKA_SECURITY_PROTOCOL` (default `SASL_SSL`), `SQRL_KAFKA_SASL_MECHANISM` (default `SCRAM-SHA-512`),
+`SQRL_KAFKA_SASL_USERNAME` and `SQRL_KAFKA_SASL_PASSWORD` — so it tests the pod's real configuration rather than
+a hand-retyped copy of it. It reports DNS, TCP and TLS/SASL/metadata as separate stages and ends with a verdict:
+
+| Verdict | Meaning |
+|---------|---------|
+| `DNS` | Broker hostnames do not resolve |
+| `TCP` | Hostnames resolve, no port accepts a connection — security group, NACL, routing or peering |
+| `SSLException` | Wrong port for the listener, or an untrusted certificate chain |
+| `SaslAuthenticationException` | Credentials rejected |
+| `TopicAuthorizationException` | Authenticated, but the principal lacks ACLs on the topic |
+| `UnknownTopicOrPartitionException` | Authenticated and authorized, but the topic does not exist |
+| `REACHABLE` | The pod's configuration can reach Kafka |
+
+Set `KAFKA_PROBE_DEBUG=1` for the underlying `NetworkClient` and SASL handshake logs on stderr, without editing
+the cluster's log4j configuration. Note that a timeout during TCP means packets are being dropped rather than
+refused, which points at a firewall rather than an absent listener.
+
+`dig`, `nslookup`, `nc`, `ss`, `ip` and `unzip` are also installed for ad-hoc checks.
+
 ---
 
 ## Flink Extensions
