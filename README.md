@@ -236,6 +236,19 @@ Notes:
   container), so no extra Kubernetes capabilities are required. To use hardware `perf_events` instead, the pod
   needs `SYS_ADMIN` and a host `kernel.perf_event_paranoid` of `1` or lower.
 
+### Checking connectivity with netcat
+
+The image ships [netcat](https://linuxize.com/post/netcat-nc-command-with-examples/) (`nc`, the OpenBSD
+flavor) so connectivity to a Kafka broker, a Postgres instance, or any other sink can be checked from inside
+the pod, without an ephemeral debug container:
+
+```bash
+kubectl exec -it <taskmanager-pod> -- nc -zv kafka.default.svc.cluster.local 9092
+kubectl exec -it <taskmanager-pod> -- nc -zv postgres 5432
+```
+
+Add `-w 5` to bound the wait when a host silently drops packets, and `-u` to probe a UDP port.
+
 ---
 
 ## Flink Extensions
