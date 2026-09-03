@@ -21,9 +21,9 @@ ARG TARGETARCH
 
 USER root
 
-# Install JDK 17 (replacing the default JRE)
+# Install JDK 17 (replacing the default JRE) and netcat for network debugging
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
+    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless netcat-openbsd \
     && ln -sf /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/java-17-openjdk \
     && rm -rf /var/lib/apt/lists/*
 

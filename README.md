@@ -33,13 +33,13 @@ The individual components are modular and the project is composable to make it e
 You can use the docker image to run Flink SQL scripts or compiled plans locally or in Kubernetes.
 The docker image contains the executable flink-sql-runner.jar file which supports the following command line arguments:
 
-| Argument           | Description                                                                                                                                                                                          |
-|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-p, --planfile`   | Compiled plan (i.e. JSON file) to execute                                                                                                                                                            |
-| `-s, --sqlfile`    | Flink SQL script to execute                                                                                                                                                                          |
-| `-c, --config-dir` | Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/deployment/config/)                                                          |
-| `-u, --udfpath`    | Path to folder that contains JAR files that implement user defined functions (UDFs) or other runtime extensions for Flink                                                                            |
-| `-m, --mode`       | Optional argument to specify [Flink execution mode](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/datastream/execution_mode/) (`STREAMING` (default), `BATCH`, or `AUTOMATIC`) |
+| Argument           | Description                                                                                                                                                                                         |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-p, --planfile`   | Compiled plan (i.e. JSON file) to execute                                                                                                                                                           |
+| `-s, --sqlfile`    | Flink SQL script to execute                                                                                                                                                                         |
+| `-c, --config-dir` | Directory containing the [Flink configuration YAML file](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/deployment/config/)                                                         |
+| `-u, --udfpath`    | Path to folder that contains JAR files that implement user defined functions (UDFs) or other runtime extensions for Flink                                                                           |
+| `-m, --mode`       | Optional argument to specify [Flink execution mode](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/dev/datastream/execution_mode/) (`STREAMING` (default), `BATCH`, or `AUTOMATIC`) |
 
 > [!WARNING]
 > The runner expects either a Flink SQL script or a compiled plan - not both.
@@ -70,7 +70,7 @@ docker run -d --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name runner \
-  datasqrl/flink-sql-runner:0.10.5-flink-2.2 \
+  datasqrl/flink-sql-runner:0.11.0-flink-2.3 \
   cluster
 ```
 
@@ -114,7 +114,7 @@ metadata:
   name: sql-example
 spec:
   image: datasqrl/flink-sql-runner:latest
-  flinkVersion: v2_2
+  flinkVersion: v2_3
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "1"
   serviceAccount: flink
@@ -127,7 +127,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.10.5/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.11.0/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -187,14 +187,68 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.10.5</version>
+  <version>0.11.0</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.10.5'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.11.0'
 ```
+
+### Profiling with async-profiler
+
+The image ships [async-profiler](https://github.com/async-profiler/async-profiler) under `/opt/async-profiler`,
+with the `asprof` launcher on the `PATH`. No sidecar, extra image, or JVM agent argument is needed — it attaches
+to a running JVM.
+
+Find the JVM to profile, then attach to it:
+
+```bash
+kubectl exec -it <taskmanager-pod> -- jps -l
+# 1426 org.apache.flink.runtime.taskexecutor.TaskManagerRunner
+
+kubectl exec -it <taskmanager-pod> -- asprof -e cpu -d 30 -f /tmp/flame.html 1426
+kubectl cp <taskmanager-pod>:/tmp/flame.html ./flame.html
+```
+
+Profile the TaskManager, not the JobManager — the record processing happens there.
+
+Useful modes:
+
+| Command | What it shows |
+|---------|---------------|
+| `asprof -e cpu -d 30 -f /tmp/cpu.html <pid>` | Where CPU time goes (default choice) |
+| `asprof -e wall -t -d 30 -f /tmp/wall.html <pid>` | Wall-clock per thread — blocked/idle time, useful for backpressure |
+| `asprof -e alloc -d 30 -f /tmp/alloc.html <pid>` | Allocation pressure driving GC |
+| `asprof -e lock -d 30 -f /tmp/lock.html <pid>` | Lock contention |
+| `asprof -d 30 -o collapsed -f /tmp/out.txt <pid>` | Folded stacks, greppable and diffable |
+
+Notes:
+
+- Write output to a path inside the container (e.g. `/tmp`). The profiled JVM writes the file itself as the
+  `flink` user, so a mounted host volume usually fails with `Could not open output file`.
+- Only one profiling session per JVM at a time. `[ERROR] Profiler already started` means a previous run is still
+  active — collect it with `asprof stop -f /tmp/flame.html <pid>`.
+- For precise inlined-frame attribution, add `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` to
+  `env.java.opts.all`. It is not on by default; stacks are already usable without it.
+- CPU profiling falls back to `ctimer` when `perf_events` are restricted (the common case for an unprivileged
+  container), so no extra Kubernetes capabilities are required. To use hardware `perf_events` instead, the pod
+  needs `SYS_ADMIN` and a host `kernel.perf_event_paranoid` of `1` or lower.
+
+### Checking connectivity with netcat
+
+The image ships [netcat](https://linuxize.com/post/netcat-nc-command-with-examples/) (`nc`, the OpenBSD
+flavor) so connectivity to a Kafka broker, a Postgres instance, or any other sink can be checked from inside
+the pod, without an ephemeral debug container:
+
+```bash
+kubectl exec -it <taskmanager-pod> -- nc -zv kafka.default.svc.cluster.local 9092
+kubectl exec -it <taskmanager-pod> -- nc -zv postgres 5432
+```
+
+Add `-w 5` to bound the wait when a host silently drops packets, and `-u` to probe a UDP port.
+
 ---
 
 ## Flink Extensions
@@ -216,6 +270,63 @@ In addition to the configuration options exposed by the original kafka connector
 
 > [!NOTE]  
 > The dead-letter-queue producer will use the same Kafka configuration that is provided for the Flink SQL table that reads the data.
+
+### Adaptive Kafka Source Watermarks
+
+The `kafka-safe` and `upsert-kafka-safe` connectors can generate source watermarks from Kafka record timestamps.
+Enable them with `SOURCE_WATERMARK()` on a Kafka timestamp metadata column:
+
+```sql
+CREATE TABLE events (
+  id BIGINT,
+  payload STRING,
+  kafka_timestamp TIMESTAMP_LTZ(3) METADATA FROM 'timestamp',
+  WATERMARK FOR kafka_timestamp AS SOURCE_WATERMARK()
+) WITH (
+  'connector' = 'kafka-safe',
+  'topic' = 'events',
+  'properties.bootstrap.servers' = 'kafka:9092',
+  'properties.group.id' = 'events-consumer',
+  'scan.startup.mode' = 'earliest-offset',
+  'format' = 'json'
+);
+```
+
+The generator waits until it has observed `scan.source-watermark.min-records` records, then subtracts an adaptive out-of-orderness delay from the greatest Kafka record timestamp seen.
+The delay is the configured quantile of recent record lateness samples, constrained by the configured minimum and maximum.
+This absorbs typical out-of-order records without allowing a rare late record to indefinitely delay event-time progress.
+Watermarks are monotonic and use the Kafka record timestamp, not an event-time field in the payload.
+
+| Option                                            | Default       | Description                                                                                                                               |
+|---------------------------------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `scan.source-watermark.min-records`               | `250`         | Records to observe before emitting adaptive source watermarks. Must be greater than zero.                                                 |
+| `scan.source-watermark.min-out-of-orderness`      | `50 ms`       | Lower bound for the adaptive out-of-orderness delay.                                                                                      |
+| `scan.source-watermark.max-out-of-orderness`      | `3 d`         | Upper bound for the adaptive out-of-orderness delay. Must be at least the minimum.                                                        |
+| `scan.source-watermark.out-of-orderness-quantile` | `0.95`        | Quantile of observed record lateness used as the delay. Must be greater than zero and no greater than one.                                |
+| `scan.watermark.emit.strategy`                    | Flink default | Flink source-watermark emission strategy: `on-event` emits as records arrive; `on-periodic` emits on Flink's periodic watermark interval. |
+| `scan.watermark.idle-timeout`                     | Flink default | Marks inactive source splits idle when idle advancement is disabled.                                                                      |
+
+#### Idle Watermark Advancement
+
+By default, a source watermark cannot advance after Kafka traffic stops, so a final event-time window may remain open.
+Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conservatively using wall-clock time after the source has been silent for that duration:
+
+```sql
+'scan.source-watermark.idle-advance-timeout' = '1 min',
+'scan.source-watermark.idle-advance-safety-margin' = '10 s'
+```
+
+Idle advancement supports only the `topic` table option, not `topic-pattern`. Configuring `topic-pattern` with idle advancement will result in a failure.
+The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration.
+If Kafka cannot be reached or the topic is not configured for `LogAppendTime`, idle advancement pauses rather than advancing unsafely.
+When idle advancement is enabled, do not set `scan.watermark.idle-timeout`: the connector deliberately does not apply Flink's regular idleness handling so its wall-clock-derived watermarks can be emitted.
+
+| Option                                                    | Default        | Description                                                                                       |
+|-----------------------------------------------------------|----------------|---------------------------------------------------------------------------------------------------|
+| `scan.source-watermark.idle-advance-timeout`              | `0` (disabled) | Silence duration before idle watermark advancement may begin. Must not be negative.               |
+| `scan.source-watermark.idle-advance-safety-margin`        | `10 s`         | Extra delay subtracted from wall-clock-derived watermarks to avoid closing windows too early.     |
+| `scan.source-watermark.idle-advance-broker-check-timeout` | `1 s`          | Timeout for the Kafka broker and topic timestamp-type readiness check. Must be greater than zero. |
+| `scan.source-watermark.idle-advance-broker-check-ttl`     | `10 s`         | How long the result of the broker readiness check is cached. Must be greater than zero.           |
 
 ### Conflict Handling for PostgreSQL Sinks
 
