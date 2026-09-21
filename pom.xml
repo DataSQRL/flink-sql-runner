@@ -125,7 +125,7 @@
     <testcontainers.version>2.0.5</testcontainers.version>
 
     <!-- Plugin versions -->
-    <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
+    <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
     <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
     <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
     <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
