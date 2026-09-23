@@ -17,6 +17,8 @@ package com.datasqrl.flinkrunner.format.json;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
+import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 
 import com.google.auto.service.AutoService;
@@ -27,7 +29,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatFactory;
 import org.apache.flink.formats.json.JsonFormatOptionsUtil;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -63,20 +64,25 @@ public class FlexibleJsonFormat
   public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
       Context context, ReadableConfig formatOptions) {
     FactoryUtil.validateFactoryOptions(this, formatOptions);
+    JsonFormatOptionsUtil.validateDecodingFormatOptions(formatOptions);
+
+    var failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
+    var ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+    var timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
     return new ProjectableDecodingFormat<>() {
       @SneakyThrows
       @Override
       public DeserializationSchema<RowData> createRuntimeDecoder(
           DynamicTableSource.Context context, DataType physicalDataType, int[][] projections) {
+
         final DataType producedDataType = Projection.of(projections).project(physicalDataType);
         final RowType rowType = (RowType) producedDataType.getLogicalType();
         final TypeInformation<RowData> rowDataTypeInfo =
             context.createTypeInformation(producedDataType);
-        var jsonRowDataDeserializationSchema =
-            new SqrlJsonRowDataDeserializationSchema(
-                rowType, rowDataTypeInfo, false, false, TimestampFormat.ISO_8601);
-        return jsonRowDataDeserializationSchema;
+
+        return new SqrlJsonRowDataDeserializationSchema(
+            rowType, rowDataTypeInfo, failOnMissingField, ignoreParseErrors, timestampOption);
       }
 
       @Override
