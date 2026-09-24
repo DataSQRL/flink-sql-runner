@@ -63,14 +63,25 @@ public class completions extends AsyncScalarFunction {
       Integer maxOutputTokens,
       Double temperature,
       Double topP) {
+    eval(result, prompt, modelName, maxOutputTokens, temperature, topP, null);
+  }
 
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Integer maxOutputTokens,
+      Double temperature,
+      Double topP,
+      String reasoningEffort) {
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
             .modelName(modelName)
-            .maxOutputTokens(maxOutputTokens)
+            .maxCompletionTokens(maxOutputTokens)
             .temperature(temperature)
             .topP(topP)
+            .reasoningEffort(reasoningEffort)
             .build();
 
     executor.execute(() -> openAiCompletions.callCompletions(request), result);

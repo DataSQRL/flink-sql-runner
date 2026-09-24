@@ -50,6 +50,17 @@ public class extract_json extends ScalarFunction {
 
   public String eval(
       String prompt, String modelName, Double temperature, Double topP, String jsonSchema) {
+    return eval(prompt, modelName, temperature, topP, jsonSchema, null);
+  }
+
+  public String eval(
+      String prompt,
+      String modelName,
+      Double temperature,
+      Double topP,
+      String jsonSchema,
+      String reasoningEffort) {
+
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
@@ -58,6 +69,7 @@ public class extract_json extends ScalarFunction {
             .jsonSchema(jsonSchema)
             .temperature(temperature)
             .topP(topP)
+            .reasoningEffort(reasoningEffort)
             .build();
 
     return executor.execute(() -> openAiCompletions.callCompletions(request));
