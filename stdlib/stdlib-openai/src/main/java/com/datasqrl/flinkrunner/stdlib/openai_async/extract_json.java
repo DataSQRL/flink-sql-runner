@@ -63,6 +63,17 @@ public class extract_json extends AsyncScalarFunction {
       Double temperature,
       Double topP,
       String jsonSchema) {
+    eval(result, prompt, modelName, temperature, topP, jsonSchema, null);
+  }
+
+  public void eval(
+      CompletableFuture<String> result,
+      String prompt,
+      String modelName,
+      Double temperature,
+      Double topP,
+      String jsonSchema,
+      String reasoningEffort) {
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
@@ -71,6 +82,7 @@ public class extract_json extends AsyncScalarFunction {
             .jsonSchema(jsonSchema)
             .temperature(temperature)
             .topP(topP)
+            .reasoningEffort(reasoningEffort)
             .build();
 
     executor.execute(() -> openAiCompletions.callCompletions(request), result);

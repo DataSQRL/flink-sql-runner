@@ -40,23 +40,40 @@ public class completions extends ScalarFunction {
     return eval(prompt, modelName, null, null, null);
   }
 
-  public String eval(String prompt, String modelName, Integer maxOutputTokens) {
-    return eval(prompt, modelName, maxOutputTokens, null, null);
-  }
-
-  public String eval(String prompt, String modelName, Integer maxOutputTokens, Double temperature) {
-    return eval(prompt, modelName, maxOutputTokens, temperature, null);
+  public String eval(String prompt, String modelName, Integer maxCompletionTokens) {
+    return eval(prompt, modelName, maxCompletionTokens, null, null);
   }
 
   public String eval(
-      String prompt, String modelName, Integer maxOutputTokens, Double temperature, Double topP) {
+      String prompt, String modelName, Integer maxCompletionTokens, Double temperature) {
+    return eval(prompt, modelName, maxCompletionTokens, temperature, null);
+  }
+
+  public String eval(
+      String prompt,
+      String modelName,
+      Integer maxCompletionTokens,
+      Double temperature,
+      Double topP) {
+    return eval(prompt, modelName, maxCompletionTokens, temperature, topP, null);
+  }
+
+  public String eval(
+      String prompt,
+      String modelName,
+      Integer maxCompletionTokens,
+      Double temperature,
+      Double topP,
+      String reasoningEffort) {
+
     final OpenAiCompletions.CompletionsRequest request =
         OpenAiCompletions.CompletionsRequest.builder()
             .prompt(prompt)
             .modelName(modelName)
-            .maxOutputTokens(maxOutputTokens)
+            .maxCompletionTokens(maxCompletionTokens)
             .temperature(temperature)
             .topP(topP)
+            .reasoningEffort(reasoningEffort)
             .build();
 
     return executor.execute(() -> openAiCompletions.callCompletions(request));

@@ -141,6 +141,19 @@ class CompletionsTest {
   }
 
   @Test
+  void includesReasoningEffortInRequest() {
+    OpenAiCompletions.CompletionsRequest request =
+        OpenAiCompletions.CompletionsRequest.builder()
+            .prompt("prompt")
+            .modelName("gpt-6-luna")
+            .reasoningEffort("none")
+            .build();
+
+    assertThat(openAiCompletions.createRequestBody(request).path("reasoning_effort").asText())
+        .isEqualTo("none");
+  }
+
+  @Test
   void testEvalErrorHandling() throws IOException, InterruptedException {
     IOException exception = new IOException("Test Exception");
 

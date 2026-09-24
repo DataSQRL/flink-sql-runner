@@ -88,7 +88,7 @@ public class OpenAiCompletions {
     }
   }
 
-  private ObjectNode createRequestBody(CompletionsRequest request) {
+  ObjectNode createRequestBody(CompletionsRequest request) {
     final ObjectNode requestBody = objectMapper.createObjectNode();
     requestBody.put("model", request.getModelName());
 
@@ -130,8 +130,12 @@ public class OpenAiCompletions {
     requestBody.put("top_p", request.getTopP() == null ? TOP_P_DEFAULT : request.getTopP());
     requestBody.put("n", 1); // Number of completions to generate
 
-    if (request.getMaxOutputTokens() != null) {
-      requestBody.put("max_tokens", request.getMaxOutputTokens());
+    if (request.getReasoningEffort() != null) {
+      requestBody.put("reasoning_effort", request.getReasoningEffort());
+    }
+
+    if (request.getMaxCompletionTokens() != null) {
+      requestBody.put("max_completion_tokens", request.getMaxCompletionTokens());
     }
 
     return requestBody;
@@ -158,8 +162,9 @@ public class OpenAiCompletions {
     private final String modelName;
     private final boolean requireJsonOutput;
     private final String jsonSchema;
-    private final Integer maxOutputTokens;
+    private final Integer maxCompletionTokens;
     private final Double temperature;
     private final Double topP;
+    private final String reasoningEffort;
   }
 }
