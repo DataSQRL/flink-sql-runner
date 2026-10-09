@@ -204,6 +204,12 @@
 
     <dependency>
       <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>stdlib-typesafe</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
       <artifactId>stdlib-iceberg</artifactId>
       <version>${project.version}</version>
     </dependency>
