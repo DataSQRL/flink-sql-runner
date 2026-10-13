@@ -65,10 +65,11 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractDialectConverter 
     var root = type.getTypeRoot();
 
     if (root == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+      // Convert via Instant, as Timestamp#toLocalDateTime would shift by the JVM default time zone
       return val ->
           val instanceof LocalDateTime
               ? TimestampData.fromLocalDateTime((LocalDateTime) val)
-              : TimestampData.fromTimestamp((Timestamp) val);
+              : TimestampData.fromInstant(((Timestamp) val).toInstant());
     } else if (root == LogicalTypeRoot.ARRAY) {
       var arrayType = (ArrayType) type;
       return createArrayConverter(arrayType);
@@ -86,8 +87,11 @@ public abstract class SqrlBaseJdbcRowConverter extends AbstractDialectConverter 
     switch (type.getTypeRoot()) {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
         final var tsPrecision = ((LocalZonedTimestampType) type).getPrecision();
+        // Convert via Instant, as TimestampData#toTimestamp would shift by the JVM default time
+        // zone
         return (val, index, statement) ->
-            statement.setTimestamp(index, val.getTimestamp(index, tsPrecision).toTimestamp());
+            statement.setTimestamp(
+                index, Timestamp.from(val.getTimestamp(index, tsPrecision).toInstant()));
 
       case MULTISET:
       case RAW:
