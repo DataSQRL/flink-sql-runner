@@ -406,30 +406,3 @@ If you are building your own Flink SQL runner, you can depend on the function mo
 ### CSV Format
 
 The `flexible-csv` format extends the standard csv format with a configuration option `skip-header` to skip the first row in a CSV file (i.e. the header).
-
----
-
-## Community Contributions
-
-Contributions are welcome! Feel free to open an issue or submit a [pull request](https://github.com/DataSQRL/flink-sql-runner/pulls) on GitHub.
-
-### Code Formatting
-
-This repo uses `spotless-maven-plugin` for code formatting.
-
-To automatically apply formatting before each commit:
-
-```bash
-./scripts/install-git-hooks.sh
-```
-
-This sets `core.hooksPath` to `.githooks` in your local clone.
-
-### Releasing
-Release process is fully automated and driven by github release. Just [create a new release](https://github.com/DataSQRL/flink-sql-runner/releases/new) and github action will take care of the rest. The new release version will match the `tag`, so must use [semver](https://semver.org/) when selecting tag name.
-
-### License
-This project is licensed under the Apache 2 License. See the [LICENSE](https://github.com/DataSQRL/flink-sql-runner/blob/main/LICENSE) file for details.
-
-### Contact & Support
-For any questions or support, please open an [issue](https://github.com/DataSQRL/flink-sql-runner/issues) in the GitHub repository.
