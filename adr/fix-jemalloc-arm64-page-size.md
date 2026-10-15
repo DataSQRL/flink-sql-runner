@@ -1,9 +1,9 @@
-# Ship a 4 KiB-page jemalloc for arm64
+# Ship a 4 KiB-page jemalloc on every architecture
 
 ## Summary
-The Flink base image installs Debian/Ubuntu's `libjemalloc2`, and the entrypoint preloads it. On arm64 that package is compiled with `--with-lg-page=16` (64 KiB pages) so a single binary also runs on 64K-page kernels. On 4 KiB-page kernels (Bottlerocket, AL2023 and Ubuntu on Graviton), every jemalloc slab and extent is rounded to 64 KiB, and dirty memory is purged in 64 KiB units. RocksDB-heavy TaskManagers pay for it in resident memory that Flink's memory model does not account for.
+The Flink base image installs Debian/Ubuntu's `libjemalloc2`, and the entrypoint preloads it from `/usr/lib/<arch>-linux-gnu/libjemalloc.so`. On arm64 that package is compiled with `--with-lg-page=16` (64 KiB pages) so a single binary also runs on 64K-page kernels. On 4 KiB-page kernels (Bottlerocket, AL2023 and Ubuntu on Graviton), every jemalloc slab and extent is rounded to 64 KiB, and dirty memory is purged in 64 KiB units. RocksDB-heavy TaskManagers pay for it in resident memory that Flink's memory model does not account for.
 
-The image now builds jemalloc 5.3.0 with `--with-lg-page=12` into `/opt/jemalloc-4k`, and `entrypoint.sh` preloads it when `getconf PAGESIZE` is 4096. Any other page size keeps the distribution library.
+The image now builds jemalloc 5.3.0 with `--with-lg-page=12` and installs it over the distribution's `libjemalloc.so.2` on both amd64 and arm64.
 
 ## Evidence (prod metrics2, 2026-10-14/15)
 - The steady metrics TaskManager (8000Mi, limit = request, 4 slots, ~290 RocksDB instances) ran for days on amd64 `m5ad` with no OOMKill.
@@ -13,10 +13,13 @@ The image now builds jemalloc 5.3.0 with `--with-lg-page=12` into `/opt/jemalloc
 
 ## Key Decisions
 - **Build from source, not runtime config.** `MALLOC_CONF` cannot change the page size, which is fixed at compile time (`LG_PAGE`).
-- **Guard on the kernel page size.** A 4 KiB-page jemalloc refuses to run on a 64 KiB-page kernel, which some RHEL/Ubuntu arm64 kernels use. The entrypoint falls back to the stock library there, so customer dataplanes with 64K kernels keep working.
-- **Use it on amd64 too.** x86 is already 4 KiB, so both architectures now run the same jemalloc build.
+- **Replace the library in place, not in an entrypoint.** The Flink Kubernetes operator starts pods with the upstream `/docker-entrypoint.sh`, not the image's `/entrypoint.sh`. Overwriting the file that every entrypoint preloads makes the choice independent of which script starts the JVM.
+- **Same library on every architecture.** amd64 gets the custom build too, so both architectures run the same allocator and there are no per-arch surprises.
+- **The build fails if the wrong library is installed.** The final stage preloads the installed library and requires `Version: "5.3.0-` and `Page size: 4096` in its stats.
 - **Pinned version and checksum.** `JEMALLOC_VERSION` and `JEMALLOC_SHA256` are build args, and the tarball is verified with `sha256sum -c`.
 
 ## Notes
-- `DISABLE_JEMALLOC=true` (glibc malloc) still works and is a stopgap for images built before this change. glibc fragments badly under RocksDB, so pair it with `MALLOC_ARENA_MAX`.
-- To verify inside a TaskManager: `tr '\0' '\n' </proc/1/environ | grep LD_PRELOAD` should show `/opt/jemalloc-4k/libjemalloc.so.2`.
+- **64K-page kernels are not supported** by this image's jemalloc, because a 4 KiB-page build refuses to run there. Some RHEL/Ubuntu arm64 kernels use 64K pages. Set `DISABLE_JEMALLOC=true` on such clusters to fall back to glibc malloc (pair it with `MALLOC_ARENA_MAX`).
+- To verify a running TaskManager:
+  - `grep -m1 jemalloc /proc/1/maps` shows the mapped library, which must be `/usr/lib/<arch>-linux-gnu/libjemalloc.so.2`.
+  - `MALLOC_CONF=stats_print:true LD_PRELOAD=/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so /bin/true 2>&1 | grep 'Page size'` must print `Page size: 4096`.

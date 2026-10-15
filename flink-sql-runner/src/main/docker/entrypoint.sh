@@ -127,9 +127,6 @@ process_flink_properties() {
 maybe_enable_jemalloc() {
     if [ "${DISABLE_JEMALLOC:-false}" == "false" ]; then
         JEMALLOC_PATH="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so"
-        if [ "$(getconf PAGESIZE)" = "4096" ] && [ -f /opt/jemalloc-4k/libjemalloc.so.2 ]; then
-            JEMALLOC_PATH="/opt/jemalloc-4k/libjemalloc.so.2"
-        fi
         JEMALLOC_FALLBACK="/usr/lib/x86_64-linux-gnu/libjemalloc.so"
         if [ -f "$JEMALLOC_PATH" ]; then
             export LD_PRELOAD=$LD_PRELOAD:$JEMALLOC_PATH

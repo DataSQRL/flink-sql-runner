@@ -76,7 +76,14 @@ COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
 COPY --chmod=755 sql-runner /opt/flink/bin/sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
-COPY --from=jemalloc-4k /opt/jemalloc-4k /opt/jemalloc-4k
+COPY --from=jemalloc-4k /opt/jemalloc-4k/libjemalloc.so.2 /tmp/libjemalloc.so.2
+RUN set -eu; \
+    lib="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so" \
+    && install -m 644 /tmp/libjemalloc.so.2 "$(readlink -f "$lib")" \
+    && rm /tmp/libjemalloc.so.2 \
+    && stats="$(MALLOC_CONF=stats_print:true LD_PRELOAD="$lib" /bin/true 2>&1)" \
+    && echo "$stats" | grep -q '^Version: "5.3.0-' \
+    && echo "$stats" | grep -qx 'Page size: 4096'
 
 # noop.jar is an empty JAR. `flink run` requires a JAR positional argument, but the runner code
 # ships on the system classpath in lib/ (see bin/sql-runner), so this only satisfies the CLI.
