@@ -236,7 +236,7 @@ jobs:
           mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
 
       - name: Build uber jar
-        run: mvn -B clean install -Dfast
+        run: mvn -B clean install -Dfast -DskipTests
 
       - name: Define Docker image tag
         id: vars
