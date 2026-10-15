@@ -14,6 +14,26 @@
 # limitations under the License.
 #
 
+# Debian's arm64 libjemalloc2 is built for 64 KiB pages, which bloats RSS on 4 KiB-page kernels.
+FROM flink:${flink-base-image} AS jemalloc-4k
+
+ARG JEMALLOC_VERSION=5.3.0
+ARG JEMALLOC_SHA256=2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
+
+USER root
+
+RUN set -eu; \
+    apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev make bzip2 \
+    && curl -fsSL "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/jemalloc-${JEMALLOC_VERSION}.tar.bz2" -o /tmp/jemalloc.tar.bz2 \
+    && echo "${JEMALLOC_SHA256}  /tmp/jemalloc.tar.bz2" | sha256sum -c - \
+    && tar -xjf /tmp/jemalloc.tar.bz2 -C /tmp \
+    && cd "/tmp/jemalloc-${JEMALLOC_VERSION}" \
+    && ./configure --with-lg-page=12 --disable-cxx \
+    && make -j"$(nproc)" build_lib_shared \
+    && mkdir -p /opt/jemalloc-4k \
+    && cp lib/libjemalloc.so.2 /opt/jemalloc-4k/libjemalloc.so.2
+
 FROM flink:${flink-base-image}
 
 ARG ASYNC_PROFILER_VERSION=4.4
@@ -56,6 +76,7 @@ COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
 COPY --chmod=755 sql-runner /opt/flink/bin/sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
+COPY --from=jemalloc-4k /opt/jemalloc-4k /opt/jemalloc-4k
 
 # noop.jar is an empty JAR. `flink run` requires a JAR positional argument, but the runner code
 # ships on the system classpath in lib/ (see bin/sql-runner), so this only satisfies the CLI.
