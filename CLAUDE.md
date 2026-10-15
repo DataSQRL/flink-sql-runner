@@ -81,7 +81,7 @@ java -jar flink-sql-runner/target/flink-sql-runner.jar --sqlfile script.sql --ud
 ### Testing
 - Unit tests: `mvn test`
 - Integration tests: `mvn verify` (includes failsafe plugin)
-- Test coverage enforced at 70% minimum via JaCoCo
+- JaCoCo coverage reports are generated per module (`target/site/jacoco`, `target/site/jacoco-it`)
 
 ### Architecture
 The main application (`CliRunner`) processes command-line arguments and delegates to `BaseRunner` which:
