@@ -51,6 +51,72 @@ jobs:
           fi
           echo "flink_version_label=$(mvn help:evaluate -Dexpression=flink.version.label -q -DforceStdout)" >> $GITHUB_OUTPUT
 
+  base-image:
+    runs-on: ubuntu-latest
+    needs: cache-dependencies
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+
+    env:
+      BASE_IMAGE: ghcr.io/datasqrl/flink-sql-runner-base
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup JDK
+        uses: ./.github/actions/setup-jdk
+
+      - name: Compute base image tag
+        id: tag
+        run: |
+          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources
+          echo "tag=$(sha1sum flink-sql-runner/target/Dockerfile.base | cut -c1-12)" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if base image already exists
+        id: exists
+        run: |
+          if docker manifest inspect "$BASE_IMAGE:${{ steps.tag.outputs.tag }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        if: steps.exists.outputs.exists == 'false'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        if: steps.exists.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push base image (linux/amd64 + linux/arm64)
+        if: steps.exists.outputs.exists == 'false'
+        uses: docker/build-push-action@v7
+        with:
+          context: ./flink-sql-runner/target
+          file: ./flink-sql-runner/target/Dockerfile.base
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.BASE_IMAGE }}:${{ steps.tag.outputs.tag }}
+
+      - name: Point latest at this base image
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        run: docker buildx imagetools create -t "$BASE_IMAGE:latest" "$BASE_IMAGE:${{ steps.tag.outputs.tag }}"
+
   unit-test:
     runs-on: ubuntu-latest
     needs: cache-dependencies
@@ -72,7 +138,7 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    needs: cache-dependencies
+    needs: [ cache-dependencies, base-image ]
     timeout-minutes: 30
 
     permissions:
@@ -87,7 +153,7 @@ jobs:
         uses: ./.github/actions/setup-jdk
 
       - name: Run integration tests
-        run: mvn -B install -Dtest=skip
+        run: mvn -B install -Dtest=skip -Dflink-sql-runner-base.tag=${{ needs.base-image.outputs.tag }}
 
   maven-deploy:
     runs-on: ubuntu-latest
@@ -138,7 +204,7 @@ jobs:
 
   build-and-push-docker-image:
     runs-on: ubuntu-latest
-    needs: [ unit-test, integration-test, cache-dependencies ]
+    needs: [ unit-test, integration-test, cache-dependencies, base-image ]
     timeout-minutes: 30
 
     permissions:
@@ -164,18 +230,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-actor: ${{ github.actor }}
 
-      - name: Pull base Docker image
-        run: |
-          mvn -B -f flink-sql-runner/pom.xml org.apache.maven.plugins:maven-resources-plugin:3.3.1:resources
-          grep '^FROM' flink-sql-runner/target/Dockerfile | awk '{print $2}' | xargs -n1 docker pull
-
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
         run: |
           mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
 
       - name: Build uber jar
-        run: mvn -B clean install -DskipTests
+        run: mvn -B clean install -Dfast
 
       - name: Define Docker image tag
         id: vars
@@ -202,6 +263,7 @@ jobs:
           file: ./flink-sql-runner/target/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: BASE_TAG=${{ needs.base-image.outputs.tag }}
           tags: ${{ steps.vars.outputs.image_tag }}
 
       - name: Rename jar file

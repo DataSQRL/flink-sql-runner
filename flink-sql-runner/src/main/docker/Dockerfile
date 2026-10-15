@@ -14,57 +14,10 @@
 # limitations under the License.
 #
 
-# Debian's arm64 libjemalloc2 is built for 64 KiB pages, which bloats RSS on 4 KiB-page kernels.
-FROM flink:${flink-base-image} AS jemalloc-4k
-
-ARG JEMALLOC_VERSION=5.3.0
-ARG JEMALLOC_SHA256=2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa
+ARG BASE_TAG=latest
+FROM ghcr.io/datasqrl/flink-sql-runner-base:${BASE_TAG}
 
 USER root
-
-RUN set -eu; \
-    apt-get update \
-    && apt-get install -y --no-install-recommends gcc libc6-dev make bzip2 \
-    && curl -fsSL "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/jemalloc-${JEMALLOC_VERSION}.tar.bz2" -o /tmp/jemalloc.tar.bz2 \
-    && echo "${JEMALLOC_SHA256}  /tmp/jemalloc.tar.bz2" | sha256sum -c - \
-    && tar -xjf /tmp/jemalloc.tar.bz2 -C /tmp \
-    && cd "/tmp/jemalloc-${JEMALLOC_VERSION}" \
-    && ./configure --with-lg-page=12 --disable-cxx \
-    && make -j"$(nproc)" build_lib_shared \
-    && mkdir -p /opt/jemalloc-4k \
-    && cp lib/libjemalloc.so.2 /opt/jemalloc-4k/libjemalloc.so.2
-
-FROM flink:${flink-base-image}
-
-ARG ASYNC_PROFILER_VERSION=4.4
-ARG TARGETARCH
-
-USER root
-
-# Install JDK 17 (replacing the default JRE) and netcat for network debugging
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jdk-headless netcat-openbsd \
-    && ln -sf /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/java-17-openjdk \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-ENV PATH=$JAVA_HOME/bin:$PATH
-
-# Download and setup async-profiler
-RUN set -eu; \
-    case "${TARGETARCH:-$(uname -m)}" in \
-      x86_64) ASYNC_PROFILER_ARCH="x64" ;; \
-      amd64) ASYNC_PROFILER_ARCH="x64" ;; \
-      aarch64) ASYNC_PROFILER_ARCH="arm64" ;; \
-      arm64) ASYNC_PROFILER_ARCH="arm64" ;; \
-      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
-    && curl -fsSL "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}.tar.gz" -o /tmp/async-profiler.tar.gz \
-    && tar -xzf /tmp/async-profiler.tar.gz -C /opt \
-    && mv "/opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}" /opt/async-profiler \
-    && ln -s /opt/async-profiler/bin/asprof /usr/local/bin/asprof \
-    && rm -f /tmp/async-profiler.tar.gz \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY flink-s3-fs-hadoop-*.jar /opt/flink/lib
 COPY hadoop-common-*.jar /opt/flink/lib
@@ -76,14 +29,6 @@ COPY stdlib-utils-*.jar /opt/flink/lib
 COPY flink-sql-runner.uber.jar /opt/flink/lib/sql-runner.uber.jar
 COPY --chmod=755 sql-runner /opt/flink/bin/sql-runner
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
-COPY --from=jemalloc-4k /opt/jemalloc-4k/libjemalloc.so.2 /tmp/libjemalloc.so.2
-RUN set -eu; \
-    lib="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so" \
-    && install -m 644 /tmp/libjemalloc.so.2 "$(readlink -f "$lib")" \
-    && rm /tmp/libjemalloc.so.2 \
-    && stats="$(MALLOC_CONF=stats_print:true LD_PRELOAD="$lib" /bin/true 2>&1)" \
-    && echo "$stats" | grep -q '^Version: "5.3.0-' \
-    && echo "$stats" | grep -qx 'Page size: 4096'
 
 # noop.jar is an empty JAR. `flink run` requires a JAR positional argument, but the runner code
 # ships on the system classpath in lib/ (see bin/sql-runner), so this only satisfies the CLI.

@@ -16,6 +16,7 @@ The image now builds jemalloc 5.3.0 with `--with-lg-page=12` and installs it ove
 - **Replace the library in place, not in an entrypoint.** The Flink Kubernetes operator starts pods with the upstream `/docker-entrypoint.sh`, not the image's `/entrypoint.sh`. Overwriting the file that every entrypoint preloads makes the choice independent of which script starts the JVM.
 - **Same library on every architecture.** amd64 gets the custom build too, so both architectures run the same allocator and there are no per-arch surprises.
 - **The build fails if the wrong library is installed.** The final stage preloads the installed library and requires `Version: "5.3.0-` and `Page size: 4096` in its stats.
+- **Built once, in a separate base image.** `Dockerfile.base` holds jemalloc, the JDK and async-profiler, and is published as `ghcr.io/datasqrl/flink-sql-runner-base:<sha1 of the filtered Dockerfile.base>`. CI builds it only when that tag is missing. `Dockerfile` starts `FROM` it through the `BASE_TAG` build arg, which defaults to `latest`, and `latest` moves only on pushes to main.
 - **Pinned version and checksum.** `JEMALLOC_VERSION` and `JEMALLOC_SHA256` are build args, and the tarball is verified with `sha256sum -c`.
 
 ## Notes

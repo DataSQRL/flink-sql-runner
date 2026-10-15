@@ -529,6 +529,8 @@
               <skip>${fast}</skip>
               <arguments>
                 <argument>build</argument>
+                <argument>--build-arg</argument>
+                <argument>BASE_TAG=${flink-sql-runner-base.tag}</argument>
                 <argument>--tag</argument>
                 <argument>flink-sql-runner</argument>
                 <argument>.</argument>
