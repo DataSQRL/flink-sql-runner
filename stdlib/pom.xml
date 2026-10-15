@@ -36,6 +36,7 @@
     <module>stdlib-vector</module>
     <module>stdlib-math</module>
     <module>stdlib-openai</module>
+    <module>stdlib-typesafe</module>
     <module>stdlib-iceberg</module>
     <module>stdlib-utils</module>
   </modules>
