@@ -36,16 +36,23 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
+/**
+ * Decodes {@code flexible-csv} messages one by one, such as Kafka records. The filesystem connector
+ * reads files with {@link FlexibleCsvFileFormat} instead, which skips the header per file.
+ */
 @AutoService(Factory.class)
 public class FlexibleCsv implements DeserializationFormatFactory {
+
+  public static final String IDENTIFIER = "flexible-csv";
+
+  public static final ConfigOption<Boolean> SKIP_HEADER =
+      ConfigOptions.key("skip-header").booleanType().defaultValue(true);
+
   final CsvFormatFactory csvJson;
 
   public FlexibleCsv() {
     csvJson = new CsvFormatFactory();
   }
-
-  ConfigOption<Boolean> skipHeader =
-      ConfigOptions.key("skip-header").booleanType().defaultValue(true);
 
   @Override
   public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
@@ -61,7 +68,7 @@ public class FlexibleCsv implements DeserializationFormatFactory {
           DynamicTableSource.Context context, DataType physicalDataType, int[][] projections) {
         DeserializationSchema<RowData> runtimeDecoder =
             decodingFormat.createRuntimeDecoder(context, physicalDataType, projections);
-        boolean skipHeaderBool = formatOptions.get(skipHeader);
+        boolean skipHeaderBool = formatOptions.get(SKIP_HEADER);
         RuntimeDecoderDelegate decoderDelegate =
             new RuntimeDecoderDelegate(runtimeDecoder, skipHeaderBool);
         return decoderDelegate;
@@ -113,7 +120,7 @@ public class FlexibleCsv implements DeserializationFormatFactory {
 
   @Override
   public String factoryIdentifier() {
-    return "flexible-csv";
+    return IDENTIFIER;
   }
 
   @Override
@@ -123,6 +130,6 @@ public class FlexibleCsv implements DeserializationFormatFactory {
 
   @Override
   public Set<ConfigOption<?>> optionalOptions() {
-    return Set.of(skipHeader);
+    return Set.of(SKIP_HEADER);
   }
 }
