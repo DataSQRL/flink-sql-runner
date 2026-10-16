@@ -406,3 +406,6 @@ If you are building your own Flink SQL runner, you can depend on the function mo
 ### CSV Format
 
 The `flexible-csv` format extends the standard csv format with a configuration option `skip-header` to skip the first row in a CSV file (i.e. the header).
+The option defaults to `true`. The filesystem connector skips the header once per file, also when Flink reads a file in several splits.
+Message-based connectors, such as Kafka, have no files, so `skip-header` drops the first record each reader decodes; set it to `false` there.
+On the filesystem connector, the other options of the standard csv format are available with the `flexible-csv.` prefix, for example `'flexible-csv.ignore-parse-errors' = 'true'`.
