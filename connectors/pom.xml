@@ -33,6 +33,7 @@
     <module>datagen-connectors</module>
     <module>kafka-safe-connector</module>
     <module>postgresql-connector</module>
+    <module>pinot-connector</module>
   </modules>
 
   <dependencies>
