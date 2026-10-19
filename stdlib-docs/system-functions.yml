@@ -16,7 +16,7 @@
 
 jsonb:
   - name: to_jsonb
-    description: Parses a JSON string or Flink object (e.g., `Row`, `Row[]`) into a JSON object.
+    description: Parses a JSON string or Flink object (e.g., `Row`, array, map) into a JSON object. Nested JSON values are embedded as is, and map entries with a `NULL` key are skipped.
     example: to_jsonb('{"name":"Alice"}') → JSON object
     identifier: to_jsonb
   - name: jsonb_to_string
