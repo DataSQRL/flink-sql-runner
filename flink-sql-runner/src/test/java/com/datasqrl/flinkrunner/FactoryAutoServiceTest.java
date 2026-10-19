@@ -33,7 +33,6 @@ class FactoryAutoServiceTest {
   private static final Set<String> FIRST_PARTY_ARTIFACTS =
       Set.of(
           "datagen-connectors",
-          "flexible-csv-format",
           "flexible-json-format",
           "flink-sql-runner",
           "kafka-safe-connector",

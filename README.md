@@ -24,7 +24,6 @@ The individual components are modular and the project is composable to make it e
     - 💀 Dead-letter queue support in Kafka for poison message handling.
     - 🚀 Native JSON and Vector types with JSON format and PostgreSQL connector support.
     - 📚 Function libraries for additional functionality in Flink SQL (advanced math, OpenAI, etc)
-    - ⚙️ Additional configuration options for CSV format.
 
 ---
 
@@ -402,10 +401,3 @@ where you replace `[library-name]` with the name of the function library and `[f
 ### Custom Flink Implementation
 
 If you are building your own Flink SQL runner, you can depend on the function modules and load the functions into your project.
-
-### CSV Format
-
-The `flexible-csv` format extends the standard csv format with a configuration option `skip-header` to skip the first row in a CSV file (i.e. the header).
-The option defaults to `true`. The filesystem connector skips the header once per file, also when Flink reads a file in several splits.
-Message-based connectors, such as Kafka, have no files, so `skip-header` drops the first record each reader decodes; set it to `false` there.
-On the filesystem connector, the other options of the standard csv format are available with the `flexible-csv.` prefix, for example `'flexible-csv.ignore-parse-errors' = 'true'`.
