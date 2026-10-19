@@ -44,6 +44,7 @@ class FactoryAutoServiceTest {
   void dynamicTableFactoriesAreRegisteredWithAutoService() {
     try (var scanResult =
         new ClassGraph()
+            .enableClasspath()
             .enableAnnotationInfo()
             .enableClassInfo()
             .acceptPackages("com.datasqrl", "org.apache.flink.streaming.connectors.kafka")
@@ -51,8 +52,8 @@ class FactoryAutoServiceTest {
 
       var factories =
           Stream.concat(
-                  scanResult.getClassesImplementing(DynamicTableSourceFactory.class).stream(),
-                  scanResult.getClassesImplementing(DynamicTableSinkFactory.class).stream())
+                  scanResult.getAllClassesImplementing(DynamicTableSourceFactory.class).stream(),
+                  scanResult.getAllClassesImplementing(DynamicTableSinkFactory.class).stream())
               .filter(FactoryAutoServiceTest::isFirstPartyClass)
               .distinct()
               .toList();
@@ -77,7 +78,7 @@ class FactoryAutoServiceTest {
   }
 
   private static boolean hasAutoServiceFactoryAnnotation(ClassInfo classInfo) {
-    var annotationInfo = classInfo.getAnnotationInfo(AutoService.class.getName());
+    var annotationInfo = classInfo.getAllAnnotationInfo(AutoService.class.getName());
     if (annotationInfo == null) {
       return false;
     }
