@@ -17,6 +17,7 @@ package com.datasqrl.flinkrunner.stdlib.json;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.api.DataTypes;
@@ -28,6 +29,7 @@ import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrate
 import org.apache.flink.types.Row;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+@Slf4j
 public class JsonFunctions {
 
   private static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();
@@ -114,7 +116,9 @@ public class JsonFunctions {
       var unboxed = new LinkedHashMap<Object, JsonNode>();
       for (var entry : map.entrySet()) {
         if (entry.getKey() == null) {
-          // JSON has no null keys, so skip the entry instead of failing the job
+          // JSON object keys must be strings, and Jackson throws on a null key, which would fail
+          // the job, so drop the entry and leave catching it to pipeline validation
+          log.warn("Skipping map entry with a NULL key, because JSON object keys cannot be null");
           continue;
         }
         unboxed.put(entry.getKey(), unboxFlinkToJsonNode(entry.getValue()));
