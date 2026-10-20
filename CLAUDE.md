@@ -10,7 +10,7 @@ This is a multi-module Maven project for the Flink SQL Runner - a tool and libra
 
 - `flink-sql-runner/` - Main CLI application and Docker image
 - `connectors/` - Custom Flink connectors (kafka-safe, postgresql)
-- `formats/` - Custom data formats (flexible-csv, flexible-json)
+- `formats/` - Custom data formats (flexible-json)
 - `types/` - Custom data types (json-type, vector-type)
 - `stdlib/` - Standard library modules with system functions (json, math, text, vector, openai)
 - `testing/` - Testing utilities and sample UDF projects
