@@ -30,7 +30,6 @@
   <name>Formats</name>
 
   <modules>
-    <module>flexible-csv-format</module>
     <module>flexible-json-format</module>
   </modules>
 

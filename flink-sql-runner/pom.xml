@@ -155,12 +155,6 @@
     <!-- Custom Formats -->
     <dependency>
       <groupId>com.datasqrl.flinkrunner</groupId>
-      <artifactId>flexible-csv-format</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.datasqrl.flinkrunner</groupId>
       <artifactId>flexible-json-format</artifactId>
       <version>${project.version}</version>
     </dependency>
