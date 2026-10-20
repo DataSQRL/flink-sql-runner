@@ -34,11 +34,6 @@ public class jsonb_array extends ScalarFunction implements AutoRegisterSystemFun
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {
-    if (objects == null || objects.getClass() != Object[].class) {
-      // A single array argument is passed as the varargs array itself, so wrap it
-      objects = new Object[] {objects};
-    }
-
     var arrayNode = mapper.createArrayNode();
     for (var value : objects) {
       arrayNode.add(JsonFunctions.unboxFlinkToJsonNode(value));
