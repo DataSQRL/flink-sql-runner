@@ -18,7 +18,10 @@ package com.datasqrl.flinkrunner.stdlib.json;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +64,64 @@ class JsonFunctionsTest {
       var result = JsonFunctions.TO_JSON.eval(row);
       assertThat(result).isNotNull();
       assertThat(result.getJson()).isEqualTo(readTree("{\"f0\":1,\"f1\":\"value\"}"));
+    }
+
+    @Test
+    void givenJsonArray_whenToJsonb_thenElementsAreUnwrapped() {
+      var arr =
+          new FlinkJsonType[] {
+            new FlinkJsonType(readTree("{\"a\":1}")), null, new FlinkJsonType(readTree("[1,2]"))
+          };
+      var result = JsonFunctions.TO_JSON.eval(arr);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("[{\"a\":1},null,[1,2]]"));
+    }
+
+    @Test
+    void givenRowWithJsonFields_whenToJsonb_thenFieldsAreUnwrapped() {
+      var row = Row.withNames();
+      row.setField("payload", new FlinkJsonType(readTree("{\"a\":1}")));
+      row.setField("parts", new FlinkJsonType[] {new FlinkJsonType(readTree("{\"b\":2}"))});
+      var result = JsonFunctions.TO_JSON.eval(row);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson())
+          .isEqualTo(readTree("{\"payload\":{\"a\":1},\"parts\":[{\"b\":2}]}"));
+    }
+
+    @Test
+    void givenMapWithJsonValues_whenToJsonb_thenValuesAreUnwrapped() {
+      var map = new LinkedHashMap<String, FlinkJsonType>();
+      map.put("k1", new FlinkJsonType(readTree("{\"a\":1}")));
+      map.put("k2", null);
+      var result = JsonFunctions.TO_JSON.eval(map);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"k1\":{\"a\":1},\"k2\":null}"));
+    }
+
+    @Test
+    void givenMapWithNullKey_whenToJsonb_thenEntryIsSkipped() {
+      var map = new LinkedHashMap<String, Integer>();
+      map.put("null", 1);
+      map.put(null, 2);
+      var result = JsonFunctions.TO_JSON.eval(map);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"null\":1}"));
+    }
+
+    @Test
+    void givenMapWithBytesKey_whenToJsonb_thenKeyIsBase64Encoded() {
+      var map = new LinkedHashMap<byte[], Integer>();
+      map.put(new byte[] {1, 2}, 1);
+      var result = JsonFunctions.TO_JSON.eval(map);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"AQI=\":1}"));
+    }
+
+    @Test
+    void givenScalarArray_whenToJsonb_thenElementsAreSerialized() {
+      var result = JsonFunctions.TO_JSON.eval(new Integer[] {1, null, 3});
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("[1,null,3]"));
     }
 
     @Test
@@ -116,6 +177,40 @@ class JsonFunctionsTest {
       assertThat(resultWithNullValue).isNotNull();
       assertThat(resultWithNullValue.getJson().toString()).isEqualTo("{\"key1\":null}");
     }
+
+    @Test
+    void givenNestedJsonValues_whenJsonbObject_thenValuesAreUnwrapped() {
+      var row = Row.withNames();
+      row.setField("id", 1);
+      row.setField("payload", new FlinkJsonType(readTree("{\"a\":1}")));
+      var result =
+          JsonFunctions.JSON_OBJECT.eval(
+              "arr",
+              new FlinkJsonType[] {new FlinkJsonType(readTree("{\"b\":2}"))},
+              "row",
+              row,
+              "map",
+              Map.of("c", new FlinkJsonType(readTree("[3]"))));
+      assertThat(result).isNotNull();
+      assertThat(result.getJson())
+          .isEqualTo(
+              readTree(
+                  "{\"arr\":[{\"b\":2}],\"row\":{\"id\":1,\"payload\":{\"a\":1}},\"map\":{\"c\":[3]}}"));
+    }
+
+    @Test
+    void givenTimestampValue_whenJsonbObject_thenValueIsIsoString() {
+      var result = JsonFunctions.JSON_OBJECT.eval("ts", LocalDateTime.of(2024, 1, 2, 10, 11, 12));
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"ts\":\"2024-01-02T10:11:12\"}"));
+    }
+
+    @Test
+    void givenSingleArrayArgument_whenJsonbObject_thenThrows() {
+      // Flink passes a single ARRAY argument as the varargs array itself
+      assertThatThrownBy(() -> JsonFunctions.JSON_OBJECT.eval((Object[]) new String[] {"k", "v"}))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
   }
 
   @Nested
@@ -143,6 +238,43 @@ class JsonFunctionsTest {
       var result = JsonFunctions.JSON_ARRAY.eval((Object) null);
       assertThat(result).isNotNull();
       assertThat(result.getJson().toString()).isEqualTo("[null]");
+    }
+
+    @Test
+    void givenNestedJsonValues_whenJsonbArray_thenValuesAreUnwrapped() {
+      var row = Row.withNames();
+      row.setField("id", 1);
+      row.setField("payload", new FlinkJsonType(readTree("{\"a\":1}")));
+      var result =
+          JsonFunctions.JSON_ARRAY.eval(
+              new FlinkJsonType[] {new FlinkJsonType(readTree("{\"b\":2}"))},
+              row,
+              Map.of("c", new FlinkJsonType(readTree("[3]"))));
+      assertThat(result).isNotNull();
+      assertThat(result.getJson())
+          .isEqualTo(readTree("[[{\"b\":2}],{\"id\":1,\"payload\":{\"a\":1}},{\"c\":[3]}]"));
+    }
+
+    @Test
+    void givenTimestampValue_whenJsonbArray_thenValueIsIsoString() {
+      var result = JsonFunctions.JSON_ARRAY.eval(LocalDateTime.of(2024, 1, 2, 10, 11, 12));
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("[\"2024-01-02T10:11:12\"]"));
+    }
+
+    @Test
+    void givenSingleArrayArgument_whenJsonbArray_thenArrayIsNested() {
+      // Flink passes a single ARRAY argument as the varargs array itself
+      var result = JsonFunctions.JSON_ARRAY.eval((Object[]) new Integer[] {7});
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("[[7]]"));
+    }
+
+    @Test
+    void givenSingleNullArrayArgument_whenJsonbArray_thenNullIsNested() {
+      var result = JsonFunctions.JSON_ARRAY.eval((Object[]) null);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("[null]"));
     }
   }
 
@@ -455,6 +587,28 @@ class JsonFunctionsTest {
       assertThat(result.getJson().toString())
           .isEqualTo(
               "{\"key1\":{\"nestedKey1\":\"nestedValue1\"},\"key2\":{\"nestedKey2\":\"nestedValue2\"}}");
+    }
+
+    @Test
+    void givenNestedJsonValue_whenAggregate_thenValueIsUnwrapped() {
+      var accumulator = JsonFunctions.JSON_OBJECTAGG.createAccumulator();
+      JsonFunctions.JSON_OBJECTAGG.accumulate(
+          accumulator, "key", new FlinkJsonType[] {new FlinkJsonType(readTree("{\"a\":1}"))});
+
+      var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("{\"key\":[{\"a\":1}]}");
+    }
+
+    @Test
+    void givenTimestampValue_whenAggregate_thenValueIsIsoString() {
+      var accumulator = JsonFunctions.JSON_OBJECTAGG.createAccumulator();
+      JsonFunctions.JSON_OBJECTAGG.accumulate(
+          accumulator, "key", LocalDateTime.of(2024, 1, 2, 10, 11, 12));
+
+      var result = JsonFunctions.JSON_OBJECTAGG.getValue(accumulator);
+      assertThat(result).isNotNull();
+      assertThat(result.getJson().toString()).isEqualTo("{\"key\":\"2024-01-02T10:11:12\"}");
     }
 
     @Test
