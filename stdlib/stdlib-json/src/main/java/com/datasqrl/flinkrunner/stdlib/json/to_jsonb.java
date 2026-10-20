@@ -18,12 +18,10 @@ package com.datasqrl.flinkrunner.stdlib.json;
 import com.datasqrl.flinkrunner.stdlib.utils.AutoRegisterSystemFunction;
 import com.google.auto.service.AutoService;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 /** Parses a JSON object from string */
@@ -52,42 +50,6 @@ public class to_jsonb extends ScalarFunction implements AutoRegisterSystemFuncti
       return jsonTypeObj;
     }
 
-    return new FlinkJsonType(unboxFlinkToJsonNode(obj));
-  }
-
-  JsonNode unboxFlinkToJsonNode(Object obj) {
-    if (obj instanceof Row row) {
-      var objectNode = MAPPER.createObjectNode();
-
-      var fieldNames = row.getFieldNames(true);
-      if (fieldNames == null) {
-        // No named fields, use position
-        for (var i = 0; i < row.getArity(); i++) {
-          var field = row.getField(i);
-          objectNode.set("f" + i, unboxFlinkToJsonNode(field));
-        }
-      } else {
-        for (var fieldName : fieldNames) {
-          var field = row.getField(fieldName);
-          objectNode.set(fieldName, unboxFlinkToJsonNode(field)); // Recursively unbox each field
-        }
-      }
-
-      return objectNode;
-    }
-
-    if (obj instanceof Row[] rowArr) {
-      var arrayNode = MAPPER.createArrayNode();
-      for (var row : rowArr) {
-        if (row == null) {
-          arrayNode.addNull();
-        } else {
-          arrayNode.add(unboxFlinkToJsonNode(row)); // Recursively unbox each row in the array
-        }
-      }
-      return arrayNode;
-    }
-
-    return MAPPER.valueToTree(obj); // Directly serialize other types
+    return new FlinkJsonType(JsonFunctions.unboxFlinkToJsonNode(obj));
   }
 }

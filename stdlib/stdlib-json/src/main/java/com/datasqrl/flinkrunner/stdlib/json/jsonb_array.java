@@ -34,14 +34,14 @@ public class jsonb_array extends ScalarFunction implements AutoRegisterSystemFun
   private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {
-    var arrayNode = mapper.createArrayNode();
+    if (objects == null || objects.getClass() != Object[].class) {
+      // A single array argument is passed as the varargs array itself, so wrap it
+      objects = new Object[] {objects};
+    }
 
-    for (Object value : objects) {
-      if (value instanceof FlinkJsonType) {
-        arrayNode.add(((FlinkJsonType) value).json);
-      } else {
-        arrayNode.addPOJO(value);
-      }
+    var arrayNode = mapper.createArrayNode();
+    for (var value : objects) {
+      arrayNode.add(JsonFunctions.unboxFlinkToJsonNode(value));
     }
 
     return new FlinkJsonType(arrayNode);
