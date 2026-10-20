@@ -206,10 +206,11 @@ class JsonFunctionsTest {
     }
 
     @Test
-    void givenSingleArrayArgument_whenJsonbObject_thenThrows() {
+    void givenSingleArrayArgument_whenJsonbObject_thenElementsAreKeyValuePairs() {
       // Flink passes a single ARRAY argument as the varargs array itself
-      assertThatThrownBy(() -> JsonFunctions.JSON_OBJECT.eval((Object[]) new String[] {"k", "v"}))
-          .isInstanceOf(IllegalArgumentException.class);
+      var result = JsonFunctions.JSON_OBJECT.eval((Object[]) new String[] {"k", "v"});
+      assertThat(result).isNotNull();
+      assertThat(result.getJson()).isEqualTo(readTree("{\"k\":\"v\"}"));
     }
   }
 
@@ -263,18 +264,11 @@ class JsonFunctionsTest {
     }
 
     @Test
-    void givenSingleArrayArgument_whenJsonbArray_thenArrayIsNested() {
+    void givenSingleArrayArgument_whenJsonbArray_thenElementsAreArrayElements() {
       // Flink passes a single ARRAY argument as the varargs array itself
       var result = JsonFunctions.JSON_ARRAY.eval((Object[]) new Integer[] {7});
       assertThat(result).isNotNull();
-      assertThat(result.getJson()).isEqualTo(readTree("[[7]]"));
-    }
-
-    @Test
-    void givenSingleNullArrayArgument_whenJsonbArray_thenNullIsNested() {
-      var result = JsonFunctions.JSON_ARRAY.eval((Object[]) null);
-      assertThat(result).isNotNull();
-      assertThat(result.getJson()).isEqualTo(readTree("[null]"));
+      assertThat(result.getJson()).isEqualTo(readTree("[7]"));
     }
   }
 

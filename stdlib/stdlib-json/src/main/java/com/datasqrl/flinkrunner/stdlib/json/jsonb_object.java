@@ -39,11 +39,6 @@ public class jsonb_object extends ScalarFunction implements AutoRegisterSystemFu
   static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
   public FlinkJsonType eval(Object... objects) {
-    if (objects == null || objects.getClass() != Object[].class) {
-      // A single array argument is passed as the varargs array itself, so wrap it
-      objects = new Object[] {objects};
-    }
-
     if (objects.length % 2 != 0) {
       throw new IllegalArgumentException("Arguments should be in key-value pairs");
     }
