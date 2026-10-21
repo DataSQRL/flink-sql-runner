@@ -1,10 +1,10 @@
-# CLAUDE.md
+# Flink SQL Runner Coding Agent Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Project Overview
 
-This is a multi-module Maven project for the Flink SQL Runner - a tool and library ecosystem for running Apache Flink SQL applications. The project is structured as a parent POM with multiple modules providing different functionality.
+This is a multi-module Maven project for the Flink SQL Runner – a tool and library ecosystem for running Apache Flink SQL applications. The project is structured as a parent POM with multiple modules providing different functionality.
 
 ## Module Structure
 
