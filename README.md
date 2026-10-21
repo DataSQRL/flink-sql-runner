@@ -69,7 +69,7 @@ docker run -d --rm -it \
   -p 8081:8081 \
   -v "$PWD/sql-scripts":/flink/sql \
   --name runner \
-  datasqrl/flink-sql-runner:0.11.0-flink-2.3 \
+  datasqrl/flink-sql-runner:0.12.1-flink-2.3 \
   cluster
 ```
 
@@ -126,7 +126,7 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: http://raw.github.com/datasqrl/releases/0.11.0/flink-sql-runner.jar
+    jarURI: http://raw.github.com/datasqrl/releases/0.12.1/flink-sql-runner.jar
     args: ["--sqlfile", "/opt/flink/usrlib/sql-scripts/statements.sql", "--planfile", "/opt/flink/usrlib/sql-scripts/compiled_plan.json", "--udfpath", "/opt/flink/usrlib/jars"]
     parallelism: 1
     upgradeMode: stateless
@@ -186,13 +186,13 @@ the runner to suit your needs.
 <dependency>
   <groupId>com.datasqrl.flinkrunner</groupId>
   <artifactId>flink-sql-runner</artifactId>
-  <version>0.11.0</version>
+  <version>0.12.1</version>
 </dependency>
 ```
 - Gradle:
 
 ```groovy
-implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.11.0'
+implementation 'com.datasqrl.flinkrunner:flink-sql-runner:0.12.1'
 ```
 
 ### Profiling with async-profiler
