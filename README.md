@@ -339,7 +339,7 @@ The [JDBC connector for PostgreSQL](connectors/postgresql-connector) (`jdbc-sqrl
 The `sink.on-conflict.action` values map to the following PostgreSQL `ON CONFLICT` behaviors:
 
 - `update`: The existing row is overwritten with the incoming row (`ON CONFLICT (...) DO UPDATE SET ...`). This is the default.
-- `timestamp`: The existing row is overwritten only if the incoming row's `sink.on-conflict.timestamp-column` value is strictly greater than the existing row's. 
+- `timestamp`: The existing row is overwritten only if the incoming row's `sink.on-conflict.timestamp-column` value is greater than or equal to the existing row's. 
   Otherwise, the conflicting insert is silently skipped, so out-of-order events do not roll back newer state.
 - `ignore`: The existing row is kept, and the conflicting insert is silently skipped (`ON CONFLICT (...) DO NOTHING`).
 

@@ -88,6 +88,7 @@ public class SqrlPostgresDialect extends AbstractDialect {
                   + ") DO UPDATE SET "
                   + buildUpdateClause(fieldNames));
       case TIMESTAMP -> {
+        // On equal timestamps the incoming row wins, as in Flink's keep-last-row deduplication
         var quotedTsCol = quoteIdentifier(onConflictTimestampCol);
         yield Optional.of(
             insertStatement
@@ -97,7 +98,7 @@ public class SqrlPostgresDialect extends AbstractDialect {
                 + buildUpdateClause(fieldNames)
                 + " WHERE EXCLUDED."
                 + quotedTsCol
-                + " > "
+                + " >= "
                 + quoteIdentifier(tableName)
                 + "."
                 + quotedTsCol);
