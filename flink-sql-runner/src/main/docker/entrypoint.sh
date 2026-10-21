@@ -126,6 +126,9 @@ process_flink_properties() {
 
 maybe_enable_jemalloc() {
     if [ "${DISABLE_JEMALLOC:-false}" == "false" ]; then
+        if [ "$(uname -m)" = "aarch64" ] && [[ ",${MALLOC_CONF:-}" != *",tcache:"* ]]; then
+            export MALLOC_CONF="${MALLOC_CONF:+$MALLOC_CONF,}tcache:false"
+        fi
         JEMALLOC_PATH="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so"
         JEMALLOC_FALLBACK="/usr/lib/x86_64-linux-gnu/libjemalloc.so"
         if [ -f "$JEMALLOC_PATH" ]; then
