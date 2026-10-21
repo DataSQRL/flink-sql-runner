@@ -62,7 +62,7 @@ class SqrlPostgresDialectTest {
     assertThat(sql)
         .contains("ON CONFLICT (\"id\") DO UPDATE SET ")
         .contains("\"value\"=EXCLUDED.\"value\"")
-        .endsWith(" WHERE EXCLUDED.\"event_time\" > \"events\".\"event_time\"");
+        .endsWith(" WHERE EXCLUDED.\"event_time\" >= \"events\".\"event_time\"");
   }
 
   @Test
@@ -81,6 +81,6 @@ class SqrlPostgresDialectTest {
 
     var sql = dialect.getUpsertStatement(TABLE, FIELDS, SINGLE_KEY).orElseThrow();
 
-    assertThat(sql).endsWith(" WHERE EXCLUDED.\"value\" > \"events\".\"value\"");
+    assertThat(sql).endsWith(" WHERE EXCLUDED.\"value\" >= \"events\".\"value\"");
   }
 }
