@@ -28,6 +28,15 @@ import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 
+/**
+ * Computes an MD5 hash over the {@link Object#hashCode()} of each value.
+ *
+ * @deprecated Distinct values can get the same hash, since every value is reduced to 32 bits and
+ *     the results are concatenated without separators. Arrays and binary strings hash by identity,
+ *     so equal values can get different hashes. Use {@link hash_key} instead. This function is kept
+ *     unchanged, so existing compiled plans keep producing the same hashes.
+ */
+@Deprecated
 @AutoService(AutoRegisterSystemFunction.class)
 public class hash_columns extends ScalarFunction implements AutoRegisterSystemFunction {
 
