@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.SpecializedFunction;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 /**
@@ -49,7 +51,8 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
  * <p>The key covers the full content of every value. Each value is written with the serializer of
  * its internal data type, preceded by a null marker and its length, so distinct values only share a
  * key through a hash collision, and equal values, including arrays and binary strings, always share
- * it. Map and multiset values are hashed in their entry order.
+ * it. Timestamps with a precision of up to 3 are hashed by their milliseconds, as Flink stores
+ * them. Map and multiset values are hashed in their entry order.
  *
  * <p>The function is specialized for the argument types of each call, so it can only be evaluated
  * by the Flink planner, or after {@link #specialize(SpecializedContext)}.
@@ -66,21 +69,34 @@ public class hash_key extends ScalarFunction
   /** Serializers of the arguments, {@code null} until specialized for the call. */
   private final TypeSerializer<Object>[] serializers;
 
+  /** Arguments that are timestamps stored as milliseconds. */
+  private final boolean[] compactTimestamps;
+
   private transient MessageDigest digest;
   private transient DataOutputSerializer buffer;
 
   public hash_key() {
     this.serializers = null;
+    this.compactTimestamps = null;
   }
 
   @SuppressWarnings("unchecked")
   hash_key(List<DataType> argumentTypes) {
+    var types = argumentTypes.stream().map(DataType::getLogicalType).toList();
     this.serializers =
-        argumentTypes.stream()
-            .map(DataType::getLogicalType)
+        types.stream()
             // a NULL literal has no serializer, its value is always null
             .map(type -> type.is(LogicalTypeRoot.NULL) ? null : InternalSerializers.create(type))
             .toArray(TypeSerializer[]::new);
+    this.compactTimestamps = new boolean[types.size()];
+    for (var i = 0; i < types.size(); i++) {
+      var type = types.get(i);
+      compactTimestamps[i] =
+          type.isAnyOf(
+                  LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
+                  LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+              && TimestampData.isCompact(LogicalTypeChecks.getPrecision(type));
+    }
   }
 
   @Override
@@ -101,13 +117,21 @@ public class hash_key extends ScalarFunction
     }
 
     for (var i = 0; i < values.length; i++) {
-      if (values[i] == null) {
+      var value = values[i];
+      if (value == null) {
         digest.update(NULL_MARKER);
         continue;
       }
 
+      if (compactTimestamps[i]
+          && value instanceof TimestampData timestamp
+          && timestamp.getNanoOfMillisecond() != 0) {
+        // a source can deliver sub-millisecond precision that Flink drops when it stores the row
+        value = TimestampData.fromEpochMillis(timestamp.getMillisecond());
+      }
+
       buffer.clear();
-      serializers[i].serialize(values[i], buffer);
+      serializers[i].serialize(value, buffer);
       digest.update(VALUE_MARKER);
       updateLength(buffer.length());
       digest.update(buffer.getSharedBuffer(), 0, buffer.length());

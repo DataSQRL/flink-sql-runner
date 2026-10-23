@@ -114,6 +114,22 @@ class HashKeyTest {
   }
 
   @Test
+  void givenCompactTimestampsWithNanoseconds_whenHashed_thenKeysMatchMilliseconds() {
+    // a source can deliver TIMESTAMP(3) values that still carry nanoseconds
+    var timestamps = hashKey(DataTypes.TIMESTAMP_LTZ(3), DataTypes.TIMESTAMP(3));
+    var rows = hashKey(DataTypes.ROW(DataTypes.TIMESTAMP_LTZ(3)));
+    var precise = hashKey(DataTypes.TIMESTAMP_LTZ(6));
+    var withNanos = TimestampData.fromEpochMillis(1_000L, 123_456);
+    var millis = TimestampData.fromEpochMillis(1_000L);
+
+    assertThat(timestamps.eval(withNanos, withNanos)).isEqualTo(timestamps.eval(millis, millis));
+    assertThat(rows.eval(GenericRowData.of(withNanos)))
+        .isEqualTo(rows.eval(GenericRowData.of(millis)));
+    assertThat(precise.eval(TimestampData.fromEpochMillis(1_000L, 1_000)))
+        .isNotEqualTo(precise.eval(millis));
+  }
+
+  @Test
   @SneakyThrows
   void givenSerializedFunction_whenHashedAfterDeserialization_thenKeysMatch() {
     var fn = hashKey(DataTypes.ARRAY(DataTypes.INT()), DataTypes.STRING());
