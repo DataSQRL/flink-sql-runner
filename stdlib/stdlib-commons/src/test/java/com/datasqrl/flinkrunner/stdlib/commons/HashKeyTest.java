@@ -145,7 +145,7 @@ class HashKeyTest {
     var fn = hashKey(DataTypes.INT(), DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ(3));
 
     assertThat(fn.eval(1, StringData.fromString("a"), timestamp(TIME)))
-        .isEqualTo("84e1f0fa9c16baae83a7ab8759a57269");
+        .isEqualTo("d0a9dce033c14c116e9a27c3e6151937");
   }
 
   @Test

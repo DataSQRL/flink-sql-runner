@@ -130,6 +130,18 @@ class HashKeySqlTest {
     tEnv.loadPlan(PlanReference.fromJsonString(plan)).execute().await();
   }
 
+  @Test
+  @SneakyThrows
+  void givenNullLiteral_whenKeyedInSql_thenKeyMatchesTypedNull() {
+    try (var results =
+        tEnv.executeSql("SELECT hash_key(1, NULL), hash_key(1, CAST(NULL AS INT)), hash_key(NULL)")
+            .collect()) {
+      var row = results.next();
+      assertThat(row.<String>getFieldAs(0)).isEqualTo(row.getFieldAs(1));
+      assertThat(row.<String>getFieldAs(2)).hasSize(32);
+    }
+  }
+
   /** An event whose complex columns are new array instances with the same content each time. */
   private static Row event(int id, int a, int b, String note, boolean withComplexColumns) {
     if (!withComplexColumns) {
