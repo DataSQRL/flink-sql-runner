@@ -89,6 +89,25 @@ jobs:
       - name: Run integration tests
         run: mvn -B install -Dtest=skip
 
+  jemalloc-arm64-test:
+    runs-on: ubuntu-24.04-arm
+    needs: cache-dependencies
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup JDK
+        uses: ./.github/actions/setup-jdk
+
+      - name: Run jemalloc arm64 OOM test
+        run: mvn -B install -pl flink-sql-runner -am -Dtest=skip -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=JemallocArm64OomIT
+
   maven-deploy:
     runs-on: ubuntu-latest
     needs: [ unit-test, integration-test, cache-dependencies ]
