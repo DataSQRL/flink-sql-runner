@@ -215,6 +215,7 @@ public class SafeUpsertKafkaDynamicTableFactory
                 boundedOptions.specificOffsets,
                 boundedOptions.boundedTimestampMillis,
                 true,
+                false,
                 context.getObjectIdentifier().asSummaryString(),
                 parallelism,
                 deserFailureHandler,

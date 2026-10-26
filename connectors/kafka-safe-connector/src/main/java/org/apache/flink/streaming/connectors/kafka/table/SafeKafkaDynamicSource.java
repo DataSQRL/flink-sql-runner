@@ -191,6 +191,12 @@ public class SafeKafkaDynamicSource
     /** Flag to determine source mode. In upsert mode, it will keep the tombstone message. * */
     protected final boolean upsertMode;
 
+    /**
+     * Whether to read the key fields from the value instead of decoding the record key, when the
+     * value contains every key field. Ignored in upsert mode, which always decodes the key.
+     */
+    protected final boolean keyFieldsFromValue;
+
     protected final String tableIdentifier;
 
     /** Parallelism of the physical Kafka consumer. * */
@@ -218,6 +224,7 @@ public class SafeKafkaDynamicSource
             Map<TopicPartition, Long> specificBoundedOffsets,
             long boundedTimestampMillis,
             boolean upsertMode,
+            boolean keyFieldsFromValue,
             String tableIdentifier,
             @Nullable Integer parallelism,
             DeserFailureHandler deserFailureHandler,
@@ -264,6 +271,7 @@ public class SafeKafkaDynamicSource
                         specificBoundedOffsets, "Specific bounded offsets must not be null.");
         this.boundedTimestampMillis = boundedTimestampMillis;
         this.upsertMode = upsertMode;
+        this.keyFieldsFromValue = keyFieldsFromValue;
         this.tableIdentifier = tableIdentifier;
         this.parallelism = parallelism;
         this.deserFailureHandler = deserFailureHandler;
@@ -408,6 +416,7 @@ public class SafeKafkaDynamicSource
                         specificBoundedOffsets,
                         boundedTimestampMillis,
                         upsertMode,
+                        keyFieldsFromValue,
                         tableIdentifier,
                         parallelism,
                         deserFailureHandler,
@@ -454,6 +463,7 @@ public class SafeKafkaDynamicSource
                 && Objects.equals(specificBoundedOffsets, that.specificBoundedOffsets)
                 && boundedTimestampMillis == that.boundedTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
+                && keyFieldsFromValue == that.keyFieldsFromValue
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy)
                 && sourceWatermarkEnabled == that.sourceWatermarkEnabled
@@ -485,6 +495,7 @@ public class SafeKafkaDynamicSource
                 specificBoundedOffsets,
                 boundedTimestampMillis,
                 upsertMode,
+                keyFieldsFromValue,
                 tableIdentifier,
                 watermarkStrategy,
                 sourceWatermarkEnabled,
@@ -638,7 +649,7 @@ public class SafeKafkaDynamicSource
                                                         .collect(Collectors.joining(",")))));
     }
 
-    private KafkaRecordDeserializationSchema<RowData> createKafkaDeserializationSchema(
+    KafkaRecordDeserializationSchema<RowData> createKafkaDeserializationSchema(
             DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo) {
@@ -669,10 +680,19 @@ public class SafeKafkaDynamicSource
                                         adjustedPhysicalArity))
                         .toArray();
 
+        // Outside upsert mode, the key fields can be read from the value instead of decoding the
+        // key, when the value contains every key field. Decoding the key adds nothing then, and a
+        // record without a key would produce no key row, so it would be dropped silently. Since
+        // 'value.fields-include' is either ALL or EXCEPT_KEY, the value contains every key field
+        // exactly when it contains every physical field.
+        final boolean valueContainsAllKeyFields =
+                valueProjection.length == DataType.getFieldDataTypes(physicalDataType).size();
+        final boolean decodeKey = upsertMode || !keyFieldsFromValue || !valueContainsAllKeyFields;
+
         return new SafeDynamicKafkaDeserializationSchema(
                 adjustedPhysicalArity,
-                keyDeserialization,
-                keyProjection,
+                decodeKey ? keyDeserialization : null,
+                decodeKey ? keyProjection : new int[0],
                 valueDeserialization,
                 adjustedValueProjection,
                 hasMetadata,

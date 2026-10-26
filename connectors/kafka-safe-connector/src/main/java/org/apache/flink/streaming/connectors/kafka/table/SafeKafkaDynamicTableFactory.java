@@ -71,6 +71,7 @@ import java.util.stream.Stream;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_HANDLER;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.SCAN_DESER_FAILURE_TOPIC;
 import static com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandlerOptions.validateDeserFailureHandlerOptions;
+import static com.datasqrl.flinkrunner.connector.kafka.KeyFieldsOptions.SCAN_KEY_FIELDS_READ_FROM_VALUE;
 import static com.datasqrl.flinkrunner.connector.kafka.RateLimitOptions.SCAN_RATE_LIMIT_RECORDS_PER_SECOND;
 import static com.datasqrl.flinkrunner.connector.kafka.RateLimitOptions.scanRateLimitRecordsPerSecond;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TIMEOUT;
@@ -178,6 +179,7 @@ public class SafeKafkaDynamicTableFactory
         options.add(SCAN_DESER_FAILURE_HANDLER);
         options.add(SCAN_DESER_FAILURE_TOPIC);
         options.add(SCAN_RATE_LIMIT_RECORDS_PER_SECOND);
+        options.add(SCAN_KEY_FIELDS_READ_FROM_VALUE);
         options.add(WATERMARK_EMIT_STRATEGY);
         options.add(SOURCE_IDLE_TIMEOUT);
         options.add(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
@@ -276,6 +278,7 @@ public class SafeKafkaDynamicTableFactory
                 boundedOptions.boundedMode,
                 boundedOptions.specificOffsets,
                 boundedOptions.boundedTimestampMillis,
+                tableOptions.get(SCAN_KEY_FIELDS_READ_FROM_VALUE),
                 context.getObjectIdentifier().asSummaryString(),
                 parallelism,
                 deserFailureHandler,
@@ -448,6 +451,7 @@ public class SafeKafkaDynamicTableFactory
             BoundedMode boundedMode,
             Map<TopicPartition, Long> specificEndOffsets,
             long endTimestampMillis,
+            boolean keyFieldsFromValue,
             String tableIdentifier,
             Integer parallelism,
             DeserFailureHandler deserFailureHandler,
@@ -472,6 +476,7 @@ public class SafeKafkaDynamicTableFactory
                 specificEndOffsets,
                 endTimestampMillis,
                 false,
+                keyFieldsFromValue,
                 tableIdentifier,
                 parallelism,
                 deserFailureHandler,
