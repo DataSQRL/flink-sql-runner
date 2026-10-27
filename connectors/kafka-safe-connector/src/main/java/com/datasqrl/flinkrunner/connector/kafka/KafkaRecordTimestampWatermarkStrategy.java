@@ -15,10 +15,15 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker.LogEnd;
+import com.datasqrl.flinkrunner.connector.kafka.KafkaReadPositions.ReadPosition;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
+import javax.annotation.Nullable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
@@ -28,6 +33,7 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.util.clock.RelativeClock;
 
 /** Adaptive watermark strategy based on Kafka record timestamps. */
 @Internal
@@ -40,12 +46,13 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
   private final WatermarkEmitStrategy emitStrategy;
   private final SourceWatermarkConfig sourceWatermarkConfig;
   private final MillisClock clock;
-  private final IdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
+  @Nullable private final KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
 
+  /** Takes an idle advance readiness checker if and only if idle advancement is enabled. */
   public KafkaRecordTimestampWatermarkStrategy(
       WatermarkEmitStrategy emitStrategy,
       SourceWatermarkConfig sourceWatermarkConfig,
-      KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
+      @Nullable KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
     this(
         emitStrategy,
         sourceWatermarkConfig,
@@ -53,18 +60,16 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         idleAdvanceReadinessChecker);
   }
 
-  public KafkaRecordTimestampWatermarkStrategy(
-      WatermarkEmitStrategy emitStrategy, SourceWatermarkConfig sourceWatermarkConfig) {
-    this(
-        emitStrategy, sourceWatermarkConfig, System::currentTimeMillis, currentTimeMillis -> false);
-  }
-
   @VisibleForTesting
   KafkaRecordTimestampWatermarkStrategy(
       WatermarkEmitStrategy emitStrategy,
       SourceWatermarkConfig sourceWatermarkConfig,
       MillisClock clock,
-      IdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
+      @Nullable KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
+    checkArgument(
+        sourceWatermarkConfig.idleAdvanceTimeoutMillis() <= 0
+            || idleAdvanceReadinessChecker != null,
+        "Idle watermark advancement needs a readiness checker.");
     this.emitStrategy = emitStrategy;
     this.sourceWatermarkConfig = sourceWatermarkConfig;
     this.clock = clock;
@@ -76,7 +81,11 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       WatermarkGeneratorSupplier.Context context) {
 
     return new AdaptiveKafkaRecordTimestampWatermarkGenerator(
-        emitStrategy, sourceWatermarkConfig, clock, idleAdvanceReadinessChecker);
+        emitStrategy,
+        sourceWatermarkConfig,
+        clock,
+        context.getInputActivityClock(),
+        idleAdvanceReadinessChecker);
   }
 
   /**
@@ -90,6 +99,14 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
    *
    * <p>The {@code eventTimestamp} argument is supplied by Flink from the Kafka source record
    * timestamp.
+   *
+   * <p>With idle advancement enabled, a split is idle once it has read nothing for the idle-advance
+   * timeout. An idle split advances on wall-clock time, but only as far as a log-end fetch that
+   * shows it had read everything: a split can also be idle with records still unread, when the
+   * source is busy with other partitions or rate-limited. Idle time is measured on Flink's input
+   * activity clock for the split, which stops while the split is paused for watermark alignment or
+   * the task is backpressured, and against the read position {@link KafkaReadPositions} tracks,
+   * which also moves for records that produce no row.
    */
   private static final class AdaptiveKafkaRecordTimestampWatermarkGenerator
       implements WatermarkGenerator<RowData> {
@@ -106,8 +123,12 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private final WatermarkEmitStrategy emitStrategy;
     private final SourceWatermarkConfig config;
     private final MillisClock clock;
-    private final IdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
-    private final long createdWallClockMillis;
+
+    /** Present whenever idle advancement is enabled. */
+    @Nullable private final KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
+
+    /** Measures idle time; stops while the split is paused or backpressured. */
+    private final RelativeClock inputActivityClock;
 
     /** Highest Kafka record timestamp observed by this generator. */
     private long maxTimestamp = Long.MIN_VALUE;
@@ -115,11 +136,23 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     /** Processing time when the latest record was observed. */
     private long lastRecordWallClockMillis = Long.MIN_VALUE;
 
+    /** How far this split's partition has been read, known from the split's first row on. */
+    @Nullable private ReadPosition readPosition;
+
+    /** Read progress at the previous idle check, to tell whether anything was consumed since. */
+    private long progressAtLastIdleCheck;
+
+    /**
+     * Input activity time since which the split has been idle: creation, or the first idle check
+     * that saw its latest progress.
+     */
+    private long idleSinceInputActivityMillis;
+
     /** Last emitted watermark, used to preserve Flink's monotonic watermark contract. */
     private long lastEmittedWatermark = Long.MIN_VALUE;
 
     /** Whether this output was marked idle before receiving any records. */
-    private boolean idle;
+    private boolean markedIdle;
 
     /**
      * Number of records observed, including the first record that cannot produce a lateness sample.
@@ -133,19 +166,26 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         WatermarkEmitStrategy emitStrategy,
         SourceWatermarkConfig config,
         MillisClock clock,
-        IdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
+        RelativeClock inputActivityClock,
+        @Nullable KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
       this.emitStrategy = emitStrategy;
       this.config = config;
       this.clock = clock;
+      this.inputActivityClock = inputActivityClock;
       this.idleAdvanceReadinessChecker = idleAdvanceReadinessChecker;
-      this.createdWallClockMillis = clock.currentTimeMillis();
+      this.idleSinceInputActivityMillis = inputActivityClock.relativeTimeMillis();
     }
 
     @Override
     public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
-      if (idle) {
+      if (markedIdle) {
         output.markActive();
-        idle = false;
+        markedIdle = false;
+      }
+
+      if (readPosition == null && config.idleAdvanceTimeoutMillis() > 0) {
+        // The record that produced this row is the one the thread consumed last.
+        readPosition = KafkaReadPositions.latest();
       }
 
       if (maxTimestamp != Long.MIN_VALUE) {
@@ -195,55 +235,59 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         return;
       }
 
+      // Read the clock here rather than per record, like Flink's own idleness: the split then
+      // counts
+      // as idle from the first check after its latest progress, up to one interval late, never
+      // early.
+      long inputActivityMillis = inputActivityClock.relativeTimeMillis();
+      long progress = readPosition != null ? readPosition.nextOffset() : recordCount;
+      if (progress != progressAtLastIdleCheck) {
+        progressAtLastIdleCheck = progress;
+        idleSinceInputActivityMillis = inputActivityMillis;
+      }
+
+      if (inputActivityMillis - idleSinceInputActivityMillis < idleAdvanceTimeoutMillis) {
+        return;
+      }
+
       long currentTimeMillis = clock.currentTimeMillis();
       if (recordCount == 0) {
-        markIdleIfReady(output, currentTimeMillis, currentTimeMillis - createdWallClockMillis);
+        if (!markedIdle && idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+          output.markIdle();
+          markedIdle = true;
+        }
         return;
       }
 
-      if (maxTimestamp == Long.MIN_VALUE || lastRecordWallClockMillis == Long.MIN_VALUE) {
-        return;
-      }
-
-      long idleDurationMillis = currentTimeMillis - lastRecordWallClockMillis;
-      if (idleDurationMillis < idleAdvanceTimeoutMillis) {
-        return;
-      }
-
-      if (!idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+      LogEnd logEnd =
+          readPosition == null
+              ? null
+              : idleAdvanceReadinessChecker.logEnd(readPosition.partition(), currentTimeMillis);
+      if (logEnd == null || !logEnd.isReachedBy(readPosition)) {
+        // Records may still be unread, so the watermark stays where the records put it.
         return;
       }
 
       long outOfOrdernessMillis = calculateOutOfOrdernessMillis();
 
-      // Move forward from the last Kafka timestamp by wall-clock idle time, then subtract the
-      // observed lateness estimate and configured safety margin to avoid closing windows too early.
+      // Every record appended before the fetch was issued has been read. When the latest record
+      // was read, broker time had passed its timestamp and, up to clock skew, the read time
+      // itself: for a record read out of a backlog the read time is later. Start from the latter
+      // of the two and move to the time of the fetch, not to now, since records appended after it
+      // may still be unread. A fetch older than the latest read therefore moves the watermark
+      // less, never too far. Then subtract the observed lateness estimate and the safety margin,
+      // which also absorbs the clock skew, to avoid closing windows too early.
+      long frontierMillis =
+          Math.max(maxTimestamp, lastRecordWallClockMillis)
+              + (logEnd.requestedAtMillis() - lastRecordWallClockMillis);
+
       long watermark =
-          maxTimestamp
-              + idleDurationMillis
-              - outOfOrdernessMillis
-              - config.idleAdvanceSafetyMarginMillis()
-              - 1;
+          frontierMillis - outOfOrdernessMillis - config.idleAdvanceSafetyMarginMillis() - 1;
 
       if (watermark > lastEmittedWatermark) {
         output.emitWatermark(new Watermark(watermark));
         lastEmittedWatermark = watermark;
       }
-    }
-
-    private void markIdleIfReady(
-        WatermarkOutput output, long currentTimeMillis, long idleDurationMillis) {
-
-      if (idle || idleDurationMillis < config.idleAdvanceTimeoutMillis()) {
-        return;
-      }
-
-      if (!idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
-        return;
-      }
-
-      output.markIdle();
-      idle = true;
     }
 
     private long calculateOutOfOrdernessMillis() {

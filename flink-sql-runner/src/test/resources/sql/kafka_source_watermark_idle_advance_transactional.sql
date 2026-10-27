@@ -1,0 +1,43 @@
+CREATE TABLE idle_advance_transactional_events (
+  id BIGINT,
+  payload STRING,
+  ts TIMESTAMP_LTZ(3) METADATA FROM 'timestamp',
+  WATERMARK FOR ts AS SOURCE_WATERMARK()
+) WITH (
+  'connector' = 'kafka-safe',
+  'topic' = 'source-watermark-idle-advance-transactional-it',
+  'properties.bootstrap.servers' = 'redpanda:9092',
+  'properties.group.id' = 'source-watermark-idle-advance-transactional-it',
+  'properties.isolation.level' = 'read_committed',
+  'scan.startup.mode' = 'earliest-offset',
+  'scan.source-watermark.min-records' = '250',
+  'scan.source-watermark.min-out-of-orderness' = '50 ms',
+  'scan.source-watermark.idle-advance-timeout' = '1 s',
+  'scan.source-watermark.idle-advance-safety-margin' = '1 s',
+  'scan.source-watermark.idle-advance-broker-check-timeout' = '1 s',
+  'scan.source-watermark.idle-advance-broker-check-ttl' = '1 s',
+  'format' = 'json'
+);
+
+CREATE TABLE source_watermark_results (
+  window_start TIMESTAMP(3) NOT NULL,
+  window_end TIMESTAMP(3) NOT NULL,
+  cnt BIGINT NOT NULL
+) WITH (
+  'connector' = 'jdbc',
+  'driver' = 'org.postgresql.Driver',
+  'url' = 'jdbc:postgresql://${POSTGRES_AUTHORITY}',
+  'username' = '${POSTGRES_USERNAME}',
+  'password' = '${POSTGRES_PASSWORD}',
+  'table-name' = 'source_watermark_results'
+);
+
+INSERT INTO source_watermark_results
+SELECT
+  CAST(window_start AS TIMESTAMP(3)),
+  CAST(window_end AS TIMESTAMP(3)),
+  COUNT(*)
+FROM TABLE(
+  TUMBLE(TABLE idle_advance_transactional_events, DESCRIPTOR(ts), INTERVAL '1' SECOND)
+)
+GROUP BY window_start, window_end;

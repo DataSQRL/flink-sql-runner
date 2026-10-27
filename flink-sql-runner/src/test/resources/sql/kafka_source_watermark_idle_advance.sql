@@ -14,6 +14,7 @@ CREATE TABLE idle_advance_events (
   'scan.source-watermark.idle-advance-timeout' = '1 s',
   'scan.source-watermark.idle-advance-safety-margin' = '1 s',
   'scan.source-watermark.idle-advance-broker-check-timeout' = '1 s',
+  'scan.source-watermark.idle-advance-broker-check-ttl' = '1 s',
   'format' = 'json'
 );
 

@@ -303,12 +303,12 @@ Watermarks are monotonic and use the Kafka record timestamp, not an event-time f
 | `scan.source-watermark.max-out-of-orderness`      | `3 d`         | Upper bound for the adaptive out-of-orderness delay. Must be at least the minimum.                                                        |
 | `scan.source-watermark.out-of-orderness-quantile` | `0.95`        | Quantile of observed record lateness used as the delay. Must be greater than zero and no greater than one.                                |
 | `scan.watermark.emit.strategy`                    | Flink default | Flink source-watermark emission strategy: `on-event` emits as records arrive; `on-periodic` emits on Flink's periodic watermark interval. |
-| `scan.watermark.idle-timeout`                     | Flink default | Marks inactive source splits idle when idle advancement is disabled.                                                                      |
+| `scan.watermark.idle-timeout`                     | Flink default | How long a source split must be idle before Flink marks it idle. Applies only when idle advancement is disabled.                          |
 
 #### Idle Watermark Advancement
 
 By default, a source watermark cannot advance after Kafka traffic stops, so a final event-time window may remain open.
-Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conservatively using wall-clock time after the source has been silent for that duration:
+Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conservatively using wall-clock time once a partition is idle, that is, once it has read nothing for that duration:
 
 ```sql
 'scan.source-watermark.idle-advance-timeout' = '1 min',
@@ -316,16 +316,30 @@ Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conser
 ```
 
 Idle advancement supports only the `topic` table option, not `topic-pattern`. Configuring `topic-pattern` with idle advancement will result in a failure.
-The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration.
+The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration and its offsets.
 If Kafka cannot be reached or the topic is not configured for `LogAppendTime`, idle advancement pauses rather than advancing unsafely.
-When idle advancement is enabled, do not set `scan.watermark.idle-timeout`: the connector deliberately does not apply Flink's regular idleness handling so its wall-clock-derived watermarks can be emitted.
+Do not combine idle advancement with `scan.watermark.idle-timeout`. The connector ignores that option when idle advancement is enabled, because once Flink marks a partition idle, it stops letting the connector advance that partition's watermark.
 
-| Option                                                    | Default        | Description                                                                                       |
-|-----------------------------------------------------------|----------------|---------------------------------------------------------------------------------------------------|
-| `scan.source-watermark.idle-advance-timeout`              | `0` (disabled) | Silence duration before idle watermark advancement may begin. Must not be negative.               |
-| `scan.source-watermark.idle-advance-safety-margin`        | `10 s`         | Extra delay subtracted from wall-clock-derived watermarks to avoid closing windows too early.     |
-| `scan.source-watermark.idle-advance-broker-check-timeout` | `1 s`          | Timeout for the Kafka broker and topic timestamp-type readiness check. Must be greater than zero. |
-| `scan.source-watermark.idle-advance-broker-check-ttl`     | `10 s`         | How long the result of the broker readiness check is cached. Must be greater than zero.           |
+The time a partition spends paused for watermark alignment or under backpressure does not count towards the idle-advance timeout.
+A partition can be idle with records still unread, when the source is busy with other partitions or rate-limited, so being idle alone never advances it.
+For an idle partition, the connector asks the broker for the end of its log, and the watermark advances only if the partition has been read to that end.
+It then moves to the wall-clock time at which the broker was asked, minus the adaptive out-of-orderness delay and the safety margin, also when the partition's last record was read from a backlog, such as when a new job starts from the earliest offset.
+An idle partition with unread records, or whose log end cannot be fetched, keeps the watermark its records give it.
+An idle partition that has not produced a row yet is marked idle instead, which leaves it out of the source watermark until it does.
+
+The log ends of all of a source subtask's partitions are fetched together, at most once per broker-check TTL, which therefore also bounds how far an idle partition's watermark trails the wall clock: keep it close to the idle-advance timeout.
+The safety margin must cover clock skew between the Kafka brokers and the TaskManagers, and the time a record takes to become readable after the broker timestamps it.
+
+For transactional topics, a commit marker takes one offset that the consumer never returns, so a partition counts as read to the end with one offset left over, but only once the consumer has skipped such an offset before.
+A partition whose only transaction so far ended at the end of the log, or a `read_committed` partition whose last transaction was aborted, advances again with its next record.
+A `read_committed` source does not advance a partition while a transaction is open on it.
+
+| Option                                                    | Default        | Description                                                                                                                       |
+|-----------------------------------------------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `scan.source-watermark.idle-advance-timeout`              | `0` (disabled) | How long a partition must read nothing to be idle, after which idle advancement may begin. Must not be negative.                  |
+| `scan.source-watermark.idle-advance-safety-margin`        | `10 s`         | Extra delay subtracted from wall-clock-derived watermarks to avoid closing windows too early.                                     |
+| `scan.source-watermark.idle-advance-broker-check-timeout` | `1 s`          | Timeout for each Kafka broker readiness, timestamp-type and log-end check. Must be greater than zero.                             |
+| `scan.source-watermark.idle-advance-broker-check-ttl`     | `10 s`         | How long broker check results, including partition log ends, are cached before they are fetched again. Must be greater than zero. |
 
 ### Conflict Handling for PostgreSQL Sinks
 

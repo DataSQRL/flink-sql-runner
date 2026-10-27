@@ -22,6 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
+import com.datasqrl.flinkrunner.connector.kafka.KafkaReadPositions;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import javax.annotation.Nullable;
@@ -33,6 +34,12 @@ public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeseriali
 
     private final DeserFailureHandler deserFailureHandler;
 
+    /**
+     * Whether to record each consumed record in {@link KafkaReadPositions}, for the idle
+     * advancement of {@code KafkaRecordTimestampWatermarkStrategy}.
+     */
+    private final boolean trackReadPositions;
+
     SafeDynamicKafkaDeserializationSchema(
             int physicalArity,
             @Nullable DeserializationSchema<RowData> keyDeserialization,
@@ -43,7 +50,8 @@ public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeseriali
             MetadataConverter[] metadataConverters,
             TypeInformation<RowData> producedTypeInfo,
             boolean upsertMode,
-            DeserFailureHandler deserFailureHandler) {
+            DeserFailureHandler deserFailureHandler,
+            boolean trackReadPositions) {
         super(
                 physicalArity,
                 keyDeserialization,
@@ -55,11 +63,17 @@ public class SafeDynamicKafkaDeserializationSchema extends DynamicKafkaDeseriali
                 producedTypeInfo,
                 upsertMode);
         this.deserFailureHandler = deserFailureHandler;
+        this.trackReadPositions = trackReadPositions;
     }
 
     @Override
     public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector)
             throws IOException {
+        if (trackReadPositions) {
+            // Before deserializing, so a record that produces no row still moves the position.
+            KafkaReadPositions.consumed(record.topic(), record.partition(), record.offset());
+        }
+
         deserFailureHandler.deserWithFailureHandling(
                 record, () -> super.deserialize(record, collector));
     }

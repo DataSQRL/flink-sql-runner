@@ -590,23 +590,15 @@ public class SafeKafkaDynamicSource
         }
 
         if (sourceWatermarkEnabled) {
-            boolean idleAdvanceEnabled = sourceWatermarkConfig.idleAdvanceTimeoutMillis() > 0;
-            WatermarkStrategy<RowData> sourceWatermarkStrategy;
-            if (idleAdvanceEnabled) {
-                KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker =
-                        new KafkaAdminIdleAdvanceReadinessChecker(
-                                properties, topics, sourceWatermarkConfig);
-
-                sourceWatermarkStrategy =
-                        new KafkaRecordTimestampWatermarkStrategy(
-                                sourceWatermarkEmitStrategy,
-                                sourceWatermarkConfig,
-                                idleAdvanceReadinessChecker);
-            } else {
-                sourceWatermarkStrategy =
-                        new KafkaRecordTimestampWatermarkStrategy(
-                                sourceWatermarkEmitStrategy, sourceWatermarkConfig);
-            }
+            boolean idleAdvanceEnabled = isIdleAdvanceEnabled();
+            WatermarkStrategy<RowData> sourceWatermarkStrategy =
+                    new KafkaRecordTimestampWatermarkStrategy(
+                            sourceWatermarkEmitStrategy,
+                            sourceWatermarkConfig,
+                            idleAdvanceEnabled
+                                    ? new KafkaAdminIdleAdvanceReadinessChecker(
+                                            properties, topics, sourceWatermarkConfig)
+                                    : null);
 
             // Only apply Flink idleness when idle advancement is disabled, otherwise the source
             // may be marked idle before this strategy can emit wall-clock-derived watermarks.
@@ -619,6 +611,13 @@ public class SafeKafkaDynamicSource
         }
 
         return WatermarkStrategy.noWatermarks();
+    }
+
+    /** Whether {@link #getWatermarkStrategy()} uses source watermarks with idle advancement. */
+    private boolean isIdleAdvanceEnabled() {
+        return watermarkStrategy == null
+                && sourceWatermarkEnabled
+                && sourceWatermarkConfig.idleAdvanceTimeoutMillis() > 0;
     }
 
     private OffsetResetStrategy getResetStrategy(String offsetResetConfig) {
@@ -679,7 +678,8 @@ public class SafeKafkaDynamicSource
                 metadataConverters,
                 producedTypeInfo,
                 upsertMode,
-                deserFailureHandler);
+                deserFailureHandler,
+                isIdleAdvanceEnabled());
     }
 
     private @Nullable DeserializationSchema<RowData> createDeserialization(
