@@ -180,6 +180,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
     @Override
     public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
+      boolean wasMarkedIdle = markedIdle;
       if (markedIdle) {
         output.markActive();
         markedIdle = false;
@@ -188,6 +189,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       if (readPosition == null && config.idleAdvanceTimeoutMillis() > 0) {
         // The record that produced this row is the one the thread consumed last.
         readPosition = KafkaReadPositions.latest();
+        if (readPosition != null) {
+          idleAdvanceReadinessChecker.register(readPosition.partition());
+        }
       }
 
       if (maxTimestamp != Long.MIN_VALUE) {
@@ -200,6 +204,18 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       maxTimestamp = Math.max(maxTimestamp, eventTimestamp);
       lastRecordWallClockMillis = clock.currentTimeMillis();
       recordCount++;
+
+      if (recordCount == 1
+          && config.idleAdvanceTimeoutMillis() > 0
+          && (wasMarkedIdle || idleAdvanceReadinessChecker.isReady(lastRecordWallClockMillis))) {
+        // Flink 2.3.0 reports this source subtask active again only along with a watermark that
+        // moves its watermark forward (FLINK-40504), and reports it idle while none of its splits
+        // has emitted one. Downstream operators would then learn that it is active from the same
+        // watermark that releases this row, and a parallel operator could forward that watermark
+        // ahead of the row. A watermark just below the row makes the subtask active first. It
+        // cannot pass a later row of the partition: the broker timestamps them as they arrive.
+        emitIfHigher(output, eventTimestamp - calculateOutOfOrdernessMillis() - 1);
+      }
 
       if (emitStrategy.isOnEvent()) {
         emitIfReady(output);
@@ -221,13 +237,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         return;
       }
 
-      long outOfOrdernessMillis = calculateOutOfOrdernessMillis();
-      long watermark = maxTimestamp - outOfOrdernessMillis - 1;
-
-      if (watermark > lastEmittedWatermark) {
-        output.emitWatermark(new Watermark(watermark));
-        lastEmittedWatermark = watermark;
-      }
+      emitIfHigher(output, maxTimestamp - calculateOutOfOrdernessMillis() - 1);
     }
 
     private void emitIdleWatermarkIfReady(WatermarkOutput output) {
@@ -282,10 +292,13 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       long frontierMillis =
           Math.max(maxTimestamp, lastRecordWallClockMillis)
               + (logEnd.requestedAtMillis() - lastRecordWallClockMillis);
+      emitIfHigher(
+          output,
+          frontierMillis - outOfOrdernessMillis - config.idleAdvanceSafetyMarginMillis() - 1);
+    }
 
-      long watermark =
-          frontierMillis - outOfOrdernessMillis - config.idleAdvanceSafetyMarginMillis() - 1;
-
+    /** Emits {@code watermark} if it moves the watermark forward, as Flink requires. */
+    private void emitIfHigher(WatermarkOutput output, long watermark) {
       if (watermark > lastEmittedWatermark) {
         output.emitWatermark(new Watermark(watermark));
         lastEmittedWatermark = watermark;

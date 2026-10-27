@@ -95,26 +95,33 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   }
 
   @Test
-  void testFetchesLogEndsOfAllPartitionsAskedForTogether() throws Exception {
+  void testOneFetchCoversEveryRegisteredPartition() throws Exception {
     var admin = new FakeAdmin();
     admin.highWatermark(PARTITION_0, 10L);
     admin.highWatermark(PARTITION_1, 20L);
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
+    checker.register(PARTITION_1);
 
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
-    // The second partition joins the next fetch, which the TTL holds back.
-    assertThat(checker.logEnd(PARTITION_1, 1000L)).isNull();
-
-    long nextFetchMillis = 1000L + BROKER_CHECK_TTL_MILLIS;
-
-    assertThat(checker.logEnd(PARTITION_1, nextFetchMillis))
-        .isEqualTo(new LogEnd(nextFetchMillis, 20L));
-    assertThat(checker.logEnd(PARTITION_0, nextFetchMillis))
-        .isEqualTo(new LogEnd(nextFetchMillis, 10L));
+    assertThat(checker.logEnd(PARTITION_1, 1000L)).isEqualTo(new LogEnd(1000L, 20L));
     assertThat(admin.listOffsetsCalls)
         .containsExactly(
-            new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_UNCOMMITTED),
             new ListOffsetsCall(Set.of(PARTITION_0, PARTITION_1), IsolationLevel.READ_UNCOMMITTED));
+  }
+
+  @Test
+  void testUnregisteredPartitionHasNoLogEnd() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
+    checker.register(PARTITION_0);
+
+    assertThat(checker.logEnd(PARTITION_1, 1000L)).isNull();
+    assertThat(admin.listOffsetsCalls)
+        .containsExactly(new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_UNCOMMITTED));
   }
 
   @Test
@@ -122,6 +129,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var admin = new FakeAdmin();
     admin.highWatermark(PARTITION_0, 10L);
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
 
     checker.logEnd(PARTITION_0, 1000L);
     admin.highWatermark(PARTITION_0, 15L);
@@ -139,6 +147,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.highWatermark(PARTITION_0, 10L);
     admin.logAppendTime = false;
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
 
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isNull();
     assertThat(admin.listOffsetsCalls).isEmpty();
@@ -150,6 +159,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var admin = new FakeAdmin();
     admin.highWatermark(PARTITION_0, 10L);
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
     checker.logEnd(PARTITION_0, 1000L);
 
     admin.logAppendTime = false;
@@ -163,6 +173,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var admin = new FakeAdmin();
     admin.highWatermark(PARTITION_0, 10L);
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
     checker.logEnd(PARTITION_0, 1000L);
 
     admin.listOffsetsFailure = new RuntimeException("broker unavailable");
@@ -178,6 +189,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.highWatermark(PARTITION_0, 10L);
     admin.listOffsetsFailure = new RuntimeException("broker unavailable");
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
 
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isNull();
 
@@ -193,6 +205,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var authorizationException = new AuthorizationException("describe topic denied");
     admin.listOffsetsFailure = authorizationException;
     var checker = newReadinessChecker(admin);
+    checker.register(PARTITION_0);
 
     assertThatThrownBy(() -> checker.logEnd(PARTITION_0, 1000L))
         .isInstanceOf(RuntimeException.class)
@@ -208,6 +221,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.highWatermark(PARTITION_0, 10L);
     var checker = InstantiationUtil.clone(newReadinessChecker());
     setAdminClient(checker, admin.adminClient());
+    checker.register(PARTITION_0);
 
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
   }
