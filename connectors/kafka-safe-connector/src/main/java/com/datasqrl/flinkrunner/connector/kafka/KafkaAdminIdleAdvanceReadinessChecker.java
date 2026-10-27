@@ -96,14 +96,17 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     return refreshIfDue(currentTimeMillis).ready;
   }
 
+  /** Includes {@code partition} in every later fetch. */
+  public void register(TopicPartition partition) {
+    brokerState().partitions.add(partition);
+  }
+
   /**
-   * The end of {@code partition}'s log as the latest fetch saw it, or null while that is unknown or
-   * advancing is not safe. Asking for a partition includes it in every later fetch, so the first
-   * answer may take up to one broker-check TTL.
+   * The end of {@code partition}'s log as the latest fetch saw it, or null while that is unknown,
+   * before a fetch since the partition was registered, or advancing is not safe.
    */
   @Nullable
   public LogEnd logEnd(TopicPartition partition, long currentTimeMillis) {
-    brokerState().partitions.add(partition);
     var state = refreshIfDue(currentTimeMillis);
     return state.ready ? state.logEnds.get(partition) : null;
   }

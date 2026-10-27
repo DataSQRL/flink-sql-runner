@@ -326,6 +326,7 @@ For an idle partition, the connector asks the broker for the end of its log, and
 It then moves to the wall-clock time at which the broker was asked, minus the adaptive out-of-orderness delay and the safety margin, also when the partition's last record was read from a backlog, such as when a new job starts from the earliest offset.
 An idle partition with unread records, or whose log end cannot be fetched, keeps the watermark its records give it.
 An idle partition that has not produced a row yet is marked idle instead, which leaves it out of the source watermark until it does.
+A partition's first row moves its watermark to just below that row at once, without waiting for `scan.source-watermark.min-records` records, so downstream operators see the source subtask as active, and hold their watermark below the row, before any watermark that would pass it.
 
 The log ends of all of a source subtask's partitions are fetched together, at most once per broker-check TTL, which therefore also bounds how far an idle partition's watermark trails the wall clock: keep it close to the idle-advance timeout.
 The safety margin must cover clock skew between the Kafka brokers and the TaskManagers, and the time a record takes to become readable after the broker timestamps it.
