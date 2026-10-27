@@ -56,6 +56,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker;
+import com.datasqrl.flinkrunner.connector.kafka.KafkaFetchPositions;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaRecordTimestampWatermarkStrategy;
 import com.datasqrl.flinkrunner.connector.kafka.RateLimitedSource;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
@@ -79,6 +80,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -299,14 +301,25 @@ public class SafeKafkaDynamicSource
         final TypeInformation<RowData> producedTypeInfo =
                 context.createTypeInformation(producedDataType);
 
+        // Idle advancement asks the consumer how far it has fetched, under a name of this source's.
+        final Properties consumerProperties =
+                isIdleAdvanceEnabled()
+                        ? KafkaFetchPositions.publishing(properties, UUID.randomUUID().toString())
+                        : properties;
+
         final Source<RowData, ?, ?> kafkaSource =
-                createKafkaSource(keyDeserialization, valueDeserialization, producedTypeInfo);
+                createKafkaSource(
+                        keyDeserialization,
+                        valueDeserialization,
+                        producedTypeInfo,
+                        consumerProperties);
 
         return new DataStreamScanProvider() {
             @Override
             public DataStream<RowData> produceDataStream(
                     ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-                final WatermarkStrategy<RowData> watermarkStrategy = getWatermarkStrategy();
+                final WatermarkStrategy<RowData> watermarkStrategy =
+                        getWatermarkStrategy(consumerProperties);
                 DataStreamSource<RowData> sourceStream =
                         execEnv.fromSource(
                                 kafkaSource,
@@ -500,7 +513,8 @@ public class SafeKafkaDynamicSource
     protected Source<RowData, KafkaPartitionSplit, KafkaSourceEnumState> createKafkaSource(
             DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
-            TypeInformation<RowData> producedTypeInfo) {
+            TypeInformation<RowData> producedTypeInfo,
+            Properties consumerProperties) {
 
         final KafkaRecordDeserializationSchema<RowData> kafkaDeserializer =
                 createKafkaDeserializationSchema(
@@ -567,7 +581,7 @@ public class SafeKafkaDynamicSource
                 break;
         }
 
-        kafkaSourceBuilder.setProperties(properties).setDeserializer(kafkaDeserializer);
+        kafkaSourceBuilder.setProperties(consumerProperties).setDeserializer(kafkaDeserializer);
 
         KafkaSource<RowData> kafkaSource = kafkaSourceBuilder.build();
         if (rateLimitRecordsPerSecond.isEmpty()) {
@@ -584,29 +598,21 @@ public class SafeKafkaDynamicSource
         return RateLimiterStrategy.perSecond(recordsPerSecond);
     }
 
-    private WatermarkStrategy<RowData> getWatermarkStrategy() {
+    private WatermarkStrategy<RowData> getWatermarkStrategy(Properties consumerProperties) {
         if (watermarkStrategy != null) {
             return watermarkStrategy;
         }
 
         if (sourceWatermarkEnabled) {
-            boolean idleAdvanceEnabled = sourceWatermarkConfig.idleAdvanceTimeoutMillis() > 0;
-            WatermarkStrategy<RowData> sourceWatermarkStrategy;
-            if (idleAdvanceEnabled) {
-                KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker =
-                        new KafkaAdminIdleAdvanceReadinessChecker(
-                                properties, topics, sourceWatermarkConfig);
-
-                sourceWatermarkStrategy =
-                        new KafkaRecordTimestampWatermarkStrategy(
-                                sourceWatermarkEmitStrategy,
-                                sourceWatermarkConfig,
-                                idleAdvanceReadinessChecker);
-            } else {
-                sourceWatermarkStrategy =
-                        new KafkaRecordTimestampWatermarkStrategy(
-                                sourceWatermarkEmitStrategy, sourceWatermarkConfig);
-            }
+            boolean idleAdvanceEnabled = isIdleAdvanceEnabled();
+            WatermarkStrategy<RowData> sourceWatermarkStrategy =
+                    new KafkaRecordTimestampWatermarkStrategy(
+                            sourceWatermarkEmitStrategy,
+                            sourceWatermarkConfig,
+                            idleAdvanceEnabled
+                                    ? new KafkaAdminIdleAdvanceReadinessChecker(
+                                            consumerProperties, topics, sourceWatermarkConfig)
+                                    : null);
 
             // Only apply Flink idleness when idle advancement is disabled, otherwise the source
             // may be marked idle before this strategy can emit wall-clock-derived watermarks.
@@ -619,6 +625,13 @@ public class SafeKafkaDynamicSource
         }
 
         return WatermarkStrategy.noWatermarks();
+    }
+
+    /** Whether {@link #getWatermarkStrategy} uses source watermarks with idle advancement. */
+    private boolean isIdleAdvanceEnabled() {
+        return watermarkStrategy == null
+                && sourceWatermarkEnabled
+                && sourceWatermarkConfig.idleAdvanceTimeoutMillis() > 0;
     }
 
     private OffsetResetStrategy getResetStrategy(String offsetResetConfig) {
@@ -679,7 +692,8 @@ public class SafeKafkaDynamicSource
                 metadataConverters,
                 producedTypeInfo,
                 upsertMode,
-                deserFailureHandler);
+                deserFailureHandler,
+                isIdleAdvanceEnabled());
     }
 
     private @Nullable DeserializationSchema<RowData> createDeserialization(
