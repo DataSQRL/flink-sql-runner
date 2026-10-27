@@ -236,9 +236,8 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       }
 
       // Read the clock here rather than per record, like Flink's own idleness: the split then
-      // counts
-      // as idle from the first check after its latest progress, up to one interval late, never
-      // early.
+      // counts as idle from the first check after its latest progress, up to one interval late,
+      // never early.
       long inputActivityMillis = inputActivityClock.relativeTimeMillis();
       long progress = readPosition != null ? readPosition.nextOffset() : recordCount;
       if (progress != progressAtLastIdleCheck) {
@@ -272,7 +271,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
       // Every record appended before the fetch was issued has been read. When the latest record
       // was read, broker time had passed its timestamp and, up to clock skew, the read time
-      // itself: for a record read out of a backlog the read time is later. Start from the latter
+      // itself: for a record read out of a backlog the read time is later. Start from the later
       // of the two and move to the time of the fetch, not to now, since records appended after it
       // may still be unread. A fetch older than the latest read therefore moves the watermark
       // less, never too far. Then subtract the observed lateness estimate and the safety margin,
