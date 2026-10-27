@@ -66,7 +66,7 @@ public final class KafkaReadPositions {
       latest = positions.computeIfAbsent(new TopicPartition(topic, partition), ReadPosition::new);
     }
 
-    latest.consumed(offset);
+    latest.nextOffset = offset + 1;
   }
 
   /** How far one partition has been read. */
@@ -91,10 +91,6 @@ public final class KafkaReadPositions {
 
     private boolean isFor(String topic, int partition) {
       return this.partition.partition() == partition && this.partition.topic().equals(topic);
-    }
-
-    private void consumed(long offset) {
-      nextOffset = offset + 1;
     }
   }
 }

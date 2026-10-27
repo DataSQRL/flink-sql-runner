@@ -263,10 +263,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       LogEnd logEnd =
           readPosition == null
               ? null
-              : idleAdvanceReadinessChecker.logEnd(readPosition.partition(), currentTimeMillis);
-      if (logEnd == null
-          || !logEnd.isReachedBy(
-              readPosition, idleAdvanceReadinessChecker.fetchPosition(readPosition.partition()))) {
+              : idleAdvanceReadinessChecker.logEndReachedBy(readPosition, currentTimeMillis);
+
+      if (logEnd == null) {
         // Records may still be unread, so the watermark stays where the records put it.
         return;
       }

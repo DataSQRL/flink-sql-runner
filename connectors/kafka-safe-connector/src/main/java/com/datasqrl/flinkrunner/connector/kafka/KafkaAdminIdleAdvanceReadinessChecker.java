@@ -108,9 +108,22 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     return state.ready ? state.logEnds.get(partition) : null;
   }
 
+  /**
+   * The end of {@code position}'s partition's log as the latest fetch saw it, if {@code position}
+   * has read to it; null while it has not, or while the end is unknown or advancing is not safe.
+   */
+  @Nullable
+  public LogEnd logEndReachedBy(ReadPosition position, long currentTimeMillis) {
+    var logEnd = logEnd(position.partition(), currentTimeMillis);
+
+    return logEnd != null && logEnd.isReachedBy(position, fetchPosition(position.partition()))
+        ? logEnd
+        : null;
+  }
+
   /** How far the source's consumer has fetched {@code partition}, or null while it has not said. */
   @Nullable
-  public FetchPosition fetchPosition(TopicPartition partition) {
+  private FetchPosition fetchPosition(TopicPartition partition) {
     return sourceId == null ? null : KafkaFetchPositions.fetchPosition(sourceId, partition);
   }
 
