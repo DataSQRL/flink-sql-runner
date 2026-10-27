@@ -62,10 +62,10 @@ public class SourceWatermarkOptions {
           .defaultValue(Duration.ZERO)
           .withDescription(
               """
-                  How long the Kafka source must receive no records before source watermarks may \
-                  continue advancing based on wall-clock time. This helps event-time windows \
-                  close after traffic stops. A zero or negative duration disables idle watermark \
-                  advancement.""");
+                  How long a partition must read nothing to be idle, after which its source \
+                  watermark may continue advancing based on wall-clock time. This helps \
+                  event-time windows close after traffic stops. A zero or negative duration \
+                  disables idle watermark advancement.""");
 
   public static final ConfigOption<Duration> SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_SAFETY_MARGIN =
       ConfigOptions.key("scan.source-watermark.idle-advance-safety-margin")
@@ -83,8 +83,9 @@ public class SourceWatermarkOptions {
               .defaultValue(Duration.ofSeconds(1))
               .withDescription(
                   """
-                      Timeout applied to each Kafka AdminClient broker readiness and LogAppendTime \
-                      metadata check before idle source-watermark advancement.""");
+                      Timeout applied to each Kafka AdminClient broker readiness, LogAppendTime \
+                      metadata and partition log-end check before idle source-watermark \
+                      advancement.""");
 
   public static final ConfigOption<Duration> SCAN_SOURCE_WATERMARK_IDLE_ADVANCE_BROKER_CHECK_TTL =
       ConfigOptions.key("scan.source-watermark.idle-advance-broker-check-ttl")
@@ -92,8 +93,10 @@ public class SourceWatermarkOptions {
           .defaultValue(Duration.ofSeconds(10))
           .withDescription(
               """
-                      How long to cache Kafka AdminClient broker readiness and LogAppendTime \
-                      metadata check results for idle source-watermark advancement.""");
+                      How long to cache Kafka AdminClient broker readiness, LogAppendTime \
+                      metadata and partition log-end check results for idle source-watermark \
+                      advancement. An idle watermark trails the wall clock by up to this long, as \
+                      it moves only as far as the latest log-end check.""");
 
   public static SourceWatermarkConfig sourceWatermarkConfiguration(ReadableConfig tableOptions) {
     var minRecords = tableOptions.get(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
