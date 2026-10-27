@@ -270,6 +270,17 @@ In addition to the configuration options exposed by the original kafka connector
 > [!NOTE]  
 > The dead-letter-queue producer will use the same Kafka configuration that is provided for the Flink SQL table that reads the data.
 
+### Kafka Records Without a Key
+
+When a table sets `key.fields`, the `kafka` connector decodes the record key on read and silently drops records that have no key.
+With `'value.fields-include' = 'ALL'` the value already contains every key field, so the `kafka-safe` connector reads the key fields from the value instead and keeps such records.
+
+| Options                         | Default | Type    | Description                                                                                                                                                       |
+|---------------------------------|---------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| scan.key-fields.read-from-value | true    | Boolean | Read the key fields from the value when it contains every key field. Set to `false` to decode the key and drop records without a key, like the `kafka` connector. |
+
+The option only affects reading, writing always sets the record key from `key.fields`. The `upsert-kafka-safe` connector always decodes the key, since upserts and deletes need it.
+
 ### Adaptive Kafka Source Watermarks
 
 The `kafka-safe` and `upsert-kafka-safe` connectors can generate source watermarks from Kafka record timestamps.
