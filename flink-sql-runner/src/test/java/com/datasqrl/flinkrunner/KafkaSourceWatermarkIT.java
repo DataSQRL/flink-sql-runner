@@ -33,6 +33,7 @@ import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.Container;
+import org.testcontainers.utility.MountableFile;
 
 class KafkaSourceWatermarkIT extends AbstractITSupport {
 
@@ -48,8 +49,11 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
   /** Records the replay test leaves to the rate-limited source, which reads one a second. */
   private static final int REPLAYED_RECORDS = 10;
 
-  /** Records the transactional producer writes, spread over several transactions. */
+  /** Records the transactional writers commit. */
   private static final int TRANSACTIONAL_RECORDS = 20;
+
+  /** Records written in a transaction that is then aborted. */
+  private static final int ABORTED_RECORDS = 3;
 
   /** How old the idle partition's record is when the job starts and reads it. */
   private static final Duration BACKLOG_AGE = Duration.ofSeconds(20);
@@ -163,21 +167,18 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
   }
 
   /**
-   * A transactional producer ends each transaction with a commit marker, which takes an offset the
-   * consumer never returns. The partition must still count as caught up after the last one, or a
-   * read_committed source would never close its final windows.
+   * Offsets that hold no record never reach a read_committed source: the commit markers of writers
+   * with transactions of their own, such as the subtasks of an exactly-once sink, and the records
+   * and marker of an aborted transaction. A partition whose log ends in any number of them must
+   * still count as caught up, or the source would never close its final windows.
    */
   @Test
   void
-      givenTransactionalTopic_whenIdleAdvanceEnabled_thenFinalCommitMarkerDoesNotHoldBackWatermark()
+      givenTransactionalTopic_whenIdleAdvanceEnabled_thenMarkersAndAbortedRecordsDoNotHoldBackWatermark()
           throws Exception {
     var resultDao = emptyResults();
     createTopic(IDLE_ADVANCE_TRANSACTIONAL_TOPIC, true, 1);
-    produceTimestampedRecords("/it/sqlfile/kafka_source_watermark_transactional_produce.sql");
-    // At least two transactions, each followed by its marker: the consumer has to skip one marker
-    // before the last one may count as read.
-    assertThat(highWatermark(IDLE_ADVANCE_TRANSACTIONAL_TOPIC, 0))
-        .isGreaterThan(TRANSACTIONAL_RECORDS + 1L);
+    produceTransactions(IDLE_ADVANCE_TRANSACTIONAL_TOPIC, TRANSACTIONAL_RECORDS, ABORTED_RECORDS);
 
     runJob(
         "/it/sqlfile/kafka_source_watermark_idle_advance_transactional.sql",
@@ -274,32 +275,36 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
         .isZero();
   }
 
-  /** The offset after the last record in {@code partition}, commit markers included. */
-  private long highWatermark(String topic, int partition) throws Exception {
-    Container.ExecResult result =
-        redpandaContainer.execInContainer(
-            "rpk", "topic", "describe", topic, "--print-partitions", "--brokers", "redpanda:9092");
-
-    assertThat(result.getExitCode())
-        .withFailMessage(result.getStdout() + result.getStderr())
-        .isZero();
-
-    // Columns: PARTITION LEADER EPOCH REPLICAS LOG-START-OFFSET HIGH-WATERMARK
-    return result
-        .getStdout()
-        .lines()
-        .map(line -> line.trim().split("\\s+"))
-        .filter(columns -> columns[0].equals(String.valueOf(partition)))
-        .mapToLong(columns -> Long.parseLong(columns[columns.length - 1]))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("No partition " + partition + ":\n" + result));
-  }
-
   private void produceTimestampedRecords(String sqlFile) throws Exception {
     String jobId = flinkRun("--sqlfile", sqlFile);
 
     untilAssert(
         () -> assertThat(client.getJobStatusInfo(jobId).getStatus()).isEqualTo(JobStatus.FINISHED));
+  }
+
+  /**
+   * Runs {@code kafka/TransactionalProducer.java} in the Flink container, which reaches the broker
+   * and has the Kafka client on its classpath.
+   */
+  private void produceTransactions(String topic, int committed, int aborted) throws Exception {
+    flinkContainer.copyFileToContainer(
+        MountableFile.forClasspathResource("kafka/TransactionalProducer.java"),
+        "/tmp/TransactionalProducer.java");
+
+    Container.ExecResult result =
+        flinkContainer.execInContainer(
+            "java",
+            "-cp",
+            "/opt/flink/lib/*",
+            "/tmp/TransactionalProducer.java",
+            "redpanda:9092",
+            topic,
+            String.valueOf(committed),
+            String.valueOf(aborted));
+
+    assertThat(result.getExitCode())
+        .withFailMessage(result.getStdout() + result.getStderr())
+        .isZero();
   }
 
   private void produceJsonRecord(String topic, String json) throws Exception {

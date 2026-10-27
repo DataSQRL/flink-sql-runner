@@ -47,6 +47,9 @@ import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -447,8 +450,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
   @Test
   void testCommitMarkerAtLogEndDoesNotCountAsUnread() {
-    // Each committed transaction ends in a marker the consumer skips. Skipping the first one shows
-    // the partition holds markers, so the final one does not hold the split back.
+    // Each committed transaction ends in a marker, which the consumer moves past without returning
+    // a record.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Split split = source.newSplit();
 
@@ -468,11 +471,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   }
 
   @Test
-  void testOneUnreadOffsetIsRecordWhereNoOffsetWasEverSkipped() {
-    // Nothing shows this partition holds markers, so its last offset is a record still unread.
+  void testOneUnreadOffsetIsRecordEvenWhereOffsetsWereSkipped() {
+    // The consumer skipped the offset of a record compaction removed, but the last offset in the
+    // log still holds a record: the consumer has returned it, and the split has yet to read it.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Split split = source.newSplit();
-    split.append(3);
+    split.append(1);
+    split.appendCompactedAway();
+    split.append(2);
 
     split.read(0L);
     split.read(100L);
@@ -488,8 +494,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
   @Test
   void testOpenTransactionHoldsBackReadCommittedSource() {
-    // The partition has skipped a marker before, and its open transaction has written a single
-    // record, so the offsets alone would look like a final marker.
+    // A read_committed consumer stops where the open transaction begins, so neither it nor the
+    // split gets to the end of the log.
     final Source source = Source.readCommitted(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Split split = source.newSplit();
 
@@ -508,6 +514,25 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     // Once it commits, a read_committed consumer can read its record.
     split.commitTransaction();
     split.read(source.wallClockMillis());
+    split.idleForTimeout();
+
+    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+  }
+
+  @Test
+  void testCommitMarkersOfSeveralWritersAtLogEndDoNotCountAsUnread() {
+    // Writers with transactions of their own, such as the subtasks of an exactly-once sink, each
+    // end theirs with a marker, so the log ends in several once they commit.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Split split = source.newSplit();
+
+    split.beginTransaction();
+    split.append(2);
+    split.read(0L);
+    split.read(100L);
+    // Two writers commit.
+    split.commitTransaction();
+    split.commitTransaction();
     split.idleForTimeout();
 
     assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
@@ -812,14 +837,23 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     private final ManualClock monotonicClock = new ManualClock();
     private long wallClockMillis;
 
+    /** Whether the source's consumer stops where the first open transaction begins. */
+    private final boolean readCommitted;
+
+    /** The interceptor on the source's consumer, which publishes how far it has fetched. */
+    private final KafkaFetchPositions fetchPositions = new KafkaFetchPositions();
+
     private Source(SourceWatermarkConfig config, long wallClockMillis) {
       this(config, wallClockMillis, false);
     }
 
     private Source(SourceWatermarkConfig config, long wallClockMillis, boolean readCommitted) {
+      String sourceId = UUID.randomUUID().toString();
       this.config = config;
-      this.broker = new FakeBroker(config, readCommitted);
+      this.broker = new FakeBroker(config, sourceId);
       this.wallClockMillis = wallClockMillis;
+      this.readCommitted = readCommitted;
+      fetchPositions.configure(Map.of(KafkaFetchPositions.SOURCE_ID_CONFIG, sourceId));
     }
 
     private static Source readCommitted(SourceWatermarkConfig config, long wallClockMillis) {
@@ -870,11 +904,17 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     private final WatermarkOutput output;
     private final WatermarkGenerator<RowData> generator;
 
-    /** One entry per offset in the log: whether it holds a transaction marker. */
+    /**
+     * One entry per offset in the log: whether the consumer skips it, as it does transaction
+     * markers and the offsets of records compaction removed.
+     */
     private final List<Boolean> markers = new ArrayList<>();
 
     /** The offset at which the open transaction began, or -1 if none is open. */
     private long openTransactionStart = -1L;
+
+    /** The offset the source's consumer fetches next. */
+    private long fetchOffset;
 
     /** The offset the split reads next. */
     private long readOffset;
@@ -898,6 +938,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       for (int i = 0; i < records; i++) {
         markers.add(false);
       }
+    }
+
+    /** Appends the offset of a record that compaction has since removed. */
+    private void appendCompactedAway() {
+      markers.add(true);
     }
 
     private void beginTransaction() {
@@ -935,8 +980,9 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       read(source.wallClockMillis());
     }
 
-    /** A periodic watermark check. */
+    /** A periodic watermark check, after the consumer has fetched in the background. */
     private void check() {
+      fetch();
       generator.onPeriodicEmit(output);
     }
 
@@ -961,21 +1007,48 @@ class KafkaRecordTimestampWatermarkStrategyTest {
         readOffset++;
       }
       checkState(readOffset < markers.size(), "No record left to read at offset %s", readOffset);
+      if (readOffset >= fetchOffset) {
+        fetch();
+      }
       KafkaReadPositions.consumed(partition.topic(), partition.partition(), readOffset++);
+    }
+
+    /**
+     * A poll of the source's consumer, ahead of the split's reads: it fetches all it may read,
+     * returning the records and moving past the offsets it skips, and hands both to its
+     * interceptor.
+     */
+    private void fetch() {
+      long readableEnd = source.readCommitted ? lastStableOffset() : highWatermark();
+      if (fetchOffset >= readableEnd) {
+        // A poll that moves nowhere returns without calling the interceptors.
+        return;
+      }
+
+      var records = new ArrayList<ConsumerRecord<byte[], byte[]>>();
+      for (long offset = fetchOffset; offset < readableEnd; offset++) {
+        if (!markers.get((int) offset)) {
+          records.add(
+              new ConsumerRecord<>(partition.topic(), partition.partition(), offset, null, null));
+        }
+      }
+      source.fetchPositions.onConsume(
+          new ConsumerRecords<>(
+              records.isEmpty() ? Map.of() : Map.of(partition, records),
+              Map.of(partition, new OffsetAndMetadata(readableEnd))));
+      fetchOffset = readableEnd;
     }
   }
 
   /** The broker as idle advancement asks it: whether topics use LogAppendTime, and log ends. */
   private static final class FakeBroker extends KafkaAdminIdleAdvanceReadinessChecker {
 
-    private final boolean readCommitted;
     private final Map<TopicPartition, Split> logs = new HashMap<>();
     private boolean logAppendTime = true;
     private boolean logEndsAvailable = true;
 
-    private FakeBroker(SourceWatermarkConfig config, boolean readCommitted) {
-      super(new Properties(), List.of("topic"), config);
-      this.readCommitted = readCommitted;
+    private FakeBroker(SourceWatermarkConfig config, String sourceId) {
+      super(KafkaFetchPositions.publishing(new Properties(), sourceId), List.of("topic"), config);
     }
 
     @Override
@@ -993,11 +1066,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
       var logEnds = new HashMap<TopicPartition, LogEnd>();
       for (TopicPartition partition : partitions) {
-        var log = logs.get(partition);
-        // A read_uncommitted source asks only for the high watermark.
-        long lastStableOffset = readCommitted ? log.lastStableOffset() : log.highWatermark();
-        logEnds.put(
-            partition, new LogEnd(requestedAtMillis, log.highWatermark(), lastStableOffset));
+        logEnds.put(partition, new LogEnd(requestedAtMillis, logs.get(partition).highWatermark()));
       }
 
       return logEnds;

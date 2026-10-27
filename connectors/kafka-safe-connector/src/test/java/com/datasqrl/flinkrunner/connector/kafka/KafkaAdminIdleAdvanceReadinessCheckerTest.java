@@ -27,7 +27,6 @@ import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessCh
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,16 +101,16 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.highWatermark(PARTITION_1, 20L);
     var checker = newReadinessChecker(admin);
 
-    assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L, 10L));
+    assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
     // The second partition joins the next fetch, which the TTL holds back.
     assertThat(checker.logEnd(PARTITION_1, 1000L)).isNull();
 
     long nextFetchMillis = 1000L + BROKER_CHECK_TTL_MILLIS;
 
     assertThat(checker.logEnd(PARTITION_1, nextFetchMillis))
-        .isEqualTo(new LogEnd(nextFetchMillis, 20L, 20L));
+        .isEqualTo(new LogEnd(nextFetchMillis, 20L));
     assertThat(checker.logEnd(PARTITION_0, nextFetchMillis))
-        .isEqualTo(new LogEnd(nextFetchMillis, 10L, 10L));
+        .isEqualTo(new LogEnd(nextFetchMillis, 10L));
     assertThat(admin.listOffsetsCalls)
         .containsExactly(
             new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_UNCOMMITTED),
@@ -128,26 +127,10 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.highWatermark(PARTITION_0, 15L);
 
     assertThat(checker.logEnd(PARTITION_0, 1000L + BROKER_CHECK_TTL_MILLIS - 1))
-        .isEqualTo(new LogEnd(1000L, 10L, 10L));
+        .isEqualTo(new LogEnd(1000L, 10L));
     assertThat(checker.logEnd(PARTITION_0, 1000L + BROKER_CHECK_TTL_MILLIS))
-        .isEqualTo(new LogEnd(1000L + BROKER_CHECK_TTL_MILLIS, 15L, 15L));
+        .isEqualTo(new LogEnd(1000L + BROKER_CHECK_TTL_MILLIS, 15L));
     assertThat(admin.listOffsetsCalls).hasSize(2);
-  }
-
-  @Test
-  void testReadCommittedSourceListsLastStableOffset() throws Exception {
-    var admin = new FakeAdmin();
-    admin.highWatermark(PARTITION_0, 10L);
-    admin.lastStableOffset(PARTITION_0, 7L);
-    var properties = new Properties();
-    properties.setProperty("isolation.level", "read_committed");
-    var checker = newReadinessChecker(admin, properties);
-
-    assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L, 7L));
-    assertThat(admin.listOffsetsCalls)
-        .containsExactly(
-            new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_UNCOMMITTED),
-            new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_COMMITTED));
   }
 
   @Test
@@ -185,7 +168,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.listOffsetsFailure = new RuntimeException("broker unavailable");
 
     assertThat(checker.logEnd(PARTITION_0, 1000L + BROKER_CHECK_TTL_MILLIS))
-        .isEqualTo(new LogEnd(1000L, 10L, 10L));
+        .isEqualTo(new LogEnd(1000L, 10L));
     assertThat(admin.listOffsetsCalls).hasSize(2);
   }
 
@@ -201,7 +184,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     admin.listOffsetsFailure = null;
 
     assertThat(checker.logEnd(PARTITION_0, 1000L + BROKER_CHECK_TTL_MILLIS))
-        .isEqualTo(new LogEnd(1000L + BROKER_CHECK_TTL_MILLIS, 10L, 10L));
+        .isEqualTo(new LogEnd(1000L + BROKER_CHECK_TTL_MILLIS, 10L));
   }
 
   @Test
@@ -226,16 +209,12 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var checker = InstantiationUtil.clone(newReadinessChecker());
     setAdminClient(checker, admin.adminClient());
 
-    assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L, 10L));
+    assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
   }
 
   private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker() {
-    return newReadinessChecker(new Properties());
-  }
-
-  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(Properties properties) {
     return new KafkaAdminIdleAdvanceReadinessChecker(
-        properties,
+        new Properties(),
         List.of("topic"),
         new SourceWatermarkConfig(
             250, 50, 1000, 0.95D, 1000, 10_000, 1000, BROKER_CHECK_TTL_MILLIS));
@@ -243,12 +222,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
 
   private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(FakeAdmin admin)
       throws Exception {
-    return newReadinessChecker(admin, new Properties());
-  }
-
-  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(
-      FakeAdmin admin, Properties properties) throws Exception {
-    var checker = newReadinessChecker(properties);
+    var checker = newReadinessChecker();
     setAdminClient(checker, admin.adminClient());
     return checker;
   }
@@ -277,27 +251,18 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   private record ListOffsetsCall(Set<TopicPartition> partitions, IsolationLevel isolationLevel) {}
 
   /**
-   * An AdminClient that reports the topic timestamp type and the latest offsets set for each
-   * isolation level, and records every {@code listOffsets} call.
+   * An AdminClient that reports the topic timestamp type and the high watermarks set, and records
+   * every {@code listOffsets} call.
    */
   private static final class FakeAdmin {
 
-    private final Map<IsolationLevel, Map<TopicPartition, Long>> latestOffsets =
-        new EnumMap<>(IsolationLevel.class);
+    private final Map<TopicPartition, Long> highWatermarks = new HashMap<>();
     private final List<ListOffsetsCall> listOffsetsCalls = new ArrayList<>();
     private boolean logAppendTime = true;
     private Exception listOffsetsFailure;
 
     private void highWatermark(TopicPartition partition, long offset) {
-      latestOffsets
-          .computeIfAbsent(IsolationLevel.READ_UNCOMMITTED, level -> new HashMap<>())
-          .put(partition, offset);
-    }
-
-    private void lastStableOffset(TopicPartition partition, long offset) {
-      latestOffsets
-          .computeIfAbsent(IsolationLevel.READ_COMMITTED, level -> new HashMap<>())
-          .put(partition, offset);
+      highWatermarks.put(partition, offset);
     }
 
     private AdminClient adminClient() {
@@ -336,7 +301,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
         if (listOffsetsFailure != null) {
           future.completeExceptionally(listOffsetsFailure);
         } else {
-          long offset = latestOffsets.get(options.isolationLevel()).get(partition);
+          long offset = highWatermarks.get(partition);
           future.complete(new ListOffsetsResultInfo(offset, -1L, Optional.empty()));
         }
         futures.put(partition, future);

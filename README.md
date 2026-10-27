@@ -330,8 +330,9 @@ An idle partition that has not produced a row yet is marked idle instead, which 
 The log ends of all of a source subtask's partitions are fetched together, at most once per broker-check TTL, which therefore also bounds how far an idle partition's watermark trails the wall clock: keep it close to the idle-advance timeout.
 The safety margin must cover clock skew between the Kafka brokers and the TaskManagers, and the time a record takes to become readable after the broker timestamps it.
 
-For transactional topics, a commit marker takes one offset that the consumer never returns, so a partition counts as read to the end with one offset left over, but only once the consumer has skipped such an offset before.
-A partition whose only transaction so far ended at the end of the log, or a `read_committed` partition whose last transaction was aborted, advances again with its next record.
+For transactional topics, commit markers take offsets that the consumer never returns, and so do the records of aborted transactions for a `read_committed` source.
+The consumer moves its position past them, and a consumer interceptor that the connector adds to `interceptor.classes` reports that position.
+A partition counts as read to the end once its split has read every record the consumer returned and the consumer's position has reached the end of the log, however many markers the log ends in.
 A `read_committed` source does not advance a partition while a transaction is open on it.
 
 | Option                                                    | Default        | Description                                                                                                                       |

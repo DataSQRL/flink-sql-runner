@@ -35,23 +35,6 @@ class KafkaReadPositionsTest {
   }
 
   @Test
-  void testNotesSkippedOffsetOnlyBetweenConsecutiveRecords() {
-    // The first record read may sit anywhere in the log: retention or a restored offset put it.
-    var position = consume(0, 100L);
-
-    assertThat(position.skippedOffsets()).isFalse();
-
-    consume(0, 101L);
-
-    assertThat(position.skippedOffsets()).isFalse();
-
-    consume(0, 103L);
-
-    assertThat(position.skippedOffsets()).isTrue();
-    assertThat(position.nextOffset()).isEqualTo(104L);
-  }
-
-  @Test
   void testKeepsPartitionsApart() {
     var partition0 = consume(0, 10L);
     var partition1 = consume(1, 20L);
@@ -60,8 +43,6 @@ class KafkaReadPositionsTest {
 
     assertThat(partition0.nextOffset()).isEqualTo(12L);
     assertThat(partition1.nextOffset()).isEqualTo(22L);
-    assertThat(partition0.skippedOffsets()).isFalse();
-    assertThat(partition1.skippedOffsets()).isFalse();
   }
 
   private ReadPosition consume(int partition, long offset) {

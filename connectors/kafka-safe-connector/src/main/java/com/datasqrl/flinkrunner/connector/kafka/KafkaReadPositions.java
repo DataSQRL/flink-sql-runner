@@ -32,6 +32,9 @@ import org.apache.kafka.common.TopicPartition;
  * deserializes each record on it and the rows reach {@code WatermarkGenerator#onEvent} before
  * deserialization returns, so during a generator's {@code onEvent} its own partition is {@link
  * #latest()}.
+ *
+ * <p>Offsets that hold no record, such as transaction markers, never reach the deserializer. How
+ * far the consumer has moved past them, {@link KafkaFetchPositions} learns.
  */
 @Internal
 public final class KafkaReadPositions {
@@ -74,13 +77,6 @@ public final class KafkaReadPositions {
     /** The offset after the last consumed record. */
     private long nextOffset = -1L;
 
-    /**
-     * Whether the consumer ever skipped an offset between two records. It shows the partition holds
-     * records the consumer never returns: transaction markers, or aborted or compacted-away
-     * records.
-     */
-    private boolean skippedOffsets;
-
     private ReadPosition(TopicPartition partition) {
       this.partition = partition;
     }
@@ -93,19 +89,11 @@ public final class KafkaReadPositions {
       return nextOffset;
     }
 
-    public boolean skippedOffsets() {
-      return skippedOffsets;
-    }
-
     private boolean isFor(String topic, int partition) {
       return this.partition.partition() == partition && this.partition.topic().equals(topic);
     }
 
     private void consumed(long offset) {
-      if (nextOffset >= 0 && offset > nextOffset) {
-        skippedOffsets = true;
-      }
-
       nextOffset = offset + 1;
     }
   }

@@ -106,7 +106,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
    * source is busy with other partitions or rate-limited. Idle time is measured on Flink's input
    * activity clock for the split, which stops while the split is paused for watermark alignment or
    * the task is backpressured, and against the read position {@link KafkaReadPositions} tracks,
-   * which also moves for records that produce no row.
+   * which also moves for records that produce no row. Offsets that hold no record, such as
+   * transaction markers, count as read once the consumer has moved past them ({@link
+   * KafkaFetchPositions}) and the split has read every record before them.
    */
   private static final class AdaptiveKafkaRecordTimestampWatermarkGenerator
       implements WatermarkGenerator<RowData> {
@@ -262,7 +264,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
           readPosition == null
               ? null
               : idleAdvanceReadinessChecker.logEnd(readPosition.partition(), currentTimeMillis);
-      if (logEnd == null || !logEnd.isReachedBy(readPosition)) {
+      if (logEnd == null
+          || !logEnd.isReachedBy(
+              readPosition, idleAdvanceReadinessChecker.fetchPosition(readPosition.partition()))) {
         // Records may still be unread, so the watermark stays where the records put it.
         return;
       }

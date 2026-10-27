@@ -17,6 +17,7 @@ package com.datasqrl.flinkrunner.connector.kafka;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import com.datasqrl.flinkrunner.connector.kafka.KafkaFetchPositions.FetchPosition;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaReadPositions.ReadPosition;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import java.io.Serial;
@@ -36,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListOffsetsOptions;
 import org.apache.kafka.clients.admin.OffsetSpec;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
@@ -63,7 +63,9 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
   private final List<String> topics;
   private final long brokerCheckTimeoutMillis;
   private final long brokerCheckTtlMillis;
-  private final boolean readCommitted;
+
+  /** The name under which the source's consumer publishes its {@link KafkaFetchPositions}. */
+  @Nullable private final String sourceId;
 
   @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private transient Cleaner.Cleanable adminClientCleanable;
@@ -80,11 +82,7 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     this.topics = List.copyOf(topics);
     this.brokerCheckTimeoutMillis = config.idleAdvanceBrokerCheckTimeoutMillis();
     this.brokerCheckTtlMillis = config.idleAdvanceBrokerCheckTtlMillis();
-    this.readCommitted =
-        IsolationLevel.READ_COMMITTED
-            .toString()
-            .equalsIgnoreCase(
-                kafkaProperties.getProperty(ConsumerConfig.ISOLATION_LEVEL_CONFIG, ""));
+    this.sourceId = kafkaProperties.getProperty(KafkaFetchPositions.SOURCE_ID_CONFIG);
   }
 
   /**
@@ -108,6 +106,12 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     brokerState().partitions.add(partition);
     var state = refreshIfDue(currentTimeMillis);
     return state.ready ? state.logEnds.get(partition) : null;
+  }
+
+  /** How far the source's consumer has fetched {@code partition}, or null while it has not said. */
+  @Nullable
+  public FetchPosition fetchPosition(TopicPartition partition) {
+    return sourceId == null ? null : KafkaFetchPositions.fetchPosition(sourceId, partition);
   }
 
   private BrokerState refreshIfDue(long currentTimeMillis) {
@@ -136,40 +140,25 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
    */
   @Nullable
   Map<TopicPartition, LogEnd> listLogEnds(Set<TopicPartition> partitions, long requestedAtMillis) {
-    try {
-      var highWatermarks = listLatestOffsets(partitions, IsolationLevel.READ_UNCOMMITTED);
-      var lastStableOffsets =
-          readCommitted
-              ? listLatestOffsets(partitions, IsolationLevel.READ_COMMITTED)
-              : highWatermarks;
+    var request =
+        partitions.stream()
+            .collect(Collectors.toMap(Function.identity(), p -> OffsetSpec.latest()));
 
-      var logEnds = new HashMap<TopicPartition, LogEnd>();
-      highWatermarks.forEach(
-          (partition, highWatermark) ->
-              logEnds.put(
-                  partition,
-                  new LogEnd(requestedAtMillis, highWatermark, lastStableOffsets.get(partition))));
-      return logEnds;
+    try {
+      return adminClient()
+          .listOffsets(request, new ListOffsetsOptions(IsolationLevel.READ_UNCOMMITTED))
+          .all()
+          .get(brokerCheckTimeoutMillis, TimeUnit.MILLISECONDS)
+          .entrySet()
+          .stream()
+          .collect(
+              Collectors.toMap(
+                  Map.Entry::getKey, e -> new LogEnd(requestedAtMillis, e.getValue().offset())));
     } catch (Exception e) {
       rethrowIfUnauthorized(e, "list log end offsets for idle watermark advance");
       log.debug("Failed to list log end offsets for idle watermark advance", e);
       return null;
     }
-  }
-
-  private Map<TopicPartition, Long> listLatestOffsets(
-      Set<TopicPartition> partitions, IsolationLevel isolationLevel) throws Exception {
-    var request =
-        partitions.stream()
-            .collect(Collectors.toMap(Function.identity(), p -> OffsetSpec.latest()));
-
-    return adminClient()
-        .listOffsets(request, new ListOffsetsOptions(isolationLevel))
-        .all()
-        .get(brokerCheckTimeoutMillis, TimeUnit.MILLISECONDS)
-        .entrySet()
-        .stream()
-        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().offset()));
   }
 
   boolean checkBrokerAndTopicTimestampType() {
@@ -229,22 +218,24 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
    *
    * @param requestedAtMillis the wall-clock time at which the fetch was issued
    * @param highWatermark the offset after the last record in the log
-   * @param lastStableOffset where a {@code read_committed} consumer has to stop: below the high
-   *     watermark while a transaction is open, otherwise equal to it, as for any other source
    */
-  public record LogEnd(long requestedAtMillis, long highWatermark, long lastStableOffset) {
+  public record LogEnd(long requestedAtMillis, long highWatermark) {
 
-    /** Whether {@code position} has read every record this fetch saw. */
-    boolean isReachedBy(ReadPosition position) {
-      if (lastStableOffset < highWatermark) {
-        return false;
-      }
-
-      // A committed transaction ends in a marker that takes an offset the consumer never returns,
-      // so one offset may remain, but only on a partition seen to skip offsets: anywhere else that
-      // offset is an unread record.
-      long unreadOffsets = highWatermark - position.nextOffset();
-      return unreadOffsets <= 0 || (unreadOffsets == 1 && position.skippedOffsets());
+    /**
+     * Whether {@code position} has read every record this fetch saw.
+     *
+     * @param fetched how far the source's consumer has fetched the partition, if it has said
+     */
+    boolean isReachedBy(ReadPosition position, @Nullable FetchPosition fetched) {
+      // Offsets that hold no record, such as transaction markers, never reach the split. The
+      // consumer moves past them, so once the split has read every record the consumer returned,
+      // it has read up to the consumer's position. Neither gets past an open transaction of a
+      // read_committed source, which therefore holds the split back.
+      long readUpTo =
+          fetched != null && fetched.recordsEnd() == position.nextOffset()
+              ? fetched.position()
+              : position.nextOffset();
+      return readUpTo >= highWatermark;
     }
   }
 
