@@ -39,9 +39,20 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.event.WatermarkEvent;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.streaming.api.operators.source.ProgressiveTimestampsAndWatermarks;
+import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarksContext;
 import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.clock.ManualClock;
@@ -164,12 +175,13 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     source.advanceMillis(1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(949L);
+    // The first idle watermark, 949, is below the first row's.
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(10_000L));
 
     source.advanceMillis(10_000);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(949L, 10_949L);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(10_000L), 10_949L);
   }
 
   @Test
@@ -214,6 +226,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.read(10_000L);
 
     assertThat(split.output().activeCount).isOne();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(10_000L));
   }
 
   @Test
@@ -230,13 +243,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       split.check();
     }
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     // Caught up: the split is idle from the check that saw its last record.
     source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
 
     // It goes on tracking the wall clock instead of trailing it by the backlog's age.
     source.advanceMillis(Duration.ofMinutes(15).toMillis());
@@ -284,12 +298,12 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.check();
 
     final long recordDrivenWatermark = 200L - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1;
-    assertThat(split.watermarks()).containsExactly(recordDrivenWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), recordDrivenWatermark);
 
     source.advanceMillis(Duration.ofMinutes(10).toMillis());
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(recordDrivenWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), recordDrivenWatermark);
 
     for (int i = 3; i < 10; i++) {
       split.read(i * 100L);
@@ -298,6 +312,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     assertThat(split.watermarks())
         .containsExactly(
+            firstRowWatermark(0L),
             recordDrivenWatermark,
             900L - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1,
             source.caughtUpWatermark());
@@ -351,12 +366,13 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS - 1);
     split.check();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     source.advanceMillis(1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -371,10 +387,10 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     split.append(1);
     split.read(0L);
-    split.idleForTimeout();
-
+    // The first row's readiness check already fetched the log end, which then confirms the split.
     final long firstIdleWatermark = source.caughtUpWatermark();
-    assertThat(split.watermarks()).containsExactly(firstIdleWatermark);
+    split.idleForTimeout();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), firstIdleWatermark);
 
     // Two records arrive; the split reads one a few seconds later and is then idle with the other
     // still unread.
@@ -385,20 +401,21 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.read(appendedMillis);
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(firstIdleWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), firstIdleWatermark);
 
     // The next fetch shows the record still unread.
     source.advanceMillis(brokerCheckTtlMillis);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(firstIdleWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), firstIdleWatermark);
 
     split.read(appendedMillis);
     split.check();
     source.advanceMillis(brokerCheckTtlMillis);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(firstIdleWatermark, source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), firstIdleWatermark, source.caughtUpWatermark());
   }
 
   @Test
@@ -411,20 +428,22 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     split.append(1);
     split.read(0L);
+    // The first row's readiness check already fetched the log end, which then confirms the split.
+    final long confirmedWatermark = source.caughtUpWatermark();
     split.idleForTimeout();
 
-    final long confirmedWatermark = source.caughtUpWatermark();
-    assertThat(split.watermarks()).containsExactly(confirmedWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), confirmedWatermark);
 
-    source.advanceMillis(brokerCheckTtlMillis - 1);
+    source.advanceMillis(brokerCheckTtlMillis - IDLE_ADVANCE_TIMEOUT_MILLIS - 1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(confirmedWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), confirmedWatermark);
 
     source.advanceMillis(1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(confirmedWatermark, source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), confirmedWatermark, source.caughtUpWatermark());
   }
 
   @Test
@@ -439,13 +458,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     source.advanceMillis(Duration.ofMinutes(10).toMillis());
     split.check();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     source.broker.logEndsAvailable = true;
     source.advanceMillis(1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -467,7 +487,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     }
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -484,12 +505,13 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.read(100L);
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     split.read(200L);
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -509,14 +531,15 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.append(1);
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     // Once it commits, a read_committed consumer can read its record.
     split.commitTransaction();
     split.read(source.wallClockMillis());
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -535,7 +558,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.commitTransaction();
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -590,18 +614,19 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     source.advanceMillis(Duration.ofMinutes(10).toMillis());
     split.check();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     pause.end(split.inputActivityClock);
     source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS - activeBeforePauseMillis - 1);
     split.check();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     source.advanceMillis(1);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -638,13 +663,13 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.check();
 
     final long recordDrivenWatermark = 200L - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1;
-    assertThat(split.watermarks()).containsExactly(recordDrivenWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), recordDrivenWatermark);
 
     source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS);
     split.check();
 
     assertThat(split.watermarks())
-        .containsExactly(recordDrivenWatermark, source.caughtUpWatermark());
+        .containsExactly(firstRowWatermark(0L), recordDrivenWatermark, source.caughtUpWatermark());
   }
 
   @Test
@@ -658,7 +683,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.read(0L);
     split.idleForTimeout();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark(2_000L));
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(2_000L), source.caughtUpWatermark(2_000L));
   }
 
   @Test
@@ -704,12 +730,13 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     source.advanceMillis(5 * IDLE_ADVANCE_TIMEOUT_MILLIS);
     split.check();
 
-    assertThat(split.watermarks()).isEmpty();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L));
 
     source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), source.caughtUpWatermark());
   }
 
   @Test
@@ -722,19 +749,20 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     split.idleForTimeout();
 
     final long idleWatermark = source.caughtUpWatermark();
-    assertThat(split.watermarks()).containsExactly(idleWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), idleWatermark);
 
     // An NTP correction steps the wall clock back; the input activity clock is monotonic.
     source.stepWallClockMillis(-30_000L);
     source.advanceMillis(10_000L);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(idleWatermark);
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(0L), idleWatermark);
 
     source.advanceMillis(30_000L);
     split.check();
 
-    assertThat(split.watermarks()).containsExactly(idleWatermark, source.caughtUpWatermark());
+    assertThat(split.watermarks())
+        .containsExactly(firstRowWatermark(0L), idleWatermark, source.caughtUpWatermark());
   }
 
   @Test
@@ -762,6 +790,80 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     assertThat(split.output().idleCount).isZero();
   }
 
+  @Test
+  void testFirstRowEmitsWatermarkJustBelowIt() {
+    // At once, from the row itself, rather than with the next idle watermark.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Split split = source.newSplit();
+
+    final long timestamp = source.wallClockMillis();
+    split.appendAndRead();
+
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(timestamp));
+
+    split.appendAndRead();
+
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(timestamp));
+  }
+
+  @Test
+  void testFirstRowAfterBeingMarkedIdleReactivatesSplitBelowIt() {
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Split split = source.newSplit();
+    split.idleForTimeout();
+
+    assertThat(split.output().idleCount).isOne();
+
+    final long timestamp = source.wallClockMillis();
+    split.appendAndRead();
+
+    assertThat(split.output().activeCount).isOne();
+    assertThat(split.watermarks()).containsExactly(firstRowWatermark(timestamp));
+  }
+
+  @Test
+  void testRowReactivatesIdleSubtaskBelowItBeforeWatermarkThatReleasesIt() {
+    // Restored, the subtask reads nothing for the idle-advance timeout and Flink reports it idle.
+    // If the first row's subtask became active only with the watermark that releases the row, a
+    // parallel downstream operator could forward that watermark ahead of the row.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    final ReaderSplit split = reader.newSplit();
+    reader.newSplit();
+    reader.tick(6);
+
+    assertThat(reader.downstream).containsExactly("IDLE");
+
+    final long timestamp = source.wallClockMillis();
+    split.appendAndRead(timestamp);
+    reader.tick(10);
+
+    assertThat(reader.downstream)
+        .startsWith(
+            "IDLE", "record@" + timestamp, "ACTIVE", "watermark@" + firstRowWatermark(timestamp))
+        .contains("watermark@" + source.caughtUpWatermark());
+  }
+
+  @Test
+  void testSubtaskReadingRowsIsNotReportedIdleBeforeItsFirstIdleWatermark() {
+    // Flink also reports the subtask idle once its main output, which never sees a record, is idle
+    // while no split has emitted a watermark yet, even when a split is reading rows.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    final ReaderSplit split = reader.newSplit();
+    reader.newSplit();
+    reader.tick(1);
+
+    final long timestamp = source.wallClockMillis();
+    split.appendAndRead(timestamp);
+    reader.tick(10);
+
+    assertThat(reader.downstream)
+        .doesNotContain("IDLE")
+        .startsWith("record@" + timestamp, "watermark@" + firstRowWatermark(timestamp))
+        .contains("watermark@" + source.caughtUpWatermark());
+  }
+
   private static SourceWatermarkConfig idleAdvanceConfig(int minRecords) {
     return idleAdvanceConfig(minRecords, 1L);
   }
@@ -777,6 +879,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
         IDLE_ADVANCE_SAFETY_MARGIN_MILLIS,
         1_000L,
         brokerCheckTtlMillis);
+  }
+
+  /** What a split emits on its first row, before it has samples to estimate disorder from. */
+  private static long firstRowWatermark(long timestamp) {
+    return timestamp - MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT - 1;
   }
 
   /** A generator without idle advancement. */
@@ -862,13 +969,20 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     /** A split whose watermarks go to an output of its own. */
     private Split newSplit() {
-      return new Split(this, new CollectingWatermarkOutput());
+      var output = new CollectingWatermarkOutput();
+      return new Split(this, output, output);
     }
 
     /** A split whose watermarks the multiplexer combines with those of the source's others. */
     private Split newSplit(WatermarkOutputMultiplexer multiplexer, String splitId) {
       multiplexer.registerNewOutput(splitId);
-      return new Split(this, multiplexer.getDeferredOutput(splitId));
+      return new Split(
+          this, multiplexer.getImmediateOutput(splitId), multiplexer.getDeferredOutput(splitId));
+    }
+
+    private KafkaRecordTimestampWatermarkStrategy strategy() {
+      return new KafkaRecordTimestampWatermarkStrategy(
+          WatermarkEmitStrategy.ON_PERIODIC, config, this::wallClockMillis, broker);
     }
 
     private void advanceMillis(long millis) {
@@ -895,14 +1009,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     }
   }
 
-  /** One partition's log on the broker, and the split that reads it. */
-  private static final class Split {
+  /** One partition's log on the broker, and how far the source's consumer and the split read it. */
+  private static final class PartitionLog {
 
     private final Source source;
     private final TopicPartition partition = new TopicPartition("topic-" + UUID.randomUUID(), 0);
-    private final PausableRelativeClock inputActivityClock;
-    private final WatermarkOutput output;
-    private final WatermarkGenerator<RowData> generator;
 
     /**
      * One entry per offset in the log: whether the consumer skips it, as it does transaction
@@ -916,24 +1027,15 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     /** The offset the source's consumer fetches next. */
     private long fetchOffset;
 
-    /** The offset the split reads next. */
+    /** The offset read next. */
     private long readOffset;
 
-    private Split(Source source, WatermarkOutput output) {
+    private PartitionLog(Source source) {
       this.source = source;
-      this.inputActivityClock = new PausableRelativeClock(source.monotonicClock);
-      this.output = output;
-      this.generator =
-          new KafkaRecordTimestampWatermarkStrategy(
-                  WatermarkEmitStrategy.ON_PERIODIC,
-                  source.config,
-                  source::wallClockMillis,
-                  source.broker)
-              .createWatermarkGenerator(context(inputActivityClock));
       source.broker.logs.put(partition, this);
     }
 
-    /** Appends records the split has not read yet. */
+    /** Appends records not read yet. */
     private void append(int records) {
       for (int i = 0; i < records; i++) {
         markers.add(false);
@@ -963,45 +1065,10 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       return openTransactionStart >= 0 ? openTransactionStart : highWatermark();
     }
 
-    /** Reads the next record, skipping markers as the consumer does; its timestamp is given. */
-    private void read(long timestamp) {
-      consumeNext();
-      generator.onEvent(null, timestamp, output);
-    }
-
-    /** Reads the next record, which produces no row, e.g. one sent to the dead-letter queue. */
-    private void readWithoutRow() {
-      consumeNext();
-    }
-
-    /** Appends a record and reads it at once, as a source that keeps up does. */
-    private void appendAndRead() {
-      append(1);
-      read(source.wallClockMillis());
-    }
-
-    /** A periodic watermark check, after the consumer has fetched in the background. */
-    private void check() {
-      fetch();
-      generator.onPeriodicEmit(output);
-    }
-
-    /** The check that sees the latest reads, and the one an idle-advance timeout later. */
-    private void idleForTimeout() {
-      check();
-      source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS);
-      check();
-    }
-
-    private CollectingWatermarkOutput output() {
-      return (CollectingWatermarkOutput) output;
-    }
-
-    private List<Long> watermarks() {
-      return output().watermarks;
-    }
-
-    /** What the deserializer does with the next record, before its rows reach the generator. */
+    /**
+     * What the deserializer does with the next record, skipping markers as the consumer does,
+     * before the record's rows reach a watermark generator.
+     */
     private void consumeNext() {
       while (readOffset < markers.size() && markers.get((int) readOffset)) {
         readOffset++;
@@ -1040,10 +1107,187 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     }
   }
 
+  /** A split's watermark generator, driven directly, and the partition log it reads. */
+  private static final class Split {
+
+    private final Source source;
+    private final PartitionLog log;
+    private final PausableRelativeClock inputActivityClock;
+
+    /** Where {@code onEvent} emits, which takes effect at once, as Flink's split outputs do. */
+    private final WatermarkOutput eventOutput;
+
+    private final WatermarkOutput periodicOutput;
+    private final WatermarkGenerator<RowData> generator;
+
+    private Split(Source source, WatermarkOutput eventOutput, WatermarkOutput periodicOutput) {
+      this.source = source;
+      this.log = new PartitionLog(source);
+      this.inputActivityClock = new PausableRelativeClock(source.monotonicClock);
+      this.eventOutput = eventOutput;
+      this.periodicOutput = periodicOutput;
+      this.generator = source.strategy().createWatermarkGenerator(context(inputActivityClock));
+    }
+
+    private void append(int records) {
+      log.append(records);
+    }
+
+    private void appendCompactedAway() {
+      log.appendCompactedAway();
+    }
+
+    private void beginTransaction() {
+      log.beginTransaction();
+    }
+
+    private void commitTransaction() {
+      log.commitTransaction();
+    }
+
+    /** Reads the next record; its timestamp is given. */
+    private void read(long timestamp) {
+      log.consumeNext();
+      generator.onEvent(null, timestamp, eventOutput);
+    }
+
+    /** Reads the next record, which produces no row, e.g. one sent to the dead-letter queue. */
+    private void readWithoutRow() {
+      log.consumeNext();
+    }
+
+    /** Appends a record and reads it at once, as a source that keeps up does. */
+    private void appendAndRead() {
+      append(1);
+      read(source.wallClockMillis());
+    }
+
+    /** A periodic watermark check, after the consumer has fetched in the background. */
+    private void check() {
+      log.fetch();
+      generator.onPeriodicEmit(periodicOutput);
+    }
+
+    /** The check that sees the latest reads, and the one an idle-advance timeout later. */
+    private void idleForTimeout() {
+      check();
+      source.advanceMillis(IDLE_ADVANCE_TIMEOUT_MILLIS);
+      check();
+    }
+
+    private CollectingWatermarkOutput output() {
+      return (CollectingWatermarkOutput) periodicOutput;
+    }
+
+    private List<Long> watermarks() {
+      return output().watermarks;
+    }
+  }
+
+  /**
+   * One source subtask's timestamps and watermarks as Flink's source operator runs them, with a
+   * split output per partition and the main output that never sees a record, recording what the
+   * subtask sends downstream.
+   */
+  private static final class Reader {
+
+    private final Source source;
+    private final List<String> downstream = new ArrayList<>();
+    private final ProgressiveTimestampsAndWatermarks<RowData> timestampsAndWatermarks;
+    private final ReaderOutput<RowData> output;
+
+    private Reader(Source source) {
+      this.source = source;
+      this.timestampsAndWatermarks =
+          new ProgressiveTimestampsAndWatermarks<>(
+              (record, recordTimestamp) -> recordTimestamp,
+              source.strategy(),
+              new TimestampsAndWatermarks.TimestampsAndWatermarksContextProvider(
+                  new UnregisteredMetricsGroup()),
+              null,
+              Duration.ofMillis(200),
+              new PausableRelativeClock(source.monotonicClock),
+              source.monotonicClock,
+              UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+      this.output =
+          timestampsAndWatermarks.createMainOutput(new RecordingOutput(), new NoOpListener());
+    }
+
+    /** A partition's split output, which Flink creates when the split is assigned or restored. */
+    private ReaderSplit newSplit() {
+      var log = new PartitionLog(source);
+      return new ReaderSplit(log, output.createOutputForSplit(log.partition.toString()));
+    }
+
+    /** The checks of one watermark interval: Flink's timer calls this every 200 ms. */
+    private void tick(int intervals) {
+      for (int i = 0; i < intervals; i++) {
+        source.advanceMillis(200);
+        timestampsAndWatermarks.emitImmediateWatermark(source.wallClockMillis());
+      }
+    }
+
+    private final class RecordingOutput implements PushingAsyncDataInput.DataOutput<RowData> {
+
+      @Override
+      public void emitRecord(StreamRecord<RowData> streamRecord) {
+        downstream.add("record@" + streamRecord.getTimestamp());
+      }
+
+      @Override
+      public void emitWatermark(org.apache.flink.streaming.api.watermark.Watermark watermark) {
+        downstream.add("watermark@" + watermark.getTimestamp());
+      }
+
+      @Override
+      public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        downstream.add(watermarkStatus.isIdle() ? "IDLE" : "ACTIVE");
+      }
+
+      @Override
+      public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+      @Override
+      public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+      @Override
+      public void emitWatermark(WatermarkEvent watermark) {}
+    }
+
+    private static final class NoOpListener
+        implements TimestampsAndWatermarks.WatermarkUpdateListener {
+
+      @Override
+      public void updateIdle(boolean isIdle) {}
+
+      @Override
+      public void updateCurrentEffectiveWatermark(long watermark) {}
+
+      @Override
+      public void updateCurrentSplitWatermark(String splitId, long watermark) {}
+
+      @Override
+      public void updateCurrentSplitIdle(String splitId, boolean idle) {}
+
+      @Override
+      public void splitFinished(String splitId) {}
+    }
+  }
+
+  /** A partition read through its split output, as Kafka's record emitter does. */
+  private record ReaderSplit(PartitionLog log, SourceOutput<RowData> output) {
+
+    private void appendAndRead(long timestamp) {
+      log.append(1);
+      log.consumeNext();
+      output.collect(null, timestamp);
+    }
+  }
+
   /** The broker as idle advancement asks it: whether topics use LogAppendTime, and log ends. */
   private static final class FakeBroker extends KafkaAdminIdleAdvanceReadinessChecker {
 
-    private final Map<TopicPartition, Split> logs = new HashMap<>();
+    private final Map<TopicPartition, PartitionLog> logs = new HashMap<>();
     private boolean logAppendTime = true;
     private boolean logEndsAvailable = true;
 
