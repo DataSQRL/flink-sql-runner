@@ -99,14 +99,32 @@ class SafeKafkaDynamicSourceTest {
         assertThat(deserialize(schema, "42", "42,Ada")).containsExactly(ROW);
     }
 
+    @Test
+    void shouldReadValueFormatMetadataWhenValueContainsKeyFields() throws Exception {
+        var schema = createSchema(ALL_FIELDS, false, false, List.of("value.m"));
+
+        assertThat(deserialize(schema, "42", "42,Ada,m"))
+                .containsExactly(
+                        GenericRowData.of(
+                                42L, StringData.fromString("Ada"), StringData.fromString("m")));
+    }
+
     private static KafkaRecordDeserializationSchema<RowData> createSchema(
             int[] valueProjection, boolean upsertMode) {
         return createSchema(valueProjection, upsertMode, true);
     }
 
-    @SuppressWarnings("unchecked")
     private static KafkaRecordDeserializationSchema<RowData> createSchema(
             int[] valueProjection, boolean upsertMode, boolean keyFieldsFromValue) {
+        return createSchema(valueProjection, upsertMode, keyFieldsFromValue, List.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static KafkaRecordDeserializationSchema<RowData> createSchema(
+            int[] valueProjection,
+            boolean upsertMode,
+            boolean keyFieldsFromValue,
+            List<String> formatMetadataKeys) {
         var source =
                 new SafeKafkaDynamicSource(
                         PHYSICAL_TYPE,
@@ -134,17 +152,28 @@ class SafeKafkaDynamicSourceTest {
                         Optional.empty(),
                         new SourceWatermarkConfig());
 
+        var producedFields = new ArrayList<>(DataType.getFields(PHYSICAL_TYPE));
+        formatMetadataKeys.forEach(
+                key -> producedFields.add(DataTypes.FIELD(key, DataTypes.STRING())));
+        source.applyReadableMetadata(
+                formatMetadataKeys, DataTypes.ROW(producedFields.toArray(DataTypes.Field[]::new)));
+
         var keyDeserialization =
                 new CsvDeserializationSchema(
                         fields -> GenericRowData.of(Long.parseLong(fields[0])));
         var valueDeserialization =
                 new CsvDeserializationSchema(
                         fields ->
-                                fields.length == 2
-                                        ? GenericRowData.of(
-                                                Long.parseLong(fields[0]),
-                                                StringData.fromString(fields[1]))
-                                        : GenericRowData.of(StringData.fromString(fields[0])));
+                                switch (fields.length) {
+                                    case 1 -> GenericRowData.of(StringData.fromString(fields[0]));
+                                    case 2 -> GenericRowData.of(
+                                            Long.parseLong(fields[0]),
+                                            StringData.fromString(fields[1]));
+                                    default -> GenericRowData.of(
+                                            Long.parseLong(fields[0]),
+                                            StringData.fromString(fields[1]),
+                                            StringData.fromString(fields[2]));
+                                });
 
         return source.createKafkaDeserializationSchema(
                 keyDeserialization, valueDeserialization, mock(TypeInformation.class));
