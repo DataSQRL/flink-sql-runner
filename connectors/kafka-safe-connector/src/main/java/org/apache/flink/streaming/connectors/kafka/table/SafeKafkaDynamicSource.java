@@ -684,12 +684,15 @@ public class SafeKafkaDynamicSource
         final int adjustedPhysicalArity =
                 DataType.getFieldDataTypes(producedDataType).size() - metadataKeys.size();
 
-        // adjust value format projection to include value format's metadata columns at the end
+        // adjust value format projection to include value format's metadata columns at the end.
+        // Upstream starts the range at keyProjection.length + valueProjection.length, which counts
+        // the key fields twice with 'value.fields-include' = 'ALL' and drops the metadata columns.
+        // TODO: Once FLINK-41255 is released, align this with the upstream fix.
         final int[] adjustedValueProjection =
                 IntStream.concat(
                                 IntStream.of(valueProjection),
                                 IntStream.range(
-                                        keyProjection.length + valueProjection.length,
+                                        DataType.getFieldDataTypes(physicalDataType).size(),
                                         adjustedPhysicalArity))
                         .toArray();
 
