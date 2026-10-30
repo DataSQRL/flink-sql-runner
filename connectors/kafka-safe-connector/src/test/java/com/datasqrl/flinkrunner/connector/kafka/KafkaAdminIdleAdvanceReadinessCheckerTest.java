@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,15 +34,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.DescribeConfigsResult;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListOffsetsOptions;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
@@ -50,9 +55,15 @@ import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.record.TimestampType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class KafkaAdminIdleAdvanceReadinessCheckerTest {
+
+  @AfterEach
+  void clearReadPositions() {
+    KafkaReadPositions.clear();
+  }
 
   private static final long BROKER_CHECK_TTL_MILLIS = 10_000L;
   private static final TopicPartition PARTITION_0 = new TopicPartition("topic", 0);
@@ -226,19 +237,106 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
   }
 
+  @Test
+  void testUnreadAssignmentHoldsBackIdleMarkUntilItsLogEnd() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0.topic(), PARTITION_0.partition(), 5L);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L)).isFalse();
+
+    admin.highWatermark(PARTITION_0, 5L);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L + BROKER_CHECK_TTL_MILLIS)).isTrue();
+  }
+
+  @Test
+  void testRegisteredAssignmentDoesNotHoldBackIdleMark() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0.topic(), PARTITION_0.partition(), 5L);
+    checker.register(PARTITION_0);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L)).isTrue();
+  }
+
+  @Test
+  void testResolvesEarliestMarkerFromLogStart() throws Exception {
+    // Retention has deleted every record: the log starts where it ends.
+    var admin = new FakeAdmin();
+    admin.earliestOffset(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(
+        PARTITION_0.topic(), PARTITION_0.partition(), KafkaPartitionSplit.EARLIEST_OFFSET);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L)).isTrue();
+  }
+
+  @Test
+  void testResolvesCommittedMarkerFromConsumerGroup() throws Exception {
+    var admin = new FakeAdmin();
+    admin.committedOffset(PARTITION_0, 7L);
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin, consumerProperties("earliest"));
+    KafkaReadPositions.assigned(
+        PARTITION_0.topic(), PARTITION_0.partition(), KafkaPartitionSplit.COMMITTED_OFFSET);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L)).isFalse();
+
+    admin.highWatermark(PARTITION_0, 7L);
+
+    assertThat(checker.unreadAssignmentsReachedLogEnd(1000L + BROKER_CHECK_TTL_MILLIS)).isTrue();
+  }
+
+  @Test
+  void testCommittedMarkerWithoutCommitFollowsResetStrategy() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 3L);
+    var earliest = newReadinessChecker(admin, consumerProperties("earliest"));
+    var none = newReadinessChecker(admin, consumerProperties("none"));
+    KafkaReadPositions.assigned(
+        PARTITION_0.topic(), PARTITION_0.partition(), KafkaPartitionSplit.COMMITTED_OFFSET);
+
+    assertThat(earliest.unreadAssignmentsReachedLogEnd(1000L)).isFalse();
+    assertThat(none.unreadAssignmentsReachedLogEnd(1000L)).isFalse();
+
+    var latest = newReadinessChecker(admin, consumerProperties("latest"));
+
+    assertThat(latest.unreadAssignmentsReachedLogEnd(1000L)).isTrue();
+  }
+
+  private static Properties consumerProperties(String autoOffsetReset) {
+    var properties = new Properties();
+    properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group");
+    properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+    return properties;
+  }
+
   private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker() {
+    return newReadinessChecker(new Properties());
+  }
+
+  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(Properties properties) {
     return new KafkaAdminIdleAdvanceReadinessChecker(
-        new Properties(),
+        properties,
         List.of("topic"),
         new SourceWatermarkConfig(
             250, 50, 1000, 0.95D, 1000, 10_000, 1000, BROKER_CHECK_TTL_MILLIS));
   }
 
-  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(FakeAdmin admin)
-      throws Exception {
-    var checker = newReadinessChecker();
+  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(
+      FakeAdmin admin, Properties properties) throws Exception {
+    var checker = newReadinessChecker(properties);
     setAdminClient(checker, admin.adminClient());
     return checker;
+  }
+
+  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(FakeAdmin admin)
+      throws Exception {
+    return newReadinessChecker(admin, new Properties());
   }
 
   private static AdminClient adminClientCompletingExceptionally(Exception exception) {
@@ -271,12 +369,22 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   private static final class FakeAdmin {
 
     private final Map<TopicPartition, Long> highWatermarks = new HashMap<>();
+    private final Map<TopicPartition, Long> earliestOffsets = new HashMap<>();
+    private final Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
     private final List<ListOffsetsCall> listOffsetsCalls = new ArrayList<>();
     private boolean logAppendTime = true;
     private Exception listOffsetsFailure;
 
     private void highWatermark(TopicPartition partition, long offset) {
       highWatermarks.put(partition, offset);
+    }
+
+    private void earliestOffset(TopicPartition partition, long offset) {
+      earliestOffsets.put(partition, offset);
+    }
+
+    private void committedOffset(TopicPartition partition, long offset) {
+      committedOffsets.put(partition, new OffsetAndMetadata(offset));
     }
 
     private AdminClient adminClient() {
@@ -286,6 +394,8 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
       when(adminClient.listOffsets(anyMap(), any(ListOffsetsOptions.class)))
           .thenAnswer(
               invocation -> listOffsets(invocation.getArgument(0), invocation.getArgument(1)));
+      when(adminClient.listConsumerGroupOffsets(anyString()))
+          .thenAnswer(invocation -> listConsumerGroupOffsets());
       return adminClient;
     }
 
@@ -315,13 +425,23 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
         if (listOffsetsFailure != null) {
           future.completeExceptionally(listOffsetsFailure);
         } else {
-          long offset = highWatermarks.get(partition);
+          long offset =
+              request.get(partition) instanceof OffsetSpec.EarliestSpec
+                  ? earliestOffsets.getOrDefault(partition, 0L)
+                  : highWatermarks.get(partition);
           future.complete(new ListOffsetsResultInfo(offset, -1L, Optional.empty()));
         }
         futures.put(partition, future);
       }
 
       return new ListOffsetsResult(futures);
+    }
+
+    private ListConsumerGroupOffsetsResult listConsumerGroupOffsets() {
+      var result = mock(ListConsumerGroupOffsetsResult.class);
+      when(result.partitionsToOffsetAndMetadata())
+          .thenReturn(KafkaFuture.completedFuture(new HashMap<>(committedOffsets)));
+      return result;
     }
   }
 

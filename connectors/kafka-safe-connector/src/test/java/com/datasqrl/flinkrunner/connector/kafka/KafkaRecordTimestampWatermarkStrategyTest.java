@@ -62,6 +62,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -78,6 +79,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   /** Idle advancement with a 1 s timeout and a 1 s safety margin, asking the broker every check. */
   private static final SourceWatermarkConfig IDLE_ADVANCE_CONFIG =
       idleAdvanceConfig(MIN_RECORDS_DEFAULT);
+
+  @AfterEach
+  void clearReadPositions() {
+    KafkaReadPositions.clear();
+  }
 
   @Test
   void testDoesNotEmitBeforeWarmup() {
@@ -864,6 +870,29 @@ class KafkaRecordTimestampWatermarkStrategyTest {
         .contains("watermark@" + source.caughtUpWatermark());
   }
 
+  @Test
+  void testRestoredSplitWithBacklogIsNotMarkedIdleBeforeItsFirstRow() {
+    // Marking a restored split idle before its backlog's first row lets its siblings' watermark
+    // run past that backlog, every row of which then reaches downstream operators late.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    final ReaderSplit live = reader.newSplit();
+    final ReaderSplit backlog = reader.newSplit();
+    backlog.log().append(10);
+
+    for (int i = 0; i < 10; i++) {
+      live.appendAndRead(source.wallClockMillis());
+      reader.tick(1);
+    }
+    final long backlogTimestamp = 0L;
+    backlog.read(backlogTimestamp);
+
+    final int backlogRow = reader.downstream.indexOf("record@" + backlogTimestamp);
+    assertThat(reader.downstream.subList(0, backlogRow))
+        .filteredOn(event -> event.startsWith("watermark@"))
+        .allMatch(event -> Long.parseLong(event.substring(10)) < backlogTimestamp);
+  }
+
   private static SourceWatermarkConfig idleAdvanceConfig(int minRecords) {
     return idleAdvanceConfig(minRecords, 1L);
   }
@@ -1213,9 +1242,10 @@ class KafkaRecordTimestampWatermarkStrategyTest {
           timestampsAndWatermarks.createMainOutput(new RecordingOutput(), new NoOpListener());
     }
 
-    /** A partition's split output, which Flink creates when the split is assigned or restored. */
+    /** A partition's split restored at the start of its log, as the reader is assigned it. */
     private ReaderSplit newSplit() {
       var log = new PartitionLog(source);
+      KafkaReadPositions.assigned(log.partition.topic(), log.partition.partition(), 0L);
       return new ReaderSplit(log, output.createOutputForSplit(log.partition.toString()));
     }
 
@@ -1279,6 +1309,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     private void appendAndRead(long timestamp) {
       log.append(1);
+      read(timestamp);
+    }
+
+    /** Reads the next record already in the log. */
+    private void read(long timestamp) {
       log.consumeNext();
       output.collect(null, timestamp);
     }
@@ -1314,6 +1349,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       }
 
       return logEnds;
+    }
+
+    /** Every log here starts at offset 0. */
+    @Override
+    Map<TopicPartition, Long> resolveStartingOffsets(Map<TopicPartition, Long> markers) {
+      var startingOffsets = new HashMap<TopicPartition, Long>();
+      markers.keySet().forEach(partition -> startingOffsets.put(partition, 0L));
+      return startingOffsets;
     }
   }
 

@@ -263,7 +263,8 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
       long currentTimeMillis = clock.currentTimeMillis();
       if (recordCount == 0) {
-        if (!markedIdle && idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+        if (!markedIdle
+            && idleAdvanceReadinessChecker.unreadAssignmentsReachedLogEnd(currentTimeMillis)) {
           output.markIdle();
           markedIdle = true;
         }
