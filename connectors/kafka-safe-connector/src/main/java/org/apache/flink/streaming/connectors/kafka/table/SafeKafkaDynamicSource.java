@@ -54,6 +54,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
+import com.datasqrl.flinkrunner.connector.kafka.AssignmentTrackingSource;
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaFetchPositions;
@@ -594,7 +595,9 @@ public class SafeKafkaDynamicSource
 
         kafkaSourceBuilder.setProperties(consumerProperties).setDeserializer(kafkaDeserializer);
 
-        KafkaSource<RowData> kafkaSource = kafkaSourceBuilder.build();
+        KafkaSource<RowData> builtSource = kafkaSourceBuilder.build();
+        Source<RowData, KafkaPartitionSplit, KafkaSourceEnumState> kafkaSource =
+                isIdleAdvanceEnabled() ? new AssignmentTrackingSource<>(builtSource) : builtSource;
         if (rateLimitRecordsPerSecond.isEmpty()) {
             return kafkaSource;
         }

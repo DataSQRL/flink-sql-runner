@@ -26,6 +26,7 @@ import java.lang.ref.Cleaner;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -34,9 +35,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListOffsetsOptions;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
@@ -124,6 +128,41 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
         : null;
   }
 
+  /**
+   * Whether every partition assigned to this subtask that has not delivered a row has nothing left
+   * to read, as the latest fetch saw it. A split that has not delivered a row may be marked idle
+   * only then: it does not know its partition, but it is one of these, and marking a split idle
+   * with records still unread lets the subtask's other splits carry its watermark past them.
+   */
+  public boolean unreadAssignmentsReachedLogEnd(long currentTimeMillis) {
+    var state = refreshIfDue(currentTimeMillis);
+    return state.ready
+        && unreadAssignments(state).stream().allMatch(position -> reachedLogEnd(state, position));
+  }
+
+  private boolean reachedLogEnd(BrokerState state, ReadPosition position) {
+    var logEnd = state.logEnds.get(position.partition());
+    if (logEnd == null) {
+      return false;
+    }
+    if (position.isConsumed()) {
+      return logEnd.isReachedBy(position, fetchPosition(position.partition()));
+    }
+
+    Long startingOffset =
+        position.startingOffset() >= 0
+            ? Long.valueOf(position.startingOffset())
+            : state.startingOffsets.get(position.partition());
+    return startingOffset != null && startingOffset >= logEnd.highWatermark();
+  }
+
+  /** The assigned partitions that no split has delivered a row from. */
+  private static List<ReadPosition> unreadAssignments(BrokerState state) {
+    return KafkaReadPositions.assignments().stream()
+        .filter(position -> !state.partitions.contains(position.partition()))
+        .toList();
+  }
+
   /** How far the source's consumer has fetched {@code partition}, or null while it has not said. */
   @Nullable
   private FetchPosition fetchPosition(TopicPartition partition) {
@@ -139,9 +178,28 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     state.refreshed = true;
     state.refreshedAtMillis = currentTimeMillis;
     state.ready = checkBrokerAndTopicTimestampType();
-    if (state.ready && !state.partitions.isEmpty()) {
+    if (!state.ready) {
+      return state;
+    }
+
+    var unread = unreadAssignments(state);
+    var markers =
+        unread.stream()
+            .filter(position -> position.startingOffset() < 0)
+            .filter(position -> !state.startingOffsets.containsKey(position.partition()))
+            .collect(Collectors.toMap(ReadPosition::partition, ReadPosition::startingOffset));
+    if (!markers.isEmpty()) {
+      var startingOffsets = resolveStartingOffsets(markers);
+      if (startingOffsets != null) {
+        state.startingOffsets.putAll(startingOffsets);
+      }
+    }
+
+    var partitions = new HashSet<>(state.partitions);
+    unread.forEach(position -> partitions.add(position.partition()));
+    if (!partitions.isEmpty()) {
       // A failed listing keeps the previous log ends, each of which still holds for its own fetch.
-      var logEnds = listLogEnds(Set.copyOf(state.partitions), currentTimeMillis);
+      var logEnds = listLogEnds(partitions, currentTimeMillis);
       if (logEnds != null) {
         state.logEnds.putAll(logEnds);
       }
@@ -175,6 +233,80 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
       log.debug("Failed to list log end offsets for idle watermark advance", e);
       return null;
     }
+  }
+
+  /**
+   * Resolves the starting offsets that splits carry as markers, as their consumer does: the start
+   * or the end of the log, or the consumer group's committed offset, falling back to the {@code
+   * auto.offset.reset} strategy. Leaves out what it cannot resolve; returns null if the broker
+   * cannot be asked.
+   */
+  @Nullable
+  Map<TopicPartition, Long> resolveStartingOffsets(Map<TopicPartition, Long> markers) {
+    try {
+      var committed =
+          markers.containsValue(KafkaPartitionSplit.COMMITTED_OFFSET)
+              ? committedOffsets()
+              : Map.<TopicPartition, OffsetAndMetadata>of();
+      var startingOffsets = new HashMap<TopicPartition, Long>();
+      var specs = new HashMap<TopicPartition, OffsetSpec>();
+      markers.forEach(
+          (partition, marker) -> {
+            var committedOffset = committed.get(partition);
+            var spec = offsetSpec(marker);
+            if (committedOffset != null) {
+              startingOffsets.put(partition, committedOffset.offset());
+            } else if (spec != null) {
+              specs.put(partition, spec);
+            }
+          });
+
+      if (!specs.isEmpty()) {
+        adminClient()
+            .listOffsets(specs, new ListOffsetsOptions(IsolationLevel.READ_UNCOMMITTED))
+            .all()
+            .get(brokerCheckTimeoutMillis, TimeUnit.MILLISECONDS)
+            .forEach((partition, info) -> startingOffsets.put(partition, info.offset()));
+      }
+
+      return startingOffsets;
+    } catch (Exception e) {
+      rethrowIfUnauthorized(e, "resolve starting offsets for idle watermark advance");
+      log.debug("Failed to resolve starting offsets for idle watermark advance", e);
+      return null;
+    }
+  }
+
+  private Map<TopicPartition, OffsetAndMetadata> committedOffsets() throws Exception {
+    String groupId = kafkaProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+    if (groupId == null) {
+      return Map.of();
+    }
+
+    // A partition without a committed offset maps to null, as it would if absent.
+    return adminClient()
+        .listConsumerGroupOffsets(groupId)
+        .partitionsToOffsetAndMetadata()
+        .get(brokerCheckTimeoutMillis, TimeUnit.MILLISECONDS);
+  }
+
+  /** Where a split that starts at {@code marker} without a committed offset starts reading. */
+  @Nullable
+  private OffsetSpec offsetSpec(long marker) {
+    if (marker == KafkaPartitionSplit.COMMITTED_OFFSET) {
+      String reset = kafkaProperties.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "");
+      marker =
+          switch (reset.toLowerCase(Locale.ROOT)) {
+            case "earliest" -> KafkaPartitionSplit.EARLIEST_OFFSET;
+            case "latest" -> KafkaPartitionSplit.LATEST_OFFSET;
+            default -> marker;
+          };
+    }
+
+    if (marker == KafkaPartitionSplit.EARLIEST_OFFSET) {
+      return OffsetSpec.earliest();
+    }
+    return marker == KafkaPartitionSplit.LATEST_OFFSET ? OffsetSpec.latest() : null;
   }
 
   boolean checkBrokerAndTopicTimestampType() {
@@ -260,6 +392,10 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
 
     private final Set<TopicPartition> partitions = new HashSet<>();
     private final Map<TopicPartition, LogEnd> logEnds = new HashMap<>();
+
+    /** The starting offsets resolved for splits that carry a marker instead. */
+    private final Map<TopicPartition, Long> startingOffsets = new HashMap<>();
+
     private boolean refreshed;
     private long refreshedAtMillis;
     private boolean ready;
