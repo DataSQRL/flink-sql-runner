@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.Config;
@@ -42,6 +44,8 @@ import org.apache.kafka.clients.admin.ListOffsetsOptions;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartition;
@@ -50,6 +54,7 @@ import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
 import org.apache.kafka.common.record.TimestampType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class KafkaAdminIdleAdvanceReadinessCheckerTest {
@@ -57,6 +62,11 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   private static final long BROKER_CHECK_TTL_MILLIS = 10_000L;
   private static final TopicPartition PARTITION_0 = new TopicPartition("topic", 0);
   private static final TopicPartition PARTITION_1 = new TopicPartition("topic", 1);
+
+  @AfterEach
+  void clearReadPositions() {
+    KafkaReadPositions.clear();
+  }
 
   @Test
   void testCachesBrokerCheckUntilConfiguredTtlExpires() {
@@ -226,9 +236,102 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     assertThat(checker.logEnd(PARTITION_0, 1000L)).isEqualTo(new LogEnd(1000L, 10L));
   }
 
+  @Test
+  void testSplitWithoutRowsRestoredAtLogEndIsReadToEnd() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 10L);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isTrue();
+    // Its log end joins the same listing as those of the registered partitions.
+    assertThat(admin.listOffsetsCalls)
+        .containsExactly(new ListOffsetsCall(Set.of(PARTITION_0), IsolationLevel.READ_UNCOMMITTED));
+  }
+
+  @Test
+  void testSplitWithoutRowsRestoredBeforeRecordsHoldsBackAllWithoutRows() throws Exception {
+    // A split that has not produced a row does not know its partition, so one partition with
+    // records left keeps every split without a row from going idle.
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 10L);
+    KafkaReadPositions.assigned(PARTITION_1, 15L);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isFalse();
+  }
+
+  @Test
+  void testPartitionProducingRowsDoesNotHoldBackSplitsWithoutRows() throws Exception {
+    // Its own split, which knows its partition, goes idle only once it has read to the end.
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 0L);
+    KafkaReadPositions.assigned(PARTITION_1, 20L);
+    checker.register(PARTITION_0);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isTrue();
+  }
+
+  @Test
+  void testSplitRestoredBeforeTrailingCommitMarkerIsReadToEndOnceConsumerMovesPastIt()
+      throws Exception {
+    // A checkpoint keeps the offset after the last record a split emitted, so a split of a
+    // transactional partition is restored before the commit marker that ends it.
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    String sourceId = UUID.randomUUID().toString();
+    var checker =
+        newReadinessChecker(admin, KafkaFetchPositions.publishing(new Properties(), sourceId));
+    KafkaReadPositions.assigned(PARTITION_0, 9L);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isFalse();
+
+    var interceptor = new KafkaFetchPositions();
+    interceptor.configure(Map.of(KafkaFetchPositions.SOURCE_ID_CONFIG, sourceId));
+    interceptor.onConsume(
+        new ConsumerRecords<>(Map.of(), Map.of(PARTITION_0, new OffsetAndMetadata(10L))));
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isTrue();
+  }
+
+  @Test
+  void testResolvesPlaceholderStartingOffsetOnce() throws Exception {
+    var admin = new FakeAdmin();
+    admin.logStart(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_0, 10L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, KafkaPartitionSplit.EARLIEST_OFFSET);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isTrue();
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L + BROKER_CHECK_TTL_MILLIS)).isTrue();
+    // One listing resolves the placeholder; each refresh lists the log end.
+    assertThat(admin.listOffsetsCalls).hasSize(3);
+  }
+
+  @Test
+  void testUnresolvedPlaceholderHoldsBackSplitsWithoutRows() throws Exception {
+    // Without a committed offset or a reset strategy the consumer fails, and nothing says where
+    // the split starts.
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 0L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, KafkaPartitionSplit.COMMITTED_OFFSET);
+
+    assertThat(checker.assignmentsWithoutRowsReadToEnd(1000L)).isFalse();
+  }
+
   private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker() {
+    return newReadinessChecker(new Properties());
+  }
+
+  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(Properties properties) {
     return new KafkaAdminIdleAdvanceReadinessChecker(
-        new Properties(),
+        properties,
         List.of("topic"),
         new SourceWatermarkConfig(
             250, 50, 1000, 0.95D, 1000, 10_000, 1000, BROKER_CHECK_TTL_MILLIS));
@@ -236,7 +339,12 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
 
   private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(FakeAdmin admin)
       throws Exception {
-    var checker = newReadinessChecker();
+    return newReadinessChecker(admin, new Properties());
+  }
+
+  private static KafkaAdminIdleAdvanceReadinessChecker newReadinessChecker(
+      FakeAdmin admin, Properties properties) throws Exception {
+    var checker = newReadinessChecker(properties);
     setAdminClient(checker, admin.adminClient());
     return checker;
   }
@@ -271,12 +379,17 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   private static final class FakeAdmin {
 
     private final Map<TopicPartition, Long> highWatermarks = new HashMap<>();
+    private final Map<TopicPartition, Long> logStarts = new HashMap<>();
     private final List<ListOffsetsCall> listOffsetsCalls = new ArrayList<>();
     private boolean logAppendTime = true;
     private Exception listOffsetsFailure;
 
     private void highWatermark(TopicPartition partition, long offset) {
       highWatermarks.put(partition, offset);
+    }
+
+    private void logStart(TopicPartition partition, long offset) {
+      logStarts.put(partition, offset);
     }
 
     private AdminClient adminClient() {
@@ -315,7 +428,10 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
         if (listOffsetsFailure != null) {
           future.completeExceptionally(listOffsetsFailure);
         } else {
-          long offset = highWatermarks.get(partition);
+          long offset =
+              request.get(partition) instanceof OffsetSpec.EarliestSpec
+                  ? logStarts.getOrDefault(partition, 0L)
+                  : highWatermarks.get(partition);
           future.complete(new ListOffsetsResultInfo(offset, -1L, Optional.empty()));
         }
         futures.put(partition, future);

@@ -327,7 +327,7 @@ Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conser
 ```
 
 Idle advancement supports only the `topic` table option, not `topic-pattern`. Configuring `topic-pattern` with idle advancement will result in a failure.
-The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration and its offsets.
+The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration and its offsets, and on a fresh start from the committed offsets, also the consumer group.
 If Kafka cannot be reached or the topic is not configured for `LogAppendTime`, idle advancement pauses rather than advancing unsafely.
 Do not combine idle advancement with `scan.watermark.idle-timeout`. The connector ignores that option when idle advancement is enabled, because once Flink marks a partition idle, it stops letting the connector advance that partition's watermark.
 
@@ -336,7 +336,10 @@ A partition can be idle with records still unread, when the source is busy with 
 For an idle partition, the connector asks the broker for the end of its log, and the watermark advances only if the partition has been read to that end.
 It then moves to the wall-clock time at which the broker was asked, minus the adaptive out-of-orderness delay and the safety margin, also when the partition's last record was read from a backlog, such as when a new job starts from the earliest offset.
 An idle partition with unread records, or whose log end cannot be fetched, keeps the watermark its records give it.
-An idle partition that has not produced a row yet is marked idle instead, which leaves it out of the source watermark until it does.
+An idle partition that has not produced a row yet is marked idle instead, which leaves it out of the source watermark until it does, but only once every partition of the source subtask that has not produced a row has been read to the end of its log.
+After a restore, a partition can take longer than the timeout to produce its first row, and marking it idle meanwhile would let the subtask's other partitions carry the watermark past its records.
+Such a partition has been read to the end when its split started at the end of its log, or when its consumer has since reached that end, past any commit markers, and every record it returned has been read.
+On a fresh start from the earliest or the committed offsets, the connector first looks up where each split starts.
 A partition's first row moves its watermark to just below that row at once, without waiting for `scan.source-watermark.min-records` records, so downstream operators see the source subtask as active, and hold their watermark below the row, before any watermark that would pass it.
 
 The log ends of all of a source subtask's partitions are fetched together, at most once per broker-check TTL, which therefore also bounds how far an idle partition's watermark trails the wall clock: keep it close to the idle-advance timeout.

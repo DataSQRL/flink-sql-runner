@@ -62,6 +62,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -78,6 +79,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   /** Idle advancement with a 1 s timeout and a 1 s safety margin, asking the broker every check. */
   private static final SourceWatermarkConfig IDLE_ADVANCE_CONFIG =
       idleAdvanceConfig(MIN_RECORDS_DEFAULT);
+
+  @AfterEach
+  void clearReadPositions() {
+    KafkaReadPositions.clear();
+  }
 
   @Test
   void testDoesNotEmitBeforeWarmup() {
@@ -864,6 +870,49 @@ class KafkaRecordTimestampWatermarkStrategyTest {
         .contains("watermark@" + source.caughtUpWatermark());
   }
 
+  @Test
+  void testRestoredSplitWithBacklogIsNotMarkedIdleBeforeItsFirstRow() {
+    // After a restore, a split can take longer than the idle-advance timeout to produce its first
+    // row. Marked idle meanwhile, it would let the live split carry the subtask's watermark past
+    // its backlog, every row of which would then reach downstream operators late.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    final ReaderSplit live = reader.newSplit();
+    final ReaderSplit backlog = reader.newSplit();
+    backlog.log().append(10);
+
+    for (int i = 0; i < 10; i++) {
+      live.appendAndRead(source.wallClockMillis());
+      reader.tick(1);
+    }
+    final long backlogTimestamp = 0L;
+    backlog.read(backlogTimestamp);
+
+    final int backlogRow = reader.downstream.indexOf("record@" + backlogTimestamp);
+    assertThat(reader.downstream.subList(0, backlogRow))
+        .filteredOn(event -> event.startsWith("watermark@"))
+        .allMatch(event -> Long.parseLong(event.substring(10)) < backlogTimestamp);
+  }
+
+  @Test
+  void testSplitRestoredBeforeTrailingCommitMarkerDoesNotHoldBackSubtask() {
+    // A checkpoint keeps the offset after the last record a split emitted, so a split of a
+    // transactional partition is restored before the commit marker that ends it. Its consumer
+    // moves past the marker without returning a record: nothing is left to read.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    final ReaderSplit live = reader.newSplit();
+    final ReaderSplit restored = reader.newSplit(2L);
+    restored.log().beginTransaction();
+    restored.log().append(2);
+    restored.log().commitTransaction();
+
+    live.appendAndRead(source.wallClockMillis());
+    reader.tick(10);
+
+    assertThat(reader.downstream).contains("watermark@" + source.caughtUpWatermark());
+  }
+
   private static SourceWatermarkConfig idleAdvanceConfig(int minRecords) {
     return idleAdvanceConfig(minRecords, 1L);
   }
@@ -1066,6 +1115,14 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     }
 
     /**
+     * Where a split restored at {@code offset} starts: its consumer fetches, and it reads, there.
+     */
+    private void startAt(long offset) {
+      fetchOffset = offset;
+      readOffset = offset;
+    }
+
+    /**
      * What the deserializer does with the next record, skipping markers as the consumer does,
      * before the record's rows reach a watermark generator.
      */
@@ -1213,16 +1270,30 @@ class KafkaRecordTimestampWatermarkStrategyTest {
           timestampsAndWatermarks.createMainOutput(new RecordingOutput(), new NoOpListener());
     }
 
-    /** A partition's split output, which Flink creates when the split is assigned or restored. */
+    /** A split assigned at the start of its partition's log. */
     private ReaderSplit newSplit() {
+      return newSplit(0L);
+    }
+
+    /**
+     * A split assigned, or restored, at {@code startingOffset}, where its consumer starts fetching;
+     * Flink creates its split output with it.
+     */
+    private ReaderSplit newSplit(long startingOffset) {
       var log = new PartitionLog(source);
+      log.startAt(startingOffset);
+      KafkaReadPositions.assigned(log.partition, startingOffset);
       return new ReaderSplit(log, output.createOutputForSplit(log.partition.toString()));
     }
 
-    /** The checks of one watermark interval: Flink's timer calls this every 200 ms. */
+    /**
+     * The checks of one watermark interval: Flink's timer calls this every 200 ms, while the
+     * consumer keeps polling.
+     */
     private void tick(int intervals) {
       for (int i = 0; i < intervals; i++) {
         source.advanceMillis(200);
+        source.broker.logs.values().forEach(PartitionLog::fetch);
         timestampsAndWatermarks.emitImmediateWatermark(source.wallClockMillis());
       }
     }
@@ -1279,6 +1350,11 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     private void appendAndRead(long timestamp) {
       log.append(1);
+      read(timestamp);
+    }
+
+    /** Reads the next record already in the log; its timestamp is given. */
+    private void read(long timestamp) {
       log.consumeNext();
       output.collect(null, timestamp);
     }

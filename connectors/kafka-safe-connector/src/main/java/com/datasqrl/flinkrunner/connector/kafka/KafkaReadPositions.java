@@ -16,9 +16,11 @@
 package com.datasqrl.flinkrunner.connector.kafka;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.kafka.common.TopicPartition;
 
 /**
@@ -35,9 +37,21 @@ import org.apache.kafka.common.TopicPartition;
  *
  * <p>Offsets that hold no record, such as transaction markers, never reach the deserializer. How
  * far the consumer has moved past them, {@link KafkaFetchPositions} learns.
+ *
+ * <p>A generator learns its partition only from its first row, so {@link AssignmentRecordingSource}
+ * also records here every split assigned to the reader, with the offset it starts at.
  */
 @Internal
 public final class KafkaReadPositions {
+
+  /**
+   * The offset after the last record, before there is one: what a split has consumed, or its
+   * consumer returned, before the first record.
+   */
+  static final long BEFORE_FIRST_RECORD = -1L;
+
+  /** The starting offset of a partition no split of which has been assigned to the reader. */
+  private static final long NOT_ASSIGNED = Long.MIN_VALUE;
 
   private static final ThreadLocal<KafkaReadPositions> FOR_THREAD =
       ThreadLocal.withInitial(KafkaReadPositions::new);
@@ -60,6 +74,29 @@ public final class KafkaReadPositions {
     return FOR_THREAD.get().latest;
   }
 
+  /**
+   * Records that a split of {@code partition} has been assigned to the reader on this thread. Its
+   * {@code startingOffset} is an offset, or a {@code KafkaPartitionSplit} placeholder such as
+   * {@code EARLIEST_OFFSET}.
+   */
+  public static void assigned(TopicPartition partition, long startingOffset) {
+    FOR_THREAD.get().positions.computeIfAbsent(partition, ReadPosition::new).startingOffset =
+        startingOffset;
+  }
+
+  /** The positions of the partitions assigned to the reader on this thread. */
+  static List<ReadPosition> assignments() {
+    return FOR_THREAD.get().positions.values().stream()
+        .filter(position -> position.startingOffset != NOT_ASSIGNED)
+        .toList();
+  }
+
+  /** Forgets this thread's positions, as the thread of a new task starts without any. */
+  @VisibleForTesting
+  static void clear() {
+    FOR_THREAD.remove();
+  }
+
   private void consume(String topic, int partition, long offset) {
     // Records arrive in runs from one partition, which mostly spares the lookup.
     if (latest == null || !latest.isFor(topic, partition)) {
@@ -75,7 +112,10 @@ public final class KafkaReadPositions {
     private final TopicPartition partition;
 
     /** The offset after the last consumed record. */
-    private long nextOffset = -1L;
+    private long nextOffset = BEFORE_FIRST_RECORD;
+
+    /** Where the partition's split starts reading, if one has been assigned to the reader. */
+    private long startingOffset = NOT_ASSIGNED;
 
     private ReadPosition(TopicPartition partition) {
       this.partition = partition;
@@ -87,6 +127,25 @@ public final class KafkaReadPositions {
 
     public long nextOffset() {
       return nextOffset;
+    }
+
+    /**
+     * Where the partition's split starts reading: an offset, a {@code KafkaPartitionSplit}
+     * placeholder not resolved yet, or {@link Long#MIN_VALUE} if no split of it has been assigned
+     * to the reader. Placeholders are negative, as is {@code MIN_VALUE}.
+     */
+    public long startingOffset() {
+      return startingOffset;
+    }
+
+    /** Whether the partition's split starts at a placeholder not resolved yet. */
+    boolean startsAtPlaceholder() {
+      return startingOffset < 0 && startingOffset != NOT_ASSIGNED;
+    }
+
+    /** Records the offset that the placeholder the partition's split starts at stands for. */
+    void resolveStartingOffset(long offset) {
+      startingOffset = offset;
     }
 
     private boolean isFor(String topic, int partition) {

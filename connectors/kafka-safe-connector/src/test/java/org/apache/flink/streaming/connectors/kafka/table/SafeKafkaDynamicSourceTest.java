@@ -18,7 +18,9 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
@@ -30,6 +32,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 
+import com.datasqrl.flinkrunner.connector.kafka.AssignmentRecordingSource;
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -119,37 +122,74 @@ class SafeKafkaDynamicSourceTest {
         return createSchema(valueProjection, upsertMode, keyFieldsFromValue, List.of());
     }
 
+    @Test
+    void testRecordsSplitAssignmentsWhenIdleAdvancementIsOn() {
+        // Without them, idle advancement would mark splits that have not produced a row idle
+        // without checking their partitions.
+        var idleAdvance = new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 1000);
+
+        assertThat(createKafkaSource(idleAdvance)).isInstanceOf(AssignmentRecordingSource.class);
+        assertThat(createKafkaSource(new SourceWatermarkConfig())).isInstanceOf(KafkaSource.class);
+    }
+
     @SuppressWarnings("unchecked")
+    private static Source<RowData, ?, ?> createKafkaSource(SourceWatermarkConfig config) {
+        var properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+        var source = newSource(ALL_FIELDS, false, true, properties, config);
+        source.applySourceWatermark();
+        return source.createKafkaSource(
+                mock(DeserializationSchema.class),
+                mock(DeserializationSchema.class),
+                mock(TypeInformation.class),
+                properties);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static SafeKafkaDynamicSource newSource(
+            int[] valueProjection,
+            boolean upsertMode,
+            boolean keyFieldsFromValue,
+            Properties properties,
+            SourceWatermarkConfig sourceWatermarkConfig) {
+        return new SafeKafkaDynamicSource(
+                PHYSICAL_TYPE,
+                null,
+                mock(DecodingFormat.class),
+                KEY_FIELDS,
+                valueProjection,
+                null,
+                List.of("topic"),
+                null,
+                properties,
+                StartupMode.EARLIEST,
+                Map.of(),
+                0L,
+                BoundedMode.UNBOUNDED,
+                Map.of(),
+                0L,
+                upsertMode,
+                keyFieldsFromValue,
+                "test",
+                null,
+                DeserFailureHandler.of(new Configuration(), new Properties()),
+                Optional.empty(),
+                WatermarkEmitStrategy.ON_EVENT,
+                Optional.empty(),
+                sourceWatermarkConfig);
+    }
+
     private static KafkaRecordDeserializationSchema<RowData> createSchema(
             int[] valueProjection,
             boolean upsertMode,
             boolean keyFieldsFromValue,
             List<String> formatMetadataKeys) {
         var source =
-                new SafeKafkaDynamicSource(
-                        PHYSICAL_TYPE,
-                        null,
-                        mock(DecodingFormat.class),
-                        KEY_FIELDS,
+                newSource(
                         valueProjection,
-                        null,
-                        List.of("topic"),
-                        null,
-                        new Properties(),
-                        StartupMode.EARLIEST,
-                        Map.of(),
-                        0L,
-                        BoundedMode.UNBOUNDED,
-                        Map.of(),
-                        0L,
                         upsertMode,
                         keyFieldsFromValue,
-                        "test",
-                        null,
-                        DeserFailureHandler.of(new Configuration(), new Properties()),
-                        Optional.empty(),
-                        WatermarkEmitStrategy.ON_EVENT,
-                        Optional.empty(),
+                        new Properties(),
                         new SourceWatermarkConfig());
 
         var producedFields = new ArrayList<>(DataType.getFields(PHYSICAL_TYPE));

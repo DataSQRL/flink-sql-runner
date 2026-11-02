@@ -16,15 +16,51 @@
 package com.datasqrl.flinkrunner.connector.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.datasqrl.flinkrunner.connector.kafka.KafkaReadPositions.ReadPosition;
 import java.util.UUID;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class KafkaReadPositionsTest {
 
   private final String topic = "topic-" + UUID.randomUUID();
+
+  @AfterEach
+  void clearReadPositions() {
+    KafkaReadPositions.clear();
+  }
+
+  @Test
+  void testRecordsAssignedPartitionsWithWhereTheirSplitsStart() {
+    var restored = new TopicPartition(topic, 0);
+    var fresh = new TopicPartition(topic, 1);
+    KafkaReadPositions.assigned(restored, 42L);
+    KafkaReadPositions.assigned(fresh, KafkaPartitionSplit.EARLIEST_OFFSET);
+    // A record the deserializer sees does not make its partition an assignment.
+    consume(2, 7L);
+
+    assertThat(KafkaReadPositions.assignments())
+        .extracting(ReadPosition::partition, ReadPosition::startingOffset)
+        .containsExactlyInAnyOrder(
+            tuple(restored, 42L), tuple(fresh, KafkaPartitionSplit.EARLIEST_OFFSET));
+    assertThat(KafkaReadPositions.assignments())
+        .allMatch(position -> position.nextOffset() == KafkaReadPositions.BEFORE_FIRST_RECORD);
+  }
+
+  @Test
+  void testConsumingAssignedPartitionKeepsWhereItsSplitStarted() {
+    KafkaReadPositions.assigned(new TopicPartition(topic, 0), 42L);
+
+    var position = consume(0, 42L);
+
+    assertThat(position.startingOffset()).isEqualTo(42L);
+    assertThat(position.nextOffset()).isEqualTo(43L);
+    assertThat(KafkaReadPositions.assignments()).containsExactly(position);
+  }
 
   @Test
   void testLatestIsPositionOfPartitionConsumedLast() {
