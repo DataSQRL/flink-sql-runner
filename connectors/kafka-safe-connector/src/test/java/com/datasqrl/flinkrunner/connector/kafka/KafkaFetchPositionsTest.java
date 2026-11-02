@@ -37,12 +37,16 @@ class KafkaFetchPositionsTest {
   @Test
   void testPublishesPositionAPollMovedToWithoutReturningRecords() {
     // Moving past transaction markers returns no record. The records returned before tie the
-    // position to how far a split has read; before the first of them, nothing does.
+    // position to how far a split has read; before the first of them, the position alone says
+    // the consumer found nothing to return, as past the marker after where a restored split starts.
     var interceptor = interceptor(sourceId);
+
+    assertThat(KafkaFetchPositions.fetchPosition(sourceId, PARTITION)).isNull();
 
     interceptor.onConsume(poll(List.of(), 10L));
 
-    assertThat(KafkaFetchPositions.fetchPosition(sourceId, PARTITION)).isNull();
+    assertThat(KafkaFetchPositions.fetchPosition(sourceId, PARTITION))
+        .isEqualTo(new FetchPosition(KafkaReadPositions.BEFORE_FIRST_RECORD, 10L));
 
     interceptor.onConsume(poll(List.of(10L, 11L, 12L), 13L));
 

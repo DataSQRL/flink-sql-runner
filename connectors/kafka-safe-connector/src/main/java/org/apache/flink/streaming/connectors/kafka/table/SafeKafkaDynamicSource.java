@@ -54,6 +54,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
+import com.datasqrl.flinkrunner.connector.kafka.AssignmentRecordingSource;
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker;
 import com.datasqrl.flinkrunner.connector.kafka.KafkaFetchPositions;
@@ -594,13 +595,21 @@ public class SafeKafkaDynamicSource
 
         kafkaSourceBuilder.setProperties(consumerProperties).setDeserializer(kafkaDeserializer);
 
-        KafkaSource<RowData> kafkaSource = kafkaSourceBuilder.build();
-        if (rateLimitRecordsPerSecond.isEmpty()) {
-            return kafkaSource;
+        Source<RowData, KafkaPartitionSplit, KafkaSourceEnumState> kafkaSource =
+                kafkaSourceBuilder.build();
+        if (isIdleAdvanceEnabled()) {
+            // Idle advancement needs the partitions of splits that have not produced a row.
+            kafkaSource = new AssignmentRecordingSource<>(kafkaSource);
         }
 
-        return new RateLimitedSource<>(
-                kafkaSource, recordsPerSecondRateLimiterStrategy(rateLimitRecordsPerSecond.get()));
+        if (rateLimitRecordsPerSecond.isPresent()) {
+            kafkaSource =
+                    new RateLimitedSource<>(
+                            kafkaSource,
+                            recordsPerSecondRateLimiterStrategy(rateLimitRecordsPerSecond.get()));
+        }
+
+        return kafkaSource;
     }
 
     @SuppressWarnings("unchecked")

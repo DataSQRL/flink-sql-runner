@@ -117,11 +117,39 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
    */
   @Nullable
   public LogEnd logEndReachedBy(ReadPosition position, long currentTimeMillis) {
-    var logEnd = logEnd(position.partition(), currentTimeMillis);
-
-    return logEnd != null && logEnd.isReachedBy(position, fetchPosition(position.partition()))
-        ? logEnd
+    var state = refreshIfDue(currentTimeMillis);
+    return state.ready && isReadToEnd(state, position)
+        ? state.logEnds.get(position.partition())
         : null;
+  }
+
+  /**
+   * Whether every partition assigned to this subtask that has not produced a row has been read to
+   * the end of its log, as the latest fetch saw it. A split that has not produced a row may be
+   * marked idle only then: it does not know its partition yet, but it is one of these, and a split
+   * marked idle with records left lets the subtask's other splits carry the watermark past them.
+   */
+  public boolean assignmentsWithoutRowsReadToEnd(long currentTimeMillis) {
+    var state = refreshIfDue(currentTimeMillis);
+    return state.ready
+        && assignmentsWithoutRows(state).stream()
+            .allMatch(position -> isReadToEnd(state, position));
+  }
+
+  /** Whether {@code position} has read to the end of its log, as the latest fetch saw it. */
+  private boolean isReadToEnd(BrokerState state, ReadPosition position) {
+    var logEnd = state.logEnds.get(position.partition());
+    return logEnd != null && logEnd.isReachedBy(position, fetchPosition(position.partition()));
+  }
+
+  /**
+   * The assigned partitions that have not produced a row, as a generator registers its partition
+   * with its first row.
+   */
+  private static List<ReadPosition> assignmentsWithoutRows(BrokerState state) {
+    return KafkaReadPositions.assignments().stream()
+        .filter(position -> !state.partitions.contains(position.partition()))
+        .toList();
   }
 
   /** How far the source's consumer has fetched {@code partition}, or null while it has not said. */
@@ -139,9 +167,18 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
     state.refreshed = true;
     state.refreshedAtMillis = currentTimeMillis;
     state.ready = checkBrokerAndTopicTimestampType();
-    if (state.ready && !state.partitions.isEmpty()) {
+    if (!state.ready) {
+      return state;
+    }
+
+    var assignmentsWithoutRows = assignmentsWithoutRows(state);
+    resolvePlaceholders(assignmentsWithoutRows);
+
+    var partitions = new HashSet<>(state.partitions);
+    assignmentsWithoutRows.forEach(position -> partitions.add(position.partition()));
+    if (!partitions.isEmpty()) {
       // A failed listing keeps the previous log ends, each of which still holds for its own fetch.
-      var logEnds = listLogEnds(Set.copyOf(state.partitions), currentTimeMillis);
+      var logEnds = listLogEnds(partitions, currentTimeMillis);
       if (logEnds != null) {
         state.logEnds.putAll(logEnds);
       }
@@ -174,6 +211,38 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
       rethrowIfUnauthorized(e, "list log end offsets for idle watermark advance");
       log.debug("Failed to list log end offsets for idle watermark advance", e);
       return null;
+    }
+  }
+
+  /**
+   * Resolves where the splits of {@code positions} that start at a placeholder start reading
+   * ({@link KafkaStartingOffsets}). What stays unresolved is tried again at the next refresh.
+   */
+  private void resolvePlaceholders(List<ReadPosition> positions) {
+    var placeholders =
+        positions.stream()
+            .filter(ReadPosition::startsAtPlaceholder)
+            .collect(Collectors.toMap(ReadPosition::partition, ReadPosition::startingOffset));
+    if (placeholders.isEmpty()) {
+      return;
+    }
+
+    Map<TopicPartition, Long> startingOffsets;
+    try {
+      startingOffsets =
+          KafkaStartingOffsets.resolve(
+              adminClient(), kafkaProperties, placeholders, brokerCheckTimeoutMillis);
+    } catch (Exception e) {
+      rethrowIfUnauthorized(e, "resolve starting offsets for idle watermark advance");
+      log.debug("Failed to resolve starting offsets for idle watermark advance", e);
+      return;
+    }
+
+    for (ReadPosition position : positions) {
+      Long startingOffset = startingOffsets.get(position.partition());
+      if (startingOffset != null) {
+        position.resolveStartingOffset(startingOffset);
+      }
     }
   }
 
@@ -238,20 +307,22 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
   public record LogEnd(long requestedAtMillis, long highWatermark) {
 
     /**
-     * Whether {@code position} has read every record this fetch saw.
+     * Whether {@code position} has read every record this fetch saw. Neither the consumer nor the
+     * split gets past an open transaction of a read_committed source, which therefore holds the
+     * split back.
      *
      * @param fetched how far the source's consumer has fetched the partition, if it has said
      */
     boolean isReachedBy(ReadPosition position, @Nullable FetchPosition fetched) {
-      // Offsets that hold no record, such as transaction markers, never reach the split. The
-      // consumer moves past them, so once the split has read every record the consumer returned,
-      // it has read up to the consumer's position. Neither gets past an open transaction of a
-      // read_committed source, which therefore holds the split back.
+      // Offsets that hold no record, such as transaction markers, never reach the split, but the
+      // consumer moves past them. Once the split has read every record the consumer returned,
+      // even when that is none, it has read up to the consumer's position.
       long readUpTo =
           fetched != null && fetched.recordsEnd() == position.nextOffset()
               ? fetched.position()
               : position.nextOffset();
-      return readUpTo >= highWatermark;
+      // Records before where the split started were read before it.
+      return Math.max(readUpTo, position.startingOffset()) >= highWatermark;
     }
   }
 
@@ -260,6 +331,7 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
 
     private final Set<TopicPartition> partitions = new HashSet<>();
     private final Map<TopicPartition, LogEnd> logEnds = new HashMap<>();
+
     private boolean refreshed;
     private long refreshedAtMillis;
     private boolean ready;
