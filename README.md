@@ -370,6 +370,7 @@ Implementation of Flink SQL and SQRL functions that can be added as user-defined
 * [Math](stdlib-docs/library-functions.yml): Advanced math functions
 * [Iceberg](stdlib-docs/library-functions.yml): Helper functions for advanced Iceberg functionality.
 * [OpenAI](stdlib-docs/library-functions.yml): Function for calling completions, structured data extraction, and vector embeddings.
+* [TypeSafe](stdlib-docs/library-functions.yml): Process table function that classifies each row with TypeSafe AI's Jev model and appends typed answers. See the [module README](stdlib/stdlib-typesafe/README.md) for question shapes, output columns, and configuration.
 
 ## Usage
 
