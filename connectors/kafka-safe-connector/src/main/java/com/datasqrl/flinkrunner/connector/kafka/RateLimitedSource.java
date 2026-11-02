@@ -15,32 +15,20 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.watermark.WatermarkDeclaration;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.lineage.LineageDataset;
-import org.apache.flink.streaming.api.lineage.LineageVertex;
-import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
-import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -50,21 +38,15 @@ import org.apache.flink.util.Preconditions;
  * which Kafka uses for offset commits.
  */
 public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
-    implements Source<T, SplitT, EnumChkT>, LineageVertexProvider {
+    extends ForwardingSource<T, SplitT, EnumChkT> {
 
-  private final Source<T, SplitT, EnumChkT> delegate;
   private final RateLimiterStrategy<SplitT> rateLimiterStrategy;
 
   public RateLimitedSource(
       Source<T, SplitT, EnumChkT> delegate, RateLimiterStrategy<SplitT> rateLimiterStrategy) {
-    this.delegate = Preconditions.checkNotNull(delegate, "Delegate source must not be null.");
+    super(delegate);
     this.rateLimiterStrategy =
         Preconditions.checkNotNull(rateLimiterStrategy, "Rate limiter strategy must not be null.");
-  }
-
-  @Override
-  public Boundedness getBoundedness() {
-    return delegate.getBoundedness();
   }
 
   @Override
@@ -74,53 +56,9 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
         rateLimiterStrategy.createRateLimiter(readerContext.currentParallelism()));
   }
 
-  @Override
-  public SplitEnumerator<SplitT, EnumChkT> createEnumerator(
-      SplitEnumeratorContext<SplitT> enumContext) throws Exception {
-    return delegate.createEnumerator(enumContext);
-  }
-
-  @Override
-  public SplitEnumerator<SplitT, EnumChkT> restoreEnumerator(
-      SplitEnumeratorContext<SplitT> enumContext, EnumChkT checkpoint) throws Exception {
-    return delegate.restoreEnumerator(enumContext, checkpoint);
-  }
-
-  @Override
-  public SimpleVersionedSerializer<SplitT> getSplitSerializer() {
-    return delegate.getSplitSerializer();
-  }
-
-  @Override
-  public SimpleVersionedSerializer<EnumChkT> getEnumeratorCheckpointSerializer() {
-    return delegate.getEnumeratorCheckpointSerializer();
-  }
-
-  @Override
-  public Set<? extends WatermarkDeclaration> declareWatermarks() {
-    return delegate.declareWatermarks();
-  }
-
-  @Override
-  public LineageVertex getLineageVertex() {
-    if (delegate instanceof LineageVertexProvider lineageVertexProvider) {
-      return lineageVertexProvider.getLineageVertex();
-    }
-    return new EmptySourceLineageVertex(getBoundedness());
-  }
-
-  private record EmptySourceLineageVertex(Boundedness boundedness) implements SourceLineageVertex {
-
-    @Override
-    public List<LineageDataset> datasets() {
-      return List.of();
-    }
-  }
-
   private static final class RateLimitedSourceReader<T, SplitT extends SourceSplit>
-      implements SourceReader<T, SplitT> {
+      extends ForwardingReader<T, SplitT> {
 
-    private final SourceReader<T, SplitT> delegate;
     private final RateLimiter<SplitT> rateLimiter;
     private final CountingReaderOutput<T> countingOutput = new CountingReaderOutput<>();
     private CompletableFuture<Void> rateLimitPermissionFuture =
@@ -128,13 +66,8 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
 
     private RateLimitedSourceReader(
         SourceReader<T, SplitT> delegate, RateLimiter<SplitT> rateLimiter) {
-      this.delegate = Preconditions.checkNotNull(delegate, "Delegate reader must not be null.");
+      super(delegate);
       this.rateLimiter = Preconditions.checkNotNull(rateLimiter, "Rate limiter must not be null.");
-    }
-
-    @Override
-    public void start() {
-      delegate.start();
     }
 
     @Override
@@ -160,50 +93,24 @@ public final class RateLimitedSource<T, SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
-    public List<SplitT> snapshotState(long checkpointId) {
-      return delegate.snapshotState(checkpointId);
-    }
-
-    @Override
     public CompletableFuture<Void> isAvailable() {
       if (!rateLimitPermissionFuture.isDone()) {
         return rateLimitPermissionFuture;
       }
-      return delegate.isAvailable();
+      return super.isAvailable();
     }
 
     @Override
     public void addSplits(List<SplitT> splits) {
       splits.forEach(rateLimiter::notifyAddingSplit);
-      delegate.addSplits(splits);
-    }
-
-    @Override
-    public void notifyNoMoreSplits() {
-      delegate.notifyNoMoreSplits();
-    }
-
-    @Override
-    public void handleSourceEvents(SourceEvent sourceEvent) {
-      delegate.handleSourceEvents(sourceEvent);
+      super.addSplits(splits);
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
       // KafkaSourceReader uses checkpoint completion for offset commits; keep it delegated.
-      delegate.notifyCheckpointComplete(checkpointId);
+      super.notifyCheckpointComplete(checkpointId);
       rateLimiter.notifyCheckpointComplete(checkpointId);
-    }
-
-    @Override
-    public void pauseOrResumeSplits(
-        Collection<String> splitsToPause, Collection<String> splitsToResume) {
-      delegate.pauseOrResumeSplits(splitsToPause, splitsToResume);
-    }
-
-    @Override
-    public void close() throws Exception {
-      delegate.close();
     }
   }
 

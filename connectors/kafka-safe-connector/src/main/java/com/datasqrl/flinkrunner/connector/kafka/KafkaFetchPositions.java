@@ -40,7 +40,8 @@ import org.apache.kafka.common.TopicPartition;
  * ConsumerRecords#nextOffsets()}). The interceptor runs on the source's fetcher thread, ahead of
  * the task thread that reads the records, so it publishes each position together with the end of
  * the records the consumer returned before it: a split that has read those has read everything
- * below the position.
+ * below the position. It also publishes positions the consumer moved to before returning a record,
+ * as it does past the commit marker that follows where a restored split starts.
  *
  * <p>Kafka creates the interceptor from the consumer's properties, so the source names itself there
  * ({@link #publishing}) and its {@link KafkaAdminIdleAdvanceReadinessChecker} looks the positions
@@ -79,7 +80,7 @@ public final class KafkaFetchPositions implements ConsumerInterceptor<byte[], by
 
   /**
    * How far the consumer of the source {@code sourceId} has fetched {@code partition}, or null
-   * before it has returned a record from it.
+   * before a poll has returned a record from it or moved its position.
    */
   @Nullable
   public static FetchPosition fetchPosition(String sourceId, TopicPartition partition) {
@@ -102,14 +103,10 @@ public final class KafkaFetchPositions implements ConsumerInterceptor<byte[], by
             (partition, next) -> {
               var partitionRecords = records.records(partition);
               FetchPosition previous = published.get(partition);
-              long recordsEnd;
+              long recordsEnd =
+                  previous != null ? previous.recordsEnd() : KafkaReadPositions.BEFORE_FIRST_RECORD;
               if (!partitionRecords.isEmpty()) {
                 recordsEnd = partitionRecords.get(partitionRecords.size() - 1).offset() + 1;
-              } else if (previous != null) {
-                recordsEnd = previous.recordsEnd();
-              } else {
-                // Nothing ties offsets passed before the first record to a split's reads.
-                return;
               }
 
               var position = new FetchPosition(recordsEnd, next.offset());
@@ -136,7 +133,8 @@ public final class KafkaFetchPositions implements ConsumerInterceptor<byte[], by
   /**
    * How far the consumer has fetched a partition.
    *
-   * @param recordsEnd the offset after the last record the consumer returned
+   * @param recordsEnd the offset after the last record the consumer returned, or {@link
+   *     KafkaReadPositions#BEFORE_FIRST_RECORD} before it has returned one
    * @param position the consumer's position, which it reached without returning a record after
    *     {@code recordsEnd}
    */

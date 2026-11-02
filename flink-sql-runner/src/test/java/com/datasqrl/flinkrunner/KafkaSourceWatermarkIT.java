@@ -25,7 +25,10 @@ import com.nextbreakpoint.flink.client.model.TerminationMode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.awaitility.core.ThrowingRunnable;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -45,15 +48,26 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
   private static final String IDLE_ADVANCE_REPLAY_TOPIC = "source-watermark-idle-advance-replay-it";
   private static final String IDLE_ADVANCE_TRANSACTIONAL_TOPIC =
       "source-watermark-idle-advance-transactional-it";
+  private static final String IDLE_ADVANCE_RESTORE_TOPIC =
+      "source-watermark-idle-advance-restore-it";
 
   /** Records the replay test leaves to the rate-limited source, which reads one a second. */
   private static final int REPLAYED_RECORDS = 10;
+
+  /**
+   * Records in each partition's backlog when the job is restored; the source reads one a second.
+   */
+  private static final int RESTORED_BACKLOG_RECORDS = 3;
 
   /** Records the transactional writers commit. */
   private static final int TRANSACTIONAL_RECORDS = 20;
 
   /** Records written in a transaction that is then aborted. */
   private static final int ABORTED_RECORDS = 3;
+
+  /** Where {@code flink stop} reports the savepoint it took. */
+  private static final Pattern SAVEPOINT_PATH =
+      Pattern.compile("Savepoint completed\\. Path: (?:file:)?(\\S+)");
 
   /** How old the idle partition's record is when the job starts and reads it. */
   private static final Duration BACKLOG_AGE = Duration.ofSeconds(20);
@@ -167,6 +181,51 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
   }
 
   /**
+   * After a restore, a partition can take longer than the idle-advance timeout to produce its first
+   * row: the rate-limited source reads one partition's backlog before the other's. Marking it idle
+   * meanwhile would let the other partition carry the watermark past its backlog, and the windows
+   * its records belong to would drop them. The first partition's backlog is older, so records go
+   * late whichever partition the source reads first: the other one's first row, or its catching up
+   * and going idle, moves the watermark past them.
+   */
+  @Test
+  void givenRestoreMidBacklog_whenPartitionIsSlowToProduceItsFirstRow_thenNoRecordArrivesLate()
+      throws Exception {
+    var resultDao = emptyResults();
+    createTopic(IDLE_ADVANCE_RESTORE_TOPIC, true, 2);
+    produceJsonRecord(IDLE_ADVANCE_RESTORE_TOPIC, 0, jsonRecords(0, 1));
+    produceJsonRecord(IDLE_ADVANCE_RESTORE_TOPIC, 1, jsonRecords(1, 1));
+
+    var savepointPath = new AtomicReference<String>();
+    runJob(
+        "/it/sqlfile/kafka_source_watermark_idle_advance_restore.sql",
+        jobId -> {
+          untilAssert(() -> assertThat(resultDao.getTotalCount()).isEqualTo(2));
+          savepointPath.set(stopWithSavepoint(jobId));
+        });
+
+    // The restored splits start after the records read so far, before a backlog each.
+    produceJsonRecord(IDLE_ADVANCE_RESTORE_TOPIC, 0, jsonRecords(2, RESTORED_BACKLOG_RECORDS));
+    Thread.sleep(2_000L);
+    produceJsonRecord(
+        IDLE_ADVANCE_RESTORE_TOPIC,
+        1,
+        jsonRecords(2 + RESTORED_BACKLOG_RECORDS, RESTORED_BACKLOG_RECORDS));
+    // Old enough that a watermark following the wall clock would be past all of them.
+    Thread.sleep(2_000L);
+
+    runJob(
+        "/it/sqlfile/kafka_source_watermark_idle_advance_restore.sql",
+        savepointPath.get(),
+        jobId ->
+            untilAssert(
+                Duration.ofSeconds(60),
+                () ->
+                    assertThat(resultDao.getTotalCount())
+                        .isEqualTo(2 + 2 * RESTORED_BACKLOG_RECORDS)));
+  }
+
+  /**
    * Offsets that hold no record never reach a read_committed source: the commit markers of writers
    * with transactions of their own, such as the subtasks of an exactly-once sink, and the records
    * and marker of an aborted transaction. A partition whose log ends in any number of them must
@@ -218,7 +277,13 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
 
   /** Runs the job in {@code sqlFile}, checks it, and cancels it; failures carry Flink's logs. */
   private void runJob(String sqlFile, JobCheck check) throws Exception {
-    String jobId = flinkRun("--sqlfile", sqlFile);
+    runJob(sqlFile, null, check);
+  }
+
+  /** Runs the job in {@code sqlFile}, restored from {@code savepointPath} if one is given. */
+  private void runJob(String sqlFile, @Nullable String savepointPath, JobCheck check)
+      throws Exception {
+    String jobId = flinkRun(List.of("--sqlfile", sqlFile), savepointPath);
     try {
       check.run(jobId);
     } catch (Throwable t) {
@@ -332,6 +397,24 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
     assertThat(result.getExitCode())
         .withFailMessage(result.getStdout() + result.getStderr())
         .isZero();
+  }
+
+  /** Stops the job with a savepoint and returns the savepoint's path in the Flink container. */
+  private String stopWithSavepoint(String jobId) throws Exception {
+    Container.ExecResult result =
+        flinkContainer.execInContainer(
+            "flink", "stop", jobId, "--savepointPath", CONTAINER_TEST_OUT_PATH);
+
+    var path = SAVEPOINT_PATH.matcher(result.getStdout());
+    assertThat(path.find()).withFailMessage(result.getStdout() + result.getStderr()).isTrue();
+    return path.group(1);
+  }
+
+  /** JSON documents for {@code count} records with ids from {@code firstId} on. */
+  private static String[] jsonRecords(int firstId, int count) {
+    return IntStream.range(firstId, firstId + count)
+        .mapToObj(id -> "{\"id\":" + id + ",\"payload\":\"record-" + id + "\"}")
+        .toArray(String[]::new);
   }
 
   private void cancelJob(String jobId) {
