@@ -15,6 +15,8 @@
  */
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,7 +32,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 import com.datasqrl.flinkrunner.connector.kafka.AssignmentRecordingSource;
 import com.datasqrl.flinkrunner.connector.kafka.DeserFailureHandler;
@@ -41,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +67,9 @@ class SafeKafkaDynamicSourceTest {
     private static final int[] NON_KEY_FIELDS = {1};
 
     private static final GenericRowData ROW = GenericRowData.of(42L, StringData.fromString("Ada"));
+
+    private static final SourceWatermarkConfig IDLE_ADVANCE =
+            new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 1000);
 
     @Test
     void shouldReadRecordWithoutKeyWhenValueContainsKeyFields() throws Exception {
@@ -126,10 +132,72 @@ class SafeKafkaDynamicSourceTest {
     void testRecordsSplitAssignmentsWhenIdleAdvancementIsOn() {
         // Without them, idle advancement would mark splits that have not produced a row idle
         // without checking their partitions.
-        var idleAdvance = new SourceWatermarkConfig(250, 50, 1000, 0.95D, 1000, 10_000, 1000, 1000);
-
-        assertThat(createKafkaSource(idleAdvance)).isInstanceOf(AssignmentRecordingSource.class);
+        assertThat(createKafkaSource(IDLE_ADVANCE)).isInstanceOf(AssignmentRecordingSource.class);
         assertThat(createKafkaSource(new SourceWatermarkConfig())).isInstanceOf(KafkaSource.class);
+    }
+
+    @Test
+    void testAlignsSourceWatermarkWithItsGroup() {
+        assertAligned(sourceWatermarkStrategy(new SourceWatermarkConfig(), aligned().build()));
+    }
+
+    @Test
+    void testAlignsSourceWatermarkWithIdleAdvancement() {
+        assertAligned(sourceWatermarkStrategy(IDLE_ADVANCE, aligned().build()));
+    }
+
+    @Test
+    void testAlignsSourceWatermarkWithFlinkIdleness() {
+        assertAligned(
+                sourceWatermarkStrategy(
+                        new SourceWatermarkConfig(), aligned().sourceIdleTimeout(30_000L).build()));
+    }
+
+    @Test
+    void testDoesNotAlignSourceWatermarkWithoutAlignment() {
+        var strategy = sourceWatermarkStrategy(IDLE_ADVANCE, WatermarkParams.builder().build());
+
+        assertThat(strategy.getAlignmentParameters().isEnabled()).isFalse();
+    }
+
+    @Test
+    void testKeepsPushedDownWatermarkAsThePlannerBuiltIt() {
+        // The planner aligns a watermark it pushes down itself, so the source must not align it
+        // again.
+        var source =
+                newSource(
+                        ALL_FIELDS,
+                        false,
+                        true,
+                        new Properties(),
+                        new SourceWatermarkConfig(),
+                        aligned().build());
+        WatermarkStrategy<RowData> pushedDown = WatermarkStrategy.noWatermarks();
+        source.applyWatermark(pushedDown);
+
+        assertThat(source.getWatermarkStrategy(new Properties())).isSameAs(pushedDown);
+    }
+
+    private static WatermarkParams.WatermarkParamsBuilder aligned() {
+        return WatermarkParams.builder()
+                .alignGroupName("group")
+                .alignMaxDrift(Duration.ofMinutes(2))
+                .alignUpdateInterval(Duration.ofMillis(200));
+    }
+
+    private static WatermarkStrategy<RowData> sourceWatermarkStrategy(
+            SourceWatermarkConfig config, WatermarkParams params) {
+        var source = newSource(ALL_FIELDS, false, true, new Properties(), config, params);
+        source.applySourceWatermark();
+        return source.getWatermarkStrategy(new Properties());
+    }
+
+    private static void assertAligned(WatermarkStrategy<RowData> strategy) {
+        WatermarkAlignmentParams parameters = strategy.getAlignmentParameters();
+        assertThat(parameters.isEnabled()).isTrue();
+        assertThat(parameters.getWatermarkGroup()).isEqualTo("group");
+        assertThat(parameters.getMaxAllowedWatermarkDrift()).isEqualTo(120_000L);
+        assertThat(parameters.getUpdateInterval()).isEqualTo(200L);
     }
 
     @SuppressWarnings("unchecked")
@@ -145,13 +213,29 @@ class SafeKafkaDynamicSourceTest {
                 properties);
     }
 
-    @SuppressWarnings("unchecked")
     private static SafeKafkaDynamicSource newSource(
             int[] valueProjection,
             boolean upsertMode,
             boolean keyFieldsFromValue,
             Properties properties,
             SourceWatermarkConfig sourceWatermarkConfig) {
+        return newSource(
+                valueProjection,
+                upsertMode,
+                keyFieldsFromValue,
+                properties,
+                sourceWatermarkConfig,
+                WatermarkParams.builder().build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static SafeKafkaDynamicSource newSource(
+            int[] valueProjection,
+            boolean upsertMode,
+            boolean keyFieldsFromValue,
+            Properties properties,
+            SourceWatermarkConfig sourceWatermarkConfig,
+            WatermarkParams sourceWatermarkParams) {
         return new SafeKafkaDynamicSource(
                 PHYSICAL_TYPE,
                 null,
@@ -174,8 +258,7 @@ class SafeKafkaDynamicSourceTest {
                 null,
                 DeserFailureHandler.of(new Configuration(), new Properties()),
                 Optional.empty(),
-                WatermarkEmitStrategy.ON_EVENT,
-                Optional.empty(),
+                sourceWatermarkParams,
                 sourceWatermarkConfig);
     }
 
