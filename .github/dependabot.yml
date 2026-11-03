@@ -3,21 +3,26 @@
 # Please see the documentation for all configuration options:
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
+# Supply-chain policy: every entry only takes releases that have been public for 14 days (cooldown).
 version: 2
 updates:
   - package-ecosystem: "maven"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-      timezone: "UTC"
+    schedule: { interval: "weekly", time: "10:00" }
+    cooldown: { default-days: 14 }
     open-pull-requests-limit: 20
 
   - package-ecosystem: "docker"
     directory: "/flink-sql-runner/src/main/docker"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-      timezone: "UTC"
+    schedule: { interval: "weekly", time: "10:00" }
+    cooldown: { default-days: 14 }
+
+  # Keeps the actions pinned to commit SHAs up to date.
+  # "/" covers .github/workflows only; each local composite action needs its own directory.
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/setup-jdk"
+      - "/.github/actions/setup-maven-settings"
+    schedule: { interval: "weekly", time: "10:00" }
+    cooldown: { default-days: 14 }
