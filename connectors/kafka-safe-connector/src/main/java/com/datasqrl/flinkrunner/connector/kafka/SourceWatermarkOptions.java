@@ -15,6 +15,12 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
+import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_GROUP;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
+
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Duration;
@@ -22,6 +28,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.watermark.WatermarkParams;
 
 public class SourceWatermarkOptions {
 
@@ -167,6 +174,24 @@ public class SourceWatermarkOptions {
         idleAdvanceSafetyMargin.toMillis(),
         idleAdvanceBrokerCheckTimeout.toMillis(),
         idleAdvanceBrokerCheckTtl.toMillis());
+  }
+
+  /**
+   * Reads Flink's watermark options ({@code scan.watermark.*}) as the planner does for the
+   * watermarks it pushes down, which a source watermark has to apply itself.
+   */
+  public static WatermarkParams sourceWatermarkParams(ReadableConfig tableOptions) {
+    var params = WatermarkParams.builder();
+    tableOptions.getOptional(WATERMARK_EMIT_STRATEGY).ifPresent(params::emitStrategy);
+    tableOptions.getOptional(WATERMARK_ALIGNMENT_GROUP).ifPresent(params::alignGroupName);
+    tableOptions.getOptional(WATERMARK_ALIGNMENT_MAX_DRIFT).ifPresent(params::alignMaxDrift);
+    tableOptions
+        .getOptional(WATERMARK_ALIGNMENT_UPDATE_INTERVAL)
+        .ifPresent(params::alignUpdateInterval);
+    tableOptions
+        .getOptional(SOURCE_IDLE_TIMEOUT)
+        .ifPresent(timeout -> params.sourceIdleTimeout(timeout.toMillis()));
+    return params.build();
   }
 
   public record SourceWatermarkConfig(

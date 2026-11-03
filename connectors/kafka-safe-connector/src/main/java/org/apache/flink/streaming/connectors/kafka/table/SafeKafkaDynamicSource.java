@@ -16,6 +16,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -51,7 +52,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.watermark.WatermarkEmitStrategy;
+import org.apache.flink.table.watermark.WatermarkParams;
 import org.apache.flink.util.Preconditions;
 
 import com.datasqrl.flinkrunner.connector.kafka.AssignmentRecordingSource;
@@ -113,11 +114,12 @@ public class SafeKafkaDynamicSource
     /** Whether to use Kafka record timestamps to generate source watermarks. */
     protected boolean sourceWatermarkEnabled;
 
-    /** Emit strategy for source watermarks. */
-    protected final WatermarkEmitStrategy sourceWatermarkEmitStrategy;
-
-    /** Idle timeout for source watermarks. */
-    protected final Optional<Duration> sourceWatermarkIdleTimeout;
+    /**
+     * Flink's watermark options for source watermarks: emit strategy, idle timeout and alignment.
+     * The planner applies them to the watermarks it pushes down, but leaves a source watermark to
+     * the source.
+     */
+    protected final WatermarkParams sourceWatermarkParams;
 
     /** Adaptive source watermark configuration. */
     protected final SourceWatermarkConfig sourceWatermarkConfig;
@@ -232,8 +234,7 @@ public class SafeKafkaDynamicSource
             @Nullable Integer parallelism,
             DeserFailureHandler deserFailureHandler,
             Optional<Integer> rateLimitRecordsPerSecond,
-            WatermarkEmitStrategy sourceWatermarkEmitStrategy,
-            Optional<Duration> sourceWatermarkIdleTimeout,
+            WatermarkParams sourceWatermarkParams,
             SourceWatermarkConfig sourceWatermarkConfig) {
         // Format attributes
         this.physicalDataType =
@@ -281,14 +282,9 @@ public class SafeKafkaDynamicSource
         this.rateLimitRecordsPerSecond =
                 Preconditions.checkNotNull(
                         rateLimitRecordsPerSecond, "Rate limit must not be null.");
-        this.sourceWatermarkEmitStrategy =
+        this.sourceWatermarkParams =
                 Preconditions.checkNotNull(
-                        sourceWatermarkEmitStrategy,
-                        "Source watermark emit strategy must not be null.");
-        this.sourceWatermarkIdleTimeout =
-                Preconditions.checkNotNull(
-                        sourceWatermarkIdleTimeout,
-                        "Source watermark idle timeout must not be null.");
+                        sourceWatermarkParams, "Source watermark parameters must not be null.");
         this.sourceWatermarkConfig =
                 Preconditions.checkNotNull(
                         sourceWatermarkConfig, "Source watermark configuration must not be null.");
@@ -435,8 +431,7 @@ public class SafeKafkaDynamicSource
                         parallelism,
                         deserFailureHandler,
                         rateLimitRecordsPerSecond,
-                        sourceWatermarkEmitStrategy,
-                        sourceWatermarkIdleTimeout,
+                        sourceWatermarkParams,
                         sourceWatermarkConfig);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
@@ -481,8 +476,7 @@ public class SafeKafkaDynamicSource
                 && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy)
                 && sourceWatermarkEnabled == that.sourceWatermarkEnabled
-                && sourceWatermarkEmitStrategy == that.sourceWatermarkEmitStrategy
-                && Objects.equals(sourceWatermarkIdleTimeout, that.sourceWatermarkIdleTimeout)
+                && Objects.equals(sourceWatermarkParams, that.sourceWatermarkParams)
                 && Objects.equals(sourceWatermarkConfig, that.sourceWatermarkConfig)
                 && Objects.equals(rateLimitRecordsPerSecond, that.rateLimitRecordsPerSecond)
                 && Objects.equals(parallelism, that.parallelism);
@@ -513,8 +507,7 @@ public class SafeKafkaDynamicSource
                 tableIdentifier,
                 watermarkStrategy,
                 sourceWatermarkEnabled,
-                sourceWatermarkEmitStrategy,
-                sourceWatermarkIdleTimeout,
+                sourceWatermarkParams,
                 sourceWatermarkConfig,
                 rateLimitRecordsPerSecond,
                 parallelism);
@@ -618,7 +611,9 @@ public class SafeKafkaDynamicSource
         return RateLimiterStrategy.perSecond(recordsPerSecond);
     }
 
-    private WatermarkStrategy<RowData> getWatermarkStrategy(Properties consumerProperties) {
+    @VisibleForTesting
+    WatermarkStrategy<RowData> getWatermarkStrategy(Properties consumerProperties) {
+        // The planner has already aligned a watermark it pushed down.
         if (watermarkStrategy != null) {
             return watermarkStrategy;
         }
@@ -627,7 +622,7 @@ public class SafeKafkaDynamicSource
             boolean idleAdvanceEnabled = isIdleAdvanceEnabled();
             WatermarkStrategy<RowData> sourceWatermarkStrategy =
                     new KafkaRecordTimestampWatermarkStrategy(
-                            sourceWatermarkEmitStrategy,
+                            sourceWatermarkParams.getEmitStrategy(),
                             sourceWatermarkConfig,
                             idleAdvanceEnabled
                                     ? new KafkaAdminIdleAdvanceReadinessChecker(
@@ -636,9 +631,20 @@ public class SafeKafkaDynamicSource
 
             // Only apply Flink idleness when idle advancement is disabled, otherwise the source
             // may be marked idle before this strategy can emit wall-clock-derived watermarks.
-            if (sourceWatermarkIdleTimeout.isPresent() && !idleAdvanceEnabled) {
+            if (sourceWatermarkParams.getSourceIdleTimeout() > 0 && !idleAdvanceEnabled) {
                 sourceWatermarkStrategy =
-                        sourceWatermarkStrategy.withIdleness(sourceWatermarkIdleTimeout.get());
+                        sourceWatermarkStrategy.withIdleness(
+                                Duration.ofMillis(sourceWatermarkParams.getSourceIdleTimeout()));
+            }
+
+            // Flink pauses the splits that are too far ahead of the group; the strategy stops
+            // counting idle time while a split is paused.
+            if (sourceWatermarkParams.alignWatermarkEnabled()) {
+                sourceWatermarkStrategy =
+                        sourceWatermarkStrategy.withWatermarkAlignment(
+                                sourceWatermarkParams.getAlignGroupName(),
+                                sourceWatermarkParams.getAlignMaxDrift(),
+                                sourceWatermarkParams.getAlignUpdateInterval());
             }
 
             return sourceWatermarkStrategy;

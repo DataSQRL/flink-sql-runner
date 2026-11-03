@@ -315,6 +315,11 @@ Watermarks are monotonic and use the Kafka record timestamp, not an event-time f
 | `scan.source-watermark.out-of-orderness-quantile` | `0.95`        | Quantile of observed record lateness used as the delay. Must be greater than zero and no greater than one.                                |
 | `scan.watermark.emit.strategy`                    | Flink default | Flink source-watermark emission strategy: `on-event` emits as records arrive; `on-periodic` emits on Flink's periodic watermark interval. |
 | `scan.watermark.idle-timeout`                     | Flink default | How long a source split must be idle before Flink marks it idle. Applies only when idle advancement is disabled.                          |
+| `scan.watermark.alignment.group`                  | none          | Flink watermark alignment group. Requires `scan.watermark.alignment.max-drift`.                                                           |
+| `scan.watermark.alignment.max-drift`              | none          | How far the source's watermark may run ahead of the slowest source in its alignment group. Requires a group.                              |
+| `scan.watermark.alignment.update-interval`        | `1 s`         | How often Flink updates the alignment group's watermark.                                                                                  |
+
+Flink's planner applies the `scan.watermark.*` options only to the watermarks it generates itself, so the connector applies them to its source watermarks the same way: with alignment, Flink pauses the partitions whose watermark is more than the maximum drift ahead of the slowest source in the group.
 
 #### Idle Watermark Advancement
 
