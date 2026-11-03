@@ -6,6 +6,9 @@
 version: 2
 updates:
   - package-ecosystem: "maven"
+    # Supply-chain policy: only take releases that have been public for 14 days.
+    cooldown:
+      default-days: 14
     directory: "/"
     schedule:
       interval: "weekly"
@@ -15,7 +18,39 @@ updates:
     open-pull-requests-limit: 20
 
   - package-ecosystem: "docker"
+
+    # Supply-chain policy: only take releases that have been public for 14 days.
+
+    cooldown:
+
+      default-days: 14
     directory: "/flink-sql-runner/src/main/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
+
+  # Keeps the actions pinned to commit SHAs in .github/workflows up to date.
+  - package-ecosystem: "github-actions"
+    # Supply-chain policy: only take releases that have been public for 14 days.
+    cooldown:
+      default-days: 14
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
+
+  # "/" covers .github/workflows only; each local composite action needs its own entry.
+  - package-ecosystem: "github-actions"
+    # Supply-chain policy: only take releases that have been public for 14 days.
+    cooldown:
+      default-days: 14
+    directories:
+      - "/.github/actions/setup-jdk"
+      - "/.github/actions/setup-maven-settings"
     schedule:
       interval: "weekly"
       day: "monday"

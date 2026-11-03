@@ -67,7 +67,6 @@ jobs:
           fi
 
           PR_DATA=$(gh api "/repos/${{ github.repository }}/pulls/${PR_NUMBER}")
-          HEAD_REF=$(echo "$PR_DATA" | jq -r .head.ref)
           HEAD_SHA=$(echo "$PR_DATA" | jq -r .head.sha)
           BASE_REF=$(echo "$PR_DATA" | jq -r .base.ref)
           URL=$(echo    "$PR_DATA" | jq -r .html_url)
@@ -88,7 +87,9 @@ jobs:
           {
             echo "should_sync=${SHOULD_SYNC}"
             echo "pr_number=${PR_NUMBER}"
-            echo "head_ref=${HEAD_REF}"
+            # The branch pushed into cloud-compilation with BOT_PAT. Never reuse the PR's own head ref:
+            # a fork author picks that name (it could be "main" or "develop").
+            echo "head_ref=flink-sql-runner/pr-${PR_NUMBER}"
             echo "head_sha=${HEAD_SHA}"
             echo "base_ref=${BASE_REF}"
             echo "url=${URL}"
@@ -128,7 +129,7 @@ jobs:
       statuses: write
     steps:
       - name: Post passing status for cloud-compilation/build
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -153,7 +154,7 @@ jobs:
       statuses: write
     steps:
       - name: Post pending status for cloud-compilation/build
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -166,13 +167,13 @@ jobs:
             });
 
       - name: Checkout flink-sql-runner repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.decide.outputs.pr_head_sha }}
           path: flink-sql-runner
 
       - name: Checkout cloud-compilation repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: DataSQRL/cloud-compilation
           token: ${{ secrets.BOT_PAT }}
@@ -371,7 +372,7 @@ jobs:
 
       - name: Post failure status for cloud-compilation/build
         if: failure()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -417,7 +418,7 @@ jobs:
         id: branch_exists
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BRANCH_NAME: flink-sql-runner/pr-${{ github.event.pull_request.number }}
         run: |
           if gh api "/repos/DataSQRL/cloud-compilation/branches/${BRANCH_NAME}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -428,7 +429,7 @@ jobs:
 
       - name: Checkout cloud-compilation repo
         if: steps.branch_exists.outputs.exists == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: DataSQRL/cloud-compilation
           token: ${{ secrets.BOT_PAT }}
@@ -467,7 +468,7 @@ jobs:
         if: steps.branch_exists.outputs.exists == 'true'
         id: revert
         env:
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BRANCH_NAME: flink-sql-runner/pr-${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
@@ -495,7 +496,7 @@ jobs:
         if: steps.branch_exists.outputs.exists == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BRANCH_NAME: flink-sql-runner/pr-${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
@@ -525,7 +526,7 @@ jobs:
         if: steps.branch_exists.outputs.exists == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BRANCH_NAME: flink-sql-runner/pr-${{ github.event.pull_request.number }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           CC_PR_URL=$(gh pr list \
@@ -553,7 +554,7 @@ jobs:
       - name: Comment on cloud-compilation PR (if exists)
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
-          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BRANCH_NAME: flink-sql-runner/pr-${{ github.event.pull_request.number }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           CC_PR=$(gh pr list \
