@@ -68,6 +68,7 @@ import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SC
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_MIN_RECORDS;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SCAN_SOURCE_WATERMARK_OUT_OF_ORDERNESS_QUANTILE;
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.sourceWatermarkConfiguration;
+import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.sourceWatermarkParams;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
@@ -97,6 +98,9 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getTopics;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.validateScanBoundedMode;
 import static org.apache.flink.table.factories.FactoryUtil.SOURCE_IDLE_TIMEOUT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_GROUP;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_MAX_DRIFT;
+import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_ALIGNMENT_UPDATE_INTERVAL;
 import static org.apache.flink.table.factories.FactoryUtil.WATERMARK_EMIT_STRATEGY;
 
 /** Upsert-Kafka factory. */
@@ -143,6 +147,9 @@ public class SafeUpsertKafkaDynamicTableFactory
         options.add(SCAN_TOPIC_PARTITION_DISCOVERY);
         options.add(WATERMARK_EMIT_STRATEGY);
         options.add(SOURCE_IDLE_TIMEOUT);
+        options.add(WATERMARK_ALIGNMENT_GROUP);
+        options.add(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        options.add(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
         options.add(SCAN_SOURCE_WATERMARK_MIN_RECORDS);
         options.add(SCAN_SOURCE_WATERMARK_MIN_OUT_OF_ORDERNESS);
         options.add(SCAN_SOURCE_WATERMARK_MAX_OUT_OF_ORDERNESS);
@@ -220,8 +227,7 @@ public class SafeUpsertKafkaDynamicTableFactory
                 parallelism,
                 deserFailureHandler,
                 scanRateLimitRecordsPerSecond(tableOptions),
-                tableOptions.get(WATERMARK_EMIT_STRATEGY),
-                tableOptions.getOptional(SOURCE_IDLE_TIMEOUT),
+                sourceWatermarkParams(tableOptions),
                 sourceWatermarkConfiguration(tableOptions));
     }
 

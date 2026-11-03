@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import org.awaitility.core.ThrowingRunnable;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
+import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,23 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
       "source-watermark-idle-advance-transactional-it";
   private static final String IDLE_ADVANCE_RESTORE_TOPIC =
       "source-watermark-idle-advance-restore-it";
+  private static final String ALIGNMENT_SLOW_TOPIC = "source-watermark-alignment-slow-it";
+  private static final String ALIGNMENT_FAST_TOPIC = "source-watermark-alignment-fast-it";
+
+  /** Records on the slow topic, which its source reads two a second. */
+  private static final int ALIGNMENT_SLOW_RECORDS = 20;
+
+  /** Records on the fast topic, which its source reads one a second. */
+  private static final int ALIGNMENT_FAST_RECORDS = 6;
+
+  /**
+   * Fast records the source may read before the slow source's first watermark has reached the
+   * alignment group.
+   */
+  private static final int ALIGNMENT_FAST_RECORDS_BEFORE_ALIGNED = 2;
+
+  /** How far the fast topic's records are ahead of the slow topic's, five times the max drift. */
+  private static final Duration ALIGNMENT_LEAD = Duration.ofSeconds(5);
 
   /** Records the replay test leaves to the rate-limited source, which reads one a second. */
   private static final int REPLAYED_RECORDS = 10;
@@ -247,6 +265,41 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
                 () -> assertThat(resultDao.getTotalCount()).isEqualTo(TRANSACTIONAL_RECORDS)));
   }
 
+  /**
+   * Two source watermarks in one alignment group: the fast topic's records are further ahead of the
+   * slow topic's than the maximum drift. Flink holds the fast source back until the slow one has
+   * read its backlog and idle advancement moves it on. Unaligned, the fast source would read all of
+   * its records while the slow one is still replaying.
+   */
+  @Test
+  void givenSourceWatermarksInAlignmentGroup_whenOneIsAhead_thenItWaitsForTheOther()
+      throws Exception {
+    var resultDao = emptyAlignmentResults();
+    createTopic(ALIGNMENT_SLOW_TOPIC, true);
+    createTopic(ALIGNMENT_FAST_TOPIC, true);
+    produceJsonRecord(ALIGNMENT_SLOW_TOPIC, 0, jsonRecords(0, ALIGNMENT_SLOW_RECORDS));
+    Thread.sleep(ALIGNMENT_LEAD.toMillis());
+    produceJsonRecord(ALIGNMENT_FAST_TOPIC, 0, jsonRecords(0, ALIGNMENT_FAST_RECORDS));
+
+    runJob(
+        "/it/sqlfile/kafka_source_watermark_alignment.sql",
+        jobId ->
+            await()
+                .atMost(Duration.ofSeconds(60))
+                .pollInterval(200, MILLISECONDS)
+                // Reads the fast count first: the slow one only grows meanwhile.
+                .failFast(
+                    "The fast source read ahead of the slow one.",
+                    () ->
+                        resultDao.getCount("fast") > ALIGNMENT_FAST_RECORDS_BEFORE_ALIGNED
+                            && resultDao.getCount("slow") < ALIGNMENT_SLOW_RECORDS)
+                .untilAsserted(
+                    () -> {
+                      assertThat(resultDao.getCount("slow")).isEqualTo(ALIGNMENT_SLOW_RECORDS);
+                      assertThat(resultDao.getCount("fast")).isEqualTo(ALIGNMENT_FAST_RECORDS);
+                    }));
+  }
+
   @Test
   void givenSparseKafkaSourceWatermark_whenIdleAdvanceDisabled_thenWatermarkDoesNotCloseWindow()
       throws Exception {
@@ -299,7 +352,15 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
 
   /** The results table the jobs write to, created if need be and emptied. */
   private ResultDao emptyResults() {
-    var resultDao = connect();
+    var resultDao = connect(ResultDao.class);
+    resultDao.createTable();
+    resultDao.truncateTable();
+    return resultDao;
+  }
+
+  /** The table the alignment job writes to, created if need be and emptied. */
+  private AlignmentResultDao emptyAlignmentResults() {
+    var resultDao = connect(AlignmentResultDao.class);
     resultDao.createTable();
     resultDao.truncateTable();
     return resultDao;
@@ -424,13 +485,13 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
     }
   }
 
-  private ResultDao connect() {
+  private <T> T connect(Class<T> dao) {
     var mappedPort = postgresContainer.getMappedPort(5432);
     var jdbi =
         Jdbi.create(
             "jdbc:postgresql://localhost:" + mappedPort + "/datasqrl", "postgres", "postgres");
     jdbi.installPlugin(new SqlObjectPlugin());
-    return jdbi.onDemand(ResultDao.class);
+    return jdbi.onDemand(dao);
   }
 
   @FunctionalInterface
@@ -456,5 +517,20 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
 
     @SqlQuery("SELECT coalesce(sum(cnt), 0) FROM source_watermark_results")
     long getTotalCount();
+  }
+
+  interface AlignmentResultDao {
+
+    @SqlUpdate(
+        "CREATE TABLE IF NOT EXISTS source_watermark_alignment_results ("
+            + "source TEXT NOT NULL, "
+            + "id BIGINT NOT NULL)")
+    void createTable();
+
+    @SqlUpdate("TRUNCATE source_watermark_alignment_results")
+    void truncateTable();
+
+    @SqlQuery("SELECT count(*) FROM source_watermark_alignment_results WHERE source = :source")
+    long getCount(@Bind("source") String source);
   }
 }
