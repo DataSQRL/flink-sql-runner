@@ -1,16 +1,9 @@
 name: Flink SQL Runner CI
 
+# This release line is no longer supported: CI, including the jar and image
+# builds, no longer runs on push, PR or release, only when started by hand.
 on:
-  release:
-    types: [ created ]
-  push:
-    branches:
-      - main
-      - release-*
-  pull_request:
-    branches:
-      - main
-      - release-*
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
