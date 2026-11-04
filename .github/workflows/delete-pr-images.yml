@@ -4,51 +4,44 @@ on:
   pull_request:
     types: [closed]
 
+permissions: {}
+
 jobs:
   delete-ghcr:
     runs-on: ubuntu-latest
+    permissions:
+      # Deleting a version with GITHUB_TOKEN also requires this repository to
+      # have the Admin role under the package's "Manage Actions access" settings.
+      packages: write
     steps:
       - name: Delete GHCR image via GitHub REST API
         env:
-          GH_USERNAME: ${{ secrets.PAT_USERNAME }}
-          GH_PASSWORD: ${{ secrets.PAT_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG: DataSQRL
           PACKAGE: flink-sql-runner
           TAG: pr-${{ github.event.number }}
         run: |
-          set -euxo pipefail
+          # Keep xtrace (-x) off: it echoes every expanded command into the job log.
+          set -euo pipefail
 
-          echo "🔐 Generating basic auth token..."
-          TOKEN_BASE64=$(echo -n "$GH_USERNAME:$GH_PASSWORD" | base64)
+          echo "🔍 Searching $ORG/$PACKAGE for tag: $TAG..."
 
-          echo "🔍 Getting package versions for $ORG/$PACKAGE..."
+          PACKAGE_VERSION_ID=$(gh api --paginate \
+            "/orgs/$ORG/packages/container/$PACKAGE/versions?per_page=100" \
+            | jq -rs --arg TAG "$TAG" '
+              first(.[][] | select(any(.metadata.container.tags[]?; . == $TAG)) | .id) // empty')
 
-          VERSION_LIST=$(curl -s \
-            -H "Authorization: Basic $TOKEN_BASE64" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/orgs/$ORG/packages/container/$PACKAGE/versions")
-
-          echo "📦 Searching for tag: $TAG..."
-
-          PACKAGE_VERSION_ID=$(echo "$VERSION_LIST" | jq -r --arg TAG "$TAG" '
-            .[] | select(.metadata.container.tags[]? == $TAG) | .id' | head -n 1)
-
-          if [[ -z "$PACKAGE_VERSION_ID" || "$PACKAGE_VERSION_ID" == "null" ]]; then
+          if [[ -z "$PACKAGE_VERSION_ID" ]]; then
             echo "⚠ Package version with tag $TAG not found, skip deletion."
             exit 0
           fi
 
           echo "🗑️ Deleting package version ID: $PACKAGE_VERSION_ID..."
 
-          DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X DELETE \
-            -H "Authorization: Basic $TOKEN_BASE64" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/orgs/$ORG/packages/container/$PACKAGE/versions/$PACKAGE_VERSION_ID")
-
-          if [[ "$DELETE_STATUS" -ge 200 && "$DELETE_STATUS" -lt 300 ]]; then
+          if gh api --method DELETE --silent \
+            "/orgs/$ORG/packages/container/$PACKAGE/versions/$PACKAGE_VERSION_ID"; then
             echo "✅ Successfully deleted GHCR tag $TAG (version ID $PACKAGE_VERSION_ID)"
           else
-            echo "❌ Failed to delete package version. HTTP status: $DELETE_STATUS"
+            echo "❌ Failed to delete package version $PACKAGE_VERSION_ID."
             exit 1
           fi
