@@ -321,6 +321,22 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
+      <artifactId>flink-runtime</artifactId>
+      <version>${flink.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-core</artifactId>
+      <version>${flink.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
       <artifactId>flink-runtime-web</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
@@ -469,6 +485,8 @@
                   <excludes>
                     <exclude>org/apache/flink/runtime/metrics/groups/InternalSourceSplitMetricGroup</exclude>
                     <exclude>org/apache/flink/streaming/api/operators/SourceOperator**</exclude>
+                    <exclude>org/apache/flink/runtime/source/coordinator/SourceCoordinator.class</exclude>
+                    <exclude>org/apache/flink/runtime/source/coordinator/SourceCoordinator$*.class</exclude>
                   </excludes>
                 </filter>
                 <filter>
