@@ -17,8 +17,13 @@
  */
 
 /**
- * Patched so a source coordinator forgets the watermarks it reported to its alignment group when it
- * closes or one of its subtasks resets. Otherwise the group keeps the pre-failover watermark of a
- * source whose restored readers stay idle, and pauses the whole group.
+ * Patched copy of {@link SourceCoordinator} from Flink 2.3.0 that fixes FLINK-40505, until the fix
+ * is released upstream.
+ *
+ * <p>A source coordinator forgets the watermarks it reported to its alignment group when it closes
+ * or one of its subtasks resets. Otherwise the group keeps the pre-failover watermark of a source
+ * whose restored readers stay idle, and pauses the whole group.
+ *
+ * @see <a href="https://issues.apache.org/jira/browse/FLINK-40505">FLINK-40505</a>
  */
 package org.apache.flink.runtime.source.coordinator;
