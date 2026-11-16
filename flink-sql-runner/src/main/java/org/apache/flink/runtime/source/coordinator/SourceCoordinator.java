@@ -313,11 +313,13 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         try (MdcUtils.MdcCloseable mdcCloseable =
                 MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
             LOG.info("Closing SourceCoordinator for source {}.", operatorName);
-            forgetReportedWatermarks();
             if (started) {
                 closeQuietly(enumerator);
             }
             closeQuietly(context);
+            // Only once the coordinator thread has stopped, so that a watermark report it is
+            // still processing cannot add this source back to its group.
+            forgetReportedWatermarks();
             LOG.info("Source coordinator for source {} closed.", operatorName);
         }
     }
