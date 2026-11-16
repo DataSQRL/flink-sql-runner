@@ -86,6 +86,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    <docker.skip>${fast}</docker.skip>
 
     <!-- Flink versions -->
     <flink.version>2.3.0</flink.version>
@@ -773,7 +774,22 @@
     </profile>
     <profile>
       <id>release</id>
+      <properties>
+        <docker.skip>true</docker.skip>
+        <skipITs>true</skipITs>
+      </properties>
       <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-shade-plugin</artifactId>
+              <configuration>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
         <plugins>
           <plugin>
             <groupId>org.sonatype.central</groupId>

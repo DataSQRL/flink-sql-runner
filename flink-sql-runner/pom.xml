@@ -525,7 +525,7 @@
             <configuration>
               <workingDirectory>${project.build.directory}</workingDirectory>
               <executable>docker</executable>
-              <skip>${fast}</skip>
+              <skip>${docker.skip}</skip>
               <arguments>
                 <argument>build</argument>
                 <argument>--tag</argument>
