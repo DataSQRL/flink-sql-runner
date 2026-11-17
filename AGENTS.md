@@ -102,3 +102,8 @@ New modules should:
 2. Include proper Maven coordinates under `com.datasqrl.flinkrunner`
 3. Add to parent POM modules section
 4. Include common dependencies from parent (Lombok, JUnit, etc.)
+
+## Git Commits
+- **Commit Messages**: Use succinct single-line messages describing the most important change
+- **Co-authorship**: Do not add Claude as co-author unless explicitly requested
+- **Commit Best Practice**: Always use `-s` and `-S` flags when committing to sign-off and sign commits cryptographically
