@@ -149,7 +149,7 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     private final RelativeClock inputActivityClock;
 
     /** Number of assigned partitions at the previous check that found nothing to read. */
-    private int assignmentsAtLastIdleCheck;
+    private int assignmentCountAtLastIdleCheck;
 
     /** Input activity time since which the subtask has had nothing to read in its partitions. */
     private long idleSinceInputActivityMillis;
@@ -184,16 +184,16 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
       long inputActivityMillis = inputActivityClock.relativeTimeMillis();
       long currentTimeMillis = clock.currentTimeMillis();
-      int assignments = KafkaReadPositions.assignments().size();
+      int assignmentCount = KafkaReadPositions.assignments().size();
 
-      if (assignments > 0 && !assignmentsHaveNothingToRead(currentTimeMillis)) {
+      if (assignmentCount > 0 && !noAssignmentHasRowsOrUnreadRecords(currentTimeMillis)) {
         idleSinceInputActivityMillis = inputActivityMillis;
         markActive(output);
         return;
       }
 
-      if (assignments != assignmentsAtLastIdleCheck) {
-        assignmentsAtLastIdleCheck = assignments;
+      if (assignmentCount != assignmentCountAtLastIdleCheck) {
+        assignmentCountAtLastIdleCheck = assignmentCount;
         idleSinceInputActivityMillis = inputActivityMillis;
       }
 
@@ -207,12 +207,12 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       }
     }
 
-    private boolean assignmentsHaveNothingToRead(long currentTimeMillis) {
+    private boolean noAssignmentHasRowsOrUnreadRecords(long currentTimeMillis) {
       // A subtask reported idle does not ask the brokers again. What turns it active needs no new
       // fetch: a partition assigned since the latest one, or a partition's first row.
       return reported == Reported.IDLE
-          ? idleAdvanceReadinessChecker.assignmentsHadNothingToReadAtLatestFetch()
-          : idleAdvanceReadinessChecker.assignmentsHaveNothingToRead(currentTimeMillis);
+          ? idleAdvanceReadinessChecker.noAssignmentHadRowsOrUnreadRecordsAtLatestFetch()
+          : idleAdvanceReadinessChecker.noAssignmentHasRowsOrUnreadRecords(currentTimeMillis);
     }
 
     /** Marks the main output active, which keeps Flink from reporting the subtask idle. */

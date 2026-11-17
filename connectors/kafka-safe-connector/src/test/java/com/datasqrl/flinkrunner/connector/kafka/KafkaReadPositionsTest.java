@@ -55,7 +55,7 @@ class KafkaReadPositionsTest {
   void testRecordsThatInitialAssignmentIsDoneUntilCleared() {
     assertThat(KafkaReadPositions.isInitialAssignmentDone()).isFalse();
 
-    KafkaReadPositions.initialAssignmentDone();
+    KafkaReadPositions.recordInitialAssignmentDone();
 
     assertThat(KafkaReadPositions.isInitialAssignmentDone()).isTrue();
 

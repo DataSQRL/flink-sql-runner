@@ -82,7 +82,7 @@ public final class AssignmentRecordingSource<T, EnumChkT>
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
       if (sourceEvent instanceof InitialAssignmentDoneEvent) {
-        KafkaReadPositions.initialAssignmentDone();
+        KafkaReadPositions.recordInitialAssignmentDone();
       } else {
         super.handleSourceEvents(sourceEvent);
       }

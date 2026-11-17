@@ -39,7 +39,8 @@ import org.apache.kafka.common.TopicPartition;
  * far the consumer has moved past them, {@link KafkaFetchPositions} learns.
  *
  * <p>A generator learns its partition only from its first row, so {@link AssignmentRecordingSource}
- * also records here every split assigned to the reader, with the offset it starts at.
+ * also records here every split assigned to the reader, with the offset it starts at, and when the
+ * enumerator has finished the reader's first assignment.
  */
 @Internal
 public final class KafkaReadPositions {
@@ -91,7 +92,7 @@ public final class KafkaReadPositions {
    * Records that the enumerator has assigned the reader on this thread every split its first
    * discovery had for it ({@link InitialAssignmentDoneEvent}).
    */
-  public static void initialAssignmentDone() {
+  public static void recordInitialAssignmentDone() {
     FOR_THREAD.get().initialAssignmentDone = true;
   }
 

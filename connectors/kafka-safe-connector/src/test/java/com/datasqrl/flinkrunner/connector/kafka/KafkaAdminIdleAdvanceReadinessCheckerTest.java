@@ -281,7 +281,7 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   void testSubtaskWithoutAssignmentsHasNothingToRead() throws Exception {
     var checker = newReadinessChecker(new FakeAdmin());
 
-    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L)).isTrue();
   }
 
   @Test
@@ -294,11 +294,11 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     KafkaReadPositions.assigned(PARTITION_0, 10L);
     KafkaReadPositions.assigned(PARTITION_1, 20L);
 
-    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L)).isTrue();
 
     checker.register(PARTITION_0);
 
-    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isFalse();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L)).isFalse();
   }
 
   @Test
@@ -309,12 +309,13 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var checker = newReadinessChecker(admin);
     KafkaReadPositions.assigned(PARTITION_0, 10L);
 
-    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L)).isTrue();
 
     KafkaReadPositions.assigned(PARTITION_1, 20L);
 
-    assertThat(checker.assignmentsHaveNothingToRead(1001L)).isFalse();
-    assertThat(checker.assignmentsHaveNothingToRead(1000L + BROKER_CHECK_TTL_MILLIS)).isTrue();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1001L)).isFalse();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L + BROKER_CHECK_TTL_MILLIS))
+        .isTrue();
   }
 
   @Test
@@ -326,12 +327,12 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
     var checker = newReadinessChecker(admin);
     KafkaReadPositions.assigned(PARTITION_0, 10L);
 
-    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
-    assertThat(checker.assignmentsHadNothingToReadAtLatestFetch()).isTrue();
+    assertThat(checker.noAssignmentHasRowsOrUnreadRecords(1000L)).isTrue();
+    assertThat(checker.noAssignmentHadRowsOrUnreadRecordsAtLatestFetch()).isTrue();
 
     KafkaReadPositions.assigned(PARTITION_1, 20L);
 
-    assertThat(checker.assignmentsHadNothingToReadAtLatestFetch()).isFalse();
+    assertThat(checker.noAssignmentHadRowsOrUnreadRecordsAtLatestFetch()).isFalse();
     assertThat(admin.listOffsetsCalls).hasSize(1);
   }
 

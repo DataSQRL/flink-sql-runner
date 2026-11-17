@@ -1243,7 +1243,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
         strategy().createWatermarkGenerator(context(new PausableRelativeClock(monotonicClock)));
         mainOutputGeneratorCreated = true;
       }
-      KafkaReadPositions.initialAssignmentDone();
+      KafkaReadPositions.recordInitialAssignmentDone();
       return strategy().createWatermarkGenerator(context(inputActivityClock));
     }
 
@@ -1487,7 +1487,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     /** The enumerator's event that the reader's first assignment is done, as its reader records. */
     private void initialAssignmentDone() {
-      KafkaReadPositions.initialAssignmentDone();
+      KafkaReadPositions.recordInitialAssignmentDone();
     }
 
     /** A split assigned at the start of its partition's log. */

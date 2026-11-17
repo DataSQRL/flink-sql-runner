@@ -21,9 +21,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.function.FunctionWithException;
 
 /**
@@ -41,11 +41,11 @@ import org.apache.flink.util.function.FunctionWithException;
  * <p>If a handler of those calls fails, no reader gets the event; such a failure fails the job.
  */
 @Internal
-public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSplit, EnumChkT>
-    extends ForwardingEnumerator<SplitT, EnumChkT> {
+public final class InitialAssignmentSignalingEnumerator<EnumChkT>
+    extends ForwardingEnumerator<KafkaPartitionSplit, EnumChkT> {
 
-  private final SplitEnumeratorContext<SplitT> context;
-  private final SplitEnumerator<SplitT, EnumChkT> delegate;
+  private final SplitEnumeratorContext<KafkaPartitionSplit> context;
+  private final SplitEnumerator<KafkaPartitionSplit, EnumChkT> delegate;
 
   /** The async calls of the first assignment whose handler has not returned yet. */
   private int pendingInitialCalls;
@@ -53,7 +53,6 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
   /** Whether the coordinator thread is in {@code start()} or in a handler of such a call. */
   private boolean inInitialAssignment;
 
-  private boolean started;
   private boolean initialAssignmentDone;
 
   /**
@@ -61,9 +60,11 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
    *     given, through which this enumerator sees its async calls
    */
   public InitialAssignmentSignalingEnumerator(
-      SplitEnumeratorContext<SplitT> context,
+      SplitEnumeratorContext<KafkaPartitionSplit> context,
       FunctionWithException<
-              SplitEnumeratorContext<SplitT>, SplitEnumerator<SplitT, EnumChkT>, Exception>
+              SplitEnumeratorContext<KafkaPartitionSplit>,
+              SplitEnumerator<KafkaPartitionSplit, EnumChkT>,
+              Exception>
           enumeratorFactory)
       throws Exception {
     this.context = checkNotNull(context, "Enumerator context must not be null.");
@@ -74,7 +75,7 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
   }
 
   @Override
-  protected SplitEnumerator<SplitT, EnumChkT> delegate() {
+  protected SplitEnumerator<KafkaPartitionSplit, EnumChkT> delegate() {
     return delegate;
   }
 
@@ -87,7 +88,7 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
       inInitialAssignment = false;
     }
 
-    started = true;
+    // No handler has run yet: the coordinator runs them on this thread, after start() returns.
     signalIfInitialAssignmentDone();
   }
 
@@ -101,7 +102,7 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
   }
 
   private void signalIfInitialAssignmentDone() {
-    if (initialAssignmentDone || !started || pendingInitialCalls > 0) {
+    if (initialAssignmentDone || pendingInitialCalls > 0) {
       return;
     }
 
@@ -115,7 +116,7 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
    * The context the wrapped enumerator works with: the coordinator's, except that it counts the
    * async calls of the first assignment.
    */
-  private final class CallTrackingContext extends ForwardingEnumeratorContext<SplitT> {
+  private final class CallTrackingContext extends ForwardingEnumeratorContext<KafkaPartitionSplit> {
 
     private CallTrackingContext() {
       super(context);
@@ -143,9 +144,9 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
       }
 
       pendingInitialCalls++;
-      var ran = new AtomicBoolean();
+      var firstRunStarted = new AtomicBoolean();
       return (result, error) -> {
-        if (ran.getAndSet(true)) {
+        if (firstRunStarted.getAndSet(true)) {
           handler.accept(result, error);
           return;
         }

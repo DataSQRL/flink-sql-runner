@@ -145,25 +145,26 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
    *
    * <p>A failed broker check does not change the answer, as it says nothing about unread records.
    */
-  public boolean assignmentsHaveNothingToRead(long currentTimeMillis) {
-    return assignmentsHaveNothingToRead(() -> refreshIfDue(currentTimeMillis));
+  public boolean noAssignmentHasRowsOrUnreadRecords(long currentTimeMillis) {
+    return noAssignmentHasRowsOrUnreadRecords(() -> refreshIfDue(currentTimeMillis));
   }
 
   /**
-   * {@link #assignmentsHaveNothingToRead(long)} as of the latest fetch, without asking the brokers.
-   * A subtask that is reported idle asks this, so that it leaves the brokers alone until it has
-   * something to read again.
+   * {@link #noAssignmentHasRowsOrUnreadRecords(long)} as of the latest fetch, without asking the
+   * brokers. A subtask that is reported idle asks this, so that it leaves the brokers alone until
+   * it has something to read again.
    */
-  public boolean assignmentsHadNothingToReadAtLatestFetch() {
-    return assignmentsHaveNothingToRead(this::brokerState);
+  public boolean noAssignmentHadRowsOrUnreadRecordsAtLatestFetch() {
+    return noAssignmentHasRowsOrUnreadRecords(this::brokerState);
   }
 
-  private boolean assignmentsHaveNothingToRead(Supplier<BrokerState> latestFetch) {
+  private boolean noAssignmentHasRowsOrUnreadRecords(Supplier<BrokerState> latestFetch) {
     var assignments = KafkaReadPositions.assignments();
-    var producedRow = brokerState().partitions;
+    var partitionsWithRows = brokerState().partitions;
     // A partition that has produced a row settles it without the brokers, which a subtask busy
     // reading would otherwise ask on its task thread every broker-check TTL.
-    if (assignments.stream().anyMatch(position -> producedRow.contains(position.partition()))) {
+    if (assignments.stream()
+        .anyMatch(position -> partitionsWithRows.contains(position.partition()))) {
       return false;
     }
 

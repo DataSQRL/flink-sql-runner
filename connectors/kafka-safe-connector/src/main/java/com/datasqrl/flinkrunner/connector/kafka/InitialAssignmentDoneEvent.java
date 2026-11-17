@@ -15,7 +15,6 @@
  */
 package com.datasqrl.flinkrunner.connector.kafka;
 
-import java.io.Serial;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 
@@ -24,12 +23,4 @@ import org.apache.flink.api.connector.source.SourceEvent;
  * the reader every split that discovery had for it, which may be none.
  */
 @Internal
-public final class InitialAssignmentDoneEvent implements SourceEvent {
-
-  @Serial private static final long serialVersionUID = 1L;
-
-  @Override
-  public String toString() {
-    return "InitialAssignmentDoneEvent";
-  }
-}
+public record InitialAssignmentDoneEvent() implements SourceEvent {}
