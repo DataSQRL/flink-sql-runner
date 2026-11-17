@@ -130,13 +130,24 @@ jobs:
 
       # Releases also go to GitHub Packages, so they can be resolved when Maven Central rejects them (it caps what the
       # com.datasqrl namespace publishes per month). Only the github-release profile gives them a repository there.
+      # Modules are deployed one after the other in reactor order, and the last one only has a POM. So a re-run skips the
+      # deploy once that is there, instead of failing because GitHub rejects re-uploading a release's files with 409.
       - name: Deploy release to GitHub Packages
         id: github-packages
         if: github.event_name == 'release'
-        run: mvn -B clean deploy -Pci,github-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.cache-dependencies.outputs.project-version }}
+        run: |
+          LAST=flink-sql-runner-dependencies
+          if curl -sfLo /dev/null -u "$GITHUB_ACTOR:$GITHUB_TOKEN" \
+              "https://maven.pkg.github.com/DataSQRL/flink-sql-runner/com/datasqrl/flinkrunner/$LAST/$VERSION/$LAST-$VERSION.pom"; then
+            echo "$VERSION is already on GitHub Packages, skipping its deploy"
+          else
+            mvn -B clean deploy -Pci,github-release
+          fi
 
       # Also runs when only the GitHub Packages deploy failed, so one repository failing doesn't hold back the other.
-      # Re-running the job repeats both deploys, and GitHub rejects re-uploading a release's files with 409.
       - name: Deploy to Maven Central
         if: github.event_name == 'release' && (success() || steps.github-packages.outcome == 'failure')
         run: mvn -B clean deploy -Pci,central-release
