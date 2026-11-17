@@ -52,6 +52,20 @@ class KafkaReadPositionsTest {
   }
 
   @Test
+  void testRecordsThatInitialAssignmentIsDoneUntilCleared() {
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isFalse();
+
+    KafkaReadPositions.initialAssignmentDone();
+
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isTrue();
+
+    // A restarted task runs on a new thread, which starts without it.
+    KafkaReadPositions.clear();
+
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isFalse();
+  }
+
+  @Test
   void testConsumingAssignedPartitionKeepsWhereItsSplitStarted() {
     KafkaReadPositions.assigned(new TopicPartition(topic, 0), 42L);
 

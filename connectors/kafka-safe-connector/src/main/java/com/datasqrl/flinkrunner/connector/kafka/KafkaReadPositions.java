@@ -61,6 +61,9 @@ public final class KafkaReadPositions {
   /** The position of the partition this thread consumed a record from last. */
   @Nullable private ReadPosition latest;
 
+  /** Whether the enumerator has said that the reader's first assignment is done. */
+  private boolean initialAssignmentDone;
+
   private KafkaReadPositions() {}
 
   /** Records that the record at {@code offset} has been consumed, before it is deserialized. */
@@ -82,6 +85,19 @@ public final class KafkaReadPositions {
   public static void assigned(TopicPartition partition, long startingOffset) {
     FOR_THREAD.get().positions.computeIfAbsent(partition, ReadPosition::new).startingOffset =
         startingOffset;
+  }
+
+  /**
+   * Records that the enumerator has assigned the reader on this thread every split its first
+   * discovery had for it ({@link InitialAssignmentDoneEvent}).
+   */
+  public static void initialAssignmentDone() {
+    FOR_THREAD.get().initialAssignmentDone = true;
+  }
+
+  /** Whether the enumerator has finished the first assignment of the reader on this thread. */
+  static boolean isInitialAssignmentDone() {
+    return FOR_THREAD.get().initialAssignmentDone;
   }
 
   /** The positions of the partitions assigned to the reader on this thread. */

@@ -346,6 +346,10 @@ After a restore, a partition can take longer than the timeout to produce its fir
 Such a partition has been read to the end when its split started at the end of its log, or when its consumer has since reached that end, past any commit markers, and every record it returned has been read.
 On a fresh start from the earliest or the committed offsets, the connector first looks up where each split starts.
 A partition's first row moves its watermark to just below that row at once, without waiting for `scan.source-watermark.min-records` records, so downstream operators see the source subtask as active, and hold their watermark below the row, before any watermark that would pass it.
+A source subtask is reported idle only while none of its partitions has produced a row and each has been read to the end of its log, as far as the latest successful log-end fetch shows.
+It is reported active again when a partition produces its first row, or before that when a log-end fetch shows unread records or a new partition is assigned.
+A subtask is not reported idle before the enumerator has told it that its first partition discovery is done and assigned, since until then it may still be about to get a partition with a backlog, which downstream operators would move their watermark past meanwhile: its first on a fresh start, or after a restore one that was added to the topic while the job was down.
+Until then it holds back the watermark of downstream operators, for as long as that first discovery takes.
 
 The log ends of all of a source subtask's partitions are fetched together, at most once per broker-check TTL, which therefore also bounds how far an idle partition's watermark trails the wall clock: keep it close to the idle-advance timeout.
 The safety margin must cover clock skew between the Kafka brokers and the TaskManagers, and the time a record takes to become readable after the broker timestamps it.

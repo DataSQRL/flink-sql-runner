@@ -18,8 +18,11 @@ package com.datasqrl.flinkrunner.connector.kafka;
 import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 
 /**
@@ -28,6 +31,10 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
  * advancement needs these to tell whether the splits that have not produced a row have anything
  * left to read. Flink assigns splits on the source task's thread, whose positions the generators
  * read.
+ *
+ * <p>Also records when the enumerator has finished the reader's first assignment, which its
+ * enumerator, wrapped in an {@link InitialAssignmentSignalingEnumerator}, tells every reader: a
+ * reader is idle only from then on.
  */
 @Internal
 public final class AssignmentRecordingSource<T, EnumChkT>
@@ -35,6 +42,20 @@ public final class AssignmentRecordingSource<T, EnumChkT>
 
   public AssignmentRecordingSource(Source<T, KafkaPartitionSplit, EnumChkT> delegate) {
     super(delegate);
+  }
+
+  @Override
+  public SplitEnumerator<KafkaPartitionSplit, EnumChkT> createEnumerator(
+      SplitEnumeratorContext<KafkaPartitionSplit> enumContext) throws Exception {
+    return new InitialAssignmentSignalingEnumerator<>(enumContext, delegate::createEnumerator);
+  }
+
+  @Override
+  public SplitEnumerator<KafkaPartitionSplit, EnumChkT> restoreEnumerator(
+      SplitEnumeratorContext<KafkaPartitionSplit> enumContext, EnumChkT checkpoint)
+      throws Exception {
+    return new InitialAssignmentSignalingEnumerator<>(
+        enumContext, context -> delegate.restoreEnumerator(context, checkpoint));
   }
 
   @Override
@@ -56,6 +77,15 @@ public final class AssignmentRecordingSource<T, EnumChkT>
           split ->
               KafkaReadPositions.assigned(split.getTopicPartition(), split.getStartingOffset()));
       super.addSplits(splits);
+    }
+
+    @Override
+    public void handleSourceEvents(SourceEvent sourceEvent) {
+      if (sourceEvent instanceof InitialAssignmentDoneEvent) {
+        KafkaReadPositions.initialAssignmentDone();
+      } else {
+        super.handleSourceEvents(sourceEvent);
+      }
     }
   }
 }

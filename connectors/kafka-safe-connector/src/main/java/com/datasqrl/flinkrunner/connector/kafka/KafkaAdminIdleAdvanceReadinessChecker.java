@@ -136,6 +136,29 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
             .allMatch(position -> isReadToEnd(state, position));
   }
 
+  /**
+   * Whether no partition assigned to this subtask has produced a row and each has been read to the
+   * end of its log, as the latest fetch that succeeded saw it. A subtask may be reported idle only
+   * then: one that is reported idle with records left lets downstream operators move their
+   * watermark past them. False for a partition assigned since that fetch, whose log end is unknown.
+   *
+   * <p>A failed broker check does not change the answer, as it says nothing about unread records.
+   * An idle subtask that turned active on one would hold back the watermark of a join or union
+   * until the brokers answer again.
+   */
+  public boolean assignmentsHaveNothingToRead(long currentTimeMillis) {
+    var assignments = KafkaReadPositions.assignments();
+    var producedRow = brokerState().partitions;
+    // A partition that has produced a row settles it without the brokers, which a subtask busy
+    // reading would otherwise ask on its task thread every broker-check TTL.
+    if (assignments.stream().anyMatch(position -> producedRow.contains(position.partition()))) {
+      return false;
+    }
+
+    var state = refreshIfDue(currentTimeMillis);
+    return assignments.stream().allMatch(position -> isReadToEnd(state, position));
+  }
+
   /** Whether {@code position} has read to the end of its log, as the latest fetch saw it. */
   private boolean isReadToEnd(BrokerState state, ReadPosition position) {
     var logEnd = state.logEnds.get(position.partition());

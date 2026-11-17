@@ -48,6 +48,13 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
   private final MillisClock clock;
   @Nullable private final KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker;
 
+  /**
+   * Whether the generator of the reader's main output has been created. Flink deserializes one
+   * strategy per source subtask and creates that generator from it first, along with the main
+   * output; those of the splits follow as they are assigned.
+   */
+  private transient boolean mainOutputGeneratorCreated;
+
   /** Takes an idle advance readiness checker if and only if idle advancement is enabled. */
   public KafkaRecordTimestampWatermarkStrategy(
       WatermarkEmitStrategy emitStrategy,
@@ -80,12 +87,16 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
   public WatermarkGenerator<RowData> createWatermarkGenerator(
       WatermarkGeneratorSupplier.Context context) {
 
+    boolean forMainOutput = !mainOutputGeneratorCreated;
+    mainOutputGeneratorCreated = true;
+
     return new AdaptiveKafkaRecordTimestampWatermarkGenerator(
         emitStrategy,
         sourceWatermarkConfig,
         clock,
         context.getInputActivityClock(),
-        idleAdvanceReadinessChecker);
+        idleAdvanceReadinessChecker,
+        forMainOutput);
   }
 
   /**
@@ -109,6 +120,10 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
    * which also moves for records that produce no row. Offsets that hold no record, such as
    * transaction markers, count as read once the consumer has moved past them ({@link
    * KafkaFetchPositions}) and the split has read every record before them.
+   *
+   * <p>The generator of the reader's main output sees no row, as Kafka emits each through its
+   * split's output. It reports the subtask idle and active instead: see {@link
+   * #reportSubtaskIdleness}.
    */
   private static final class AdaptiveKafkaRecordTimestampWatermarkGenerator
       implements WatermarkGenerator<RowData> {
@@ -131,6 +146,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
 
     /** Measures idle time; stops while the split is paused or backpressured. */
     private final RelativeClock inputActivityClock;
+
+    /** Whether this is the generator of the reader's main output, not of a split. */
+    private final boolean forMainOutput;
 
     /** Highest Kafka record timestamp observed by this generator. */
     private long maxTimestamp = Long.MIN_VALUE;
@@ -156,6 +174,9 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
     /** Whether this output was marked idle before receiving any records. */
     private boolean markedIdle;
 
+    /** Whether the main output was marked active, which keeps the subtask from being idle. */
+    private boolean markedActive;
+
     /**
      * Number of records observed, including the first record that cannot produce a lateness sample.
      */
@@ -169,12 +190,14 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
         SourceWatermarkConfig config,
         MillisClock clock,
         RelativeClock inputActivityClock,
-        @Nullable KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker) {
+        @Nullable KafkaAdminIdleAdvanceReadinessChecker idleAdvanceReadinessChecker,
+        boolean forMainOutput) {
       this.emitStrategy = emitStrategy;
       this.config = config;
       this.clock = clock;
       this.inputActivityClock = inputActivityClock;
       this.idleAdvanceReadinessChecker = idleAdvanceReadinessChecker;
+      this.forMainOutput = forMainOutput;
       this.idleSinceInputActivityMillis = inputActivityClock.relativeTimeMillis();
     }
 
@@ -251,6 +274,11 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       // counts as idle from the first check after its latest progress, up to one interval late,
       // never early.
       long inputActivityMillis = inputActivityClock.relativeTimeMillis();
+      if (forMainOutput && recordCount == 0) {
+        reportSubtaskIdleness(output, inputActivityMillis);
+        return;
+      }
+
       long progress = readPosition != null ? readPosition.nextOffset() : recordCount;
       if (progress != progressAtLastIdleCheck) {
         progressAtLastIdleCheck = progress;
@@ -296,6 +324,66 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
       emitIfHigher(
           output,
           frontierMillis - outOfOrdernessMillis - config.idleAdvanceSafetyMarginMillis() - 1);
+    }
+
+    /**
+     * Reports the subtask idle or active through the reader's main output.
+     *
+     * <p>Flink reports the subtask idle when the main output is marked idle before the splits have
+     * made the subtask active. In Flink 2.3.0 that takes a watermark from every split that is not
+     * idle, so a row from each; from FLINK-40504 on, a row from one of them. So a main output
+     * marked idle by its own timeout would leave a subtask idle that has a backlog, for as long as
+     * those rows take, and downstream operators would move their watermark past that backlog.
+     *
+     * <p>The main output is therefore idle only while the subtask has nothing to read, and active
+     * otherwise, which also turns a subtask active again that was reported idle before it was
+     * assigned a partition the enumerator discovered later. It is also active until the enumerator
+     * has said that the subtask's first assignment is done ({@link InitialAssignmentDoneEvent}).
+     * Until then the subtask may still be about to get a partition with a backlog: its first on a
+     * fresh start, or after a restore one that was added to the topic while the job was down. Not
+     * marking the main output idle would not be enough for a restored subtask: Flink counts a main
+     * output that has said nothing as idle, and would report the subtask idle once its splits, read
+     * to the end, are.
+     */
+    private void reportSubtaskIdleness(WatermarkOutput output, long inputActivityMillis) {
+      long currentTimeMillis = clock.currentTimeMillis();
+      int assignments = KafkaReadPositions.assignments().size();
+
+      if (!KafkaReadPositions.isInitialAssignmentDone()) {
+        markMainOutputActive(output);
+        return;
+      }
+
+      if (assignments > 0
+          && !idleAdvanceReadinessChecker.assignmentsHaveNothingToRead(currentTimeMillis)) {
+        idleSinceInputActivityMillis = inputActivityMillis;
+        markMainOutputActive(output);
+        return;
+      }
+
+      if (assignments != progressAtLastIdleCheck) {
+        progressAtLastIdleCheck = assignments;
+        idleSinceInputActivityMillis = inputActivityMillis;
+      }
+
+      if (inputActivityMillis - idleSinceInputActivityMillis < config.idleAdvanceTimeoutMillis()) {
+        return;
+      }
+
+      if (!markedIdle && idleAdvanceReadinessChecker.isReady(currentTimeMillis)) {
+        output.markIdle();
+        markedIdle = true;
+        markedActive = false;
+      }
+    }
+
+    /** Marks the main output active, which keeps Flink from reporting the subtask idle. */
+    private void markMainOutputActive(WatermarkOutput output) {
+      if (!markedActive) {
+        output.markActive();
+        markedActive = true;
+        markedIdle = false;
+      }
     }
 
     /** Emits {@code watermark} if it moves the watermark forward, as Flink requires. */

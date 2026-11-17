@@ -278,6 +278,46 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   }
 
   @Test
+  void testSubtaskWithoutAssignmentsHasNothingToRead() throws Exception {
+    var checker = newReadinessChecker(new FakeAdmin());
+
+    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+  }
+
+  @Test
+  void testPartitionThatProducedRowKeepsSubtaskFromHavingNothingToRead() throws Exception {
+    // Its split advances the watermark itself once it is idle, so the subtask stays active.
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 10L);
+    KafkaReadPositions.assigned(PARTITION_1, 20L);
+
+    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+
+    checker.register(PARTITION_0);
+
+    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isFalse();
+  }
+
+  @Test
+  void testPartitionAssignedSinceLatestFetchKeepsSubtaskFromHavingNothingToRead() throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 10L);
+
+    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+
+    KafkaReadPositions.assigned(PARTITION_1, 20L);
+
+    assertThat(checker.assignmentsHaveNothingToRead(1001L)).isFalse();
+    assertThat(checker.assignmentsHaveNothingToRead(1000L + BROKER_CHECK_TTL_MILLIS)).isTrue();
+  }
+
+  @Test
   void testSplitRestoredBeforeTrailingCommitMarkerIsReadToEndOnceConsumerMovesPastIt()
       throws Exception {
     // A checkpoint keeps the offset after the last record a split emitted, so a split of a
