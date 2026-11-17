@@ -21,6 +21,7 @@ import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.MI
 import static com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.OUT_OF_ORDERNESS_QUANTILE_DEFAULT;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.datasqrl.flinkrunner.connector.kafka.KafkaAdminIdleAdvanceReadinessChecker.LogEnd;
 import com.datasqrl.flinkrunner.connector.kafka.SourceWatermarkOptions.SourceWatermarkConfig;
@@ -863,6 +864,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     // while no split has emitted a watermark yet, even when a split is reading rows.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
+    reader.initialAssignmentDone();
     final ReaderSplit split = reader.newSplit();
     reader.newSplit();
     reader.tick(1);
@@ -937,7 +939,8 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   @Test
   void testSubtaskReportedIdleBeforeItsSplitWasAssignedTurnsActiveBeforeBacklogProducesRow() {
     // Until the first row nothing else tells Flink that the subtask is active, with or without
-    // FLINK-40504, and downstream operators move their watermark past the backlog meanwhile.
+    // FLINK-40504. Turning active holds back a downstream operator's watermark only if no other
+    // subtask that feeds the operator has moved it yet; otherwise the backlog still arrives late.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
     reader.initialAssignmentDone();
@@ -960,6 +963,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     // that it passes before the empty split's own, until which the splits have no watermark.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
+    reader.initialAssignmentDone();
     reader.tick(3);
 
     final ReaderSplit backlog = reader.newSplit();
@@ -1000,9 +1004,10 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   }
 
   @Test
-  void testFailedBrokerCheckDoesNotTurnIdleSubtaskActive() {
-    // A check that fails, as when the brokers answer too slowly, says nothing about unread
-    // records. Turned active on it, a quiet source would hold back the watermark of a join.
+  void testIdleSubtaskDoesNotAskBrokers() {
+    // What turns it active needs no fetch: a newly assigned partition, or a partition's first row.
+    // So a broker check that fails, as when the brokers answer too slowly, cannot turn it active
+    // either, which would hold back the watermark of a join that a quiet source feeds.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
     reader.newSplit();
@@ -1012,10 +1017,41 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
     assertThat(reader.downstream).containsExactly("IDLE");
 
-    source.broker.logAppendTime = false;
-    reader.tick(5);
-    source.broker.logAppendTime = true;
+    final int brokerChecks = source.broker.checks;
     reader.tick(10);
+
+    assertThat(source.broker.checks).isEqualTo(brokerChecks);
+    assertThat(reader.downstream).containsExactly("IDLE");
+  }
+
+  @Test
+  void testMainOutputGeneratorWithIdleAdvanceRejectsRows() {
+    // Kafka emits rows through split outputs. A row here means that Flink did not create the main
+    // output's generator first, and a split got the generator that emits no watermark.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final WatermarkGenerator<RowData> mainOutputGenerator =
+        source.strategy().createWatermarkGenerator(context(SystemClock.getInstance()));
+
+    assertThatThrownBy(() -> mainOutputGenerator.onEvent(null, 0L, new CollectingWatermarkOutput()))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void testRestoredSplitsReadToEndDoNotReportSubtaskIdleBeforeItsFirstAssignmentIsDone() {
+    // Flink checks the splits before the main output, which it counts as idle until it has
+    // reported. With a timeout below the watermark interval, splits marked idle on the first
+    // check would report the subtask idle before the main output has kept it active.
+    final Source source =
+        new Source(idleAdvanceConfig(MIN_RECORDS_DEFAULT, 1L, 100L), ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    reader.newSplit();
+    reader.newSplit();
+    reader.tick(3);
+
+    assertThat(reader.downstream).isEmpty();
+
+    reader.initialAssignmentDone();
+    reader.tick(2);
 
     assertThat(reader.downstream).containsExactly("IDLE");
   }
@@ -1051,6 +1087,7 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     // moves past the marker without returning a record: nothing is left to read.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
+    reader.initialAssignmentDone();
     final ReaderSplit live = reader.newSplit();
     final ReaderSplit restored = reader.newSplit(2L);
     restored.log().beginTransaction();
@@ -1069,12 +1106,17 @@ class KafkaRecordTimestampWatermarkStrategyTest {
 
   private static SourceWatermarkConfig idleAdvanceConfig(
       int minRecords, long brokerCheckTtlMillis) {
+    return idleAdvanceConfig(minRecords, brokerCheckTtlMillis, IDLE_ADVANCE_TIMEOUT_MILLIS);
+  }
+
+  private static SourceWatermarkConfig idleAdvanceConfig(
+      int minRecords, long brokerCheckTtlMillis, long idleAdvanceTimeoutMillis) {
     return new SourceWatermarkConfig(
         minRecords,
         MIN_OUT_OF_ORDERNESS_MILLIS_DEFAULT,
         MAX_OUT_OF_ORDERNESS_MILLIS_DEFAULT,
         OUT_OF_ORDERNESS_QUANTILE_DEFAULT,
-        IDLE_ADVANCE_TIMEOUT_MILLIS,
+        idleAdvanceTimeoutMillis,
         IDLE_ADVANCE_SAFETY_MARGIN_MILLIS,
         1_000L,
         brokerCheckTtlMillis);
@@ -1192,12 +1234,16 @@ class KafkaRecordTimestampWatermarkStrategyTest {
       return strategy;
     }
 
-    /** A split's generator, which Flink creates after the one of the reader's main output. */
+    /**
+     * A split's generator, which Flink creates after the one of the reader's main output. The
+     * subtask's first assignment is done: no split is marked idle before.
+     */
     private WatermarkGenerator<RowData> newSplitGenerator(RelativeClock inputActivityClock) {
       if (!mainOutputGeneratorCreated) {
         strategy().createWatermarkGenerator(context(new PausableRelativeClock(monotonicClock)));
         mainOutputGeneratorCreated = true;
       }
+      KafkaReadPositions.initialAssignmentDone();
       return strategy().createWatermarkGenerator(context(inputActivityClock));
     }
 
@@ -1541,12 +1587,16 @@ class KafkaRecordTimestampWatermarkStrategyTest {
     private boolean logAppendTime = true;
     private boolean logEndsAvailable = true;
 
+    /** How often the brokers were asked. */
+    private int checks;
+
     private FakeBroker(SourceWatermarkConfig config, String sourceId) {
       super(KafkaFetchPositions.publishing(new Properties(), sourceId), List.of("topic"), config);
     }
 
     @Override
     boolean checkBrokerAndTopicTimestampType() {
+      checks++;
       return logAppendTime;
     }
 

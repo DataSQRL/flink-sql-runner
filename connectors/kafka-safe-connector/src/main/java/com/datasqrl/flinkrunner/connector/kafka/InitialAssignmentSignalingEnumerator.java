@@ -17,21 +17,13 @@ package com.datasqrl.flinkrunner.connector.kafka;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
-import javax.annotation.Nullable;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.ReaderInfo;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.function.FunctionWithException;
 
 /**
@@ -50,7 +42,7 @@ import org.apache.flink.util.function.FunctionWithException;
  */
 @Internal
 public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSplit, EnumChkT>
-    implements SplitEnumerator<SplitT, EnumChkT> {
+    extends ForwardingEnumerator<SplitT, EnumChkT> {
 
   private final SplitEnumeratorContext<SplitT> context;
   private final SplitEnumerator<SplitT, EnumChkT> delegate;
@@ -79,6 +71,11 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
         checkNotNull(
             enumeratorFactory.apply(new CallTrackingContext()),
             "Delegate enumerator must not be null.");
+  }
+
+  @Override
+  protected SplitEnumerator<SplitT, EnumChkT> delegate() {
+    return delegate;
   }
 
   @Override
@@ -114,46 +111,15 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
     }
   }
 
-  @Override
-  public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-    delegate.handleSplitRequest(subtaskId, requesterHostname);
-  }
-
-  @Override
-  public void addSplitsBack(List<SplitT> splits, int subtaskId) {
-    delegate.addSplitsBack(splits, subtaskId);
-  }
-
-  @Override
-  public EnumChkT snapshotState(long checkpointId) throws Exception {
-    return delegate.snapshotState(checkpointId);
-  }
-
-  @Override
-  public void notifyCheckpointComplete(long checkpointId) throws Exception {
-    delegate.notifyCheckpointComplete(checkpointId);
-  }
-
-  @Override
-  public void notifyCheckpointAborted(long checkpointId) throws Exception {
-    delegate.notifyCheckpointAborted(checkpointId);
-  }
-
-  @Override
-  public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-    delegate.handleSourceEvent(subtaskId, sourceEvent);
-  }
-
-  @Override
-  public void close() throws IOException {
-    delegate.close();
-  }
-
   /**
    * The context the wrapped enumerator works with: the coordinator's, except that it counts the
    * async calls of the first assignment.
    */
-  private final class CallTrackingContext implements SplitEnumeratorContext<SplitT> {
+  private final class CallTrackingContext extends ForwardingEnumeratorContext<SplitT> {
+
+    private CallTrackingContext() {
+      super(context);
+    }
 
     @Override
     public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
@@ -195,61 +161,6 @@ public final class InitialAssignmentSignalingEnumerator<SplitT extends SourceSpl
         pendingInitialCalls--;
         signalIfInitialAssignmentDone();
       };
-    }
-
-    @Override
-    public SplitEnumeratorMetricGroup metricGroup() {
-      return context.metricGroup();
-    }
-
-    @Override
-    public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
-      context.sendEventToSourceReader(subtaskId, event);
-    }
-
-    @Override
-    public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
-      context.sendEventToSourceReader(subtaskId, attemptNumber, event);
-    }
-
-    @Override
-    public int currentParallelism() {
-      return context.currentParallelism();
-    }
-
-    @Override
-    public Map<Integer, ReaderInfo> registeredReaders() {
-      return context.registeredReaders();
-    }
-
-    @Override
-    public Map<Integer, Map<Integer, ReaderInfo>> registeredReadersOfAttempts() {
-      return context.registeredReadersOfAttempts();
-    }
-
-    @Override
-    public void assignSplits(SplitsAssignment<SplitT> newSplitAssignments) {
-      context.assignSplits(newSplitAssignments);
-    }
-
-    @Override
-    public void assignSplit(SplitT split, int subtask) {
-      context.assignSplit(split, subtask);
-    }
-
-    @Override
-    public void signalNoMoreSplits(int subtask) {
-      context.signalNoMoreSplits(subtask);
-    }
-
-    @Override
-    public void runInCoordinatorThread(Runnable runnable) {
-      context.runInCoordinatorThread(runnable);
-    }
-
-    @Override
-    public void setIsProcessingBacklog(boolean isProcessingBacklog) {
-      context.setIsProcessingBacklog(isProcessingBacklog);
     }
   }
 }

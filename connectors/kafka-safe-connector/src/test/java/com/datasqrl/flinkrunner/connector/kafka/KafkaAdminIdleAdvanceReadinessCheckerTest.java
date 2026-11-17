@@ -318,6 +318,24 @@ class KafkaAdminIdleAdvanceReadinessCheckerTest {
   }
 
   @Test
+  void testLatestFetchTellsWhetherAssignmentsHadNothingToReadWithoutAskingBrokers()
+      throws Exception {
+    var admin = new FakeAdmin();
+    admin.highWatermark(PARTITION_0, 10L);
+    admin.highWatermark(PARTITION_1, 20L);
+    var checker = newReadinessChecker(admin);
+    KafkaReadPositions.assigned(PARTITION_0, 10L);
+
+    assertThat(checker.assignmentsHaveNothingToRead(1000L)).isTrue();
+    assertThat(checker.assignmentsHadNothingToReadAtLatestFetch()).isTrue();
+
+    KafkaReadPositions.assigned(PARTITION_1, 20L);
+
+    assertThat(checker.assignmentsHadNothingToReadAtLatestFetch()).isFalse();
+    assertThat(admin.listOffsetsCalls).hasSize(1);
+  }
+
+  @Test
   void testSplitRestoredBeforeTrailingCommitMarkerIsReadToEndOnceConsumerMovesPastIt()
       throws Exception {
     // A checkpoint keeps the offset after the last record a split emitted, so a split of a

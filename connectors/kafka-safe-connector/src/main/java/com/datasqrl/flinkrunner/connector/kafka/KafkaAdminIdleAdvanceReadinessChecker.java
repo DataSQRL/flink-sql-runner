@@ -31,6 +31,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
@@ -143,10 +144,21 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
    * watermark past them. False for a partition assigned since that fetch, whose log end is unknown.
    *
    * <p>A failed broker check does not change the answer, as it says nothing about unread records.
-   * An idle subtask that turned active on one would hold back the watermark of a join or union
-   * until the brokers answer again.
    */
   public boolean assignmentsHaveNothingToRead(long currentTimeMillis) {
+    return assignmentsHaveNothingToRead(() -> refreshIfDue(currentTimeMillis));
+  }
+
+  /**
+   * {@link #assignmentsHaveNothingToRead(long)} as of the latest fetch, without asking the brokers.
+   * A subtask that is reported idle asks this, so that it leaves the brokers alone until it has
+   * something to read again.
+   */
+  public boolean assignmentsHadNothingToReadAtLatestFetch() {
+    return assignmentsHaveNothingToRead(this::brokerState);
+  }
+
+  private boolean assignmentsHaveNothingToRead(Supplier<BrokerState> latestFetch) {
     var assignments = KafkaReadPositions.assignments();
     var producedRow = brokerState().partitions;
     // A partition that has produced a row settles it without the brokers, which a subtask busy
@@ -155,7 +167,7 @@ public class KafkaAdminIdleAdvanceReadinessChecker implements Serializable {
       return false;
     }
 
-    var state = refreshIfDue(currentTimeMillis);
+    var state = latestFetch.get();
     return assignments.stream().allMatch(position -> isReadToEnd(state, position));
   }
 
