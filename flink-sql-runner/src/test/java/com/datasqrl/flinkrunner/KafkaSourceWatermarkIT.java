@@ -44,6 +44,8 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
   private static final String TOPIC = "source-watermark-it";
   private static final String IDLE_ADVANCE_TOPIC = "source-watermark-idle-advance-it";
   private static final String NO_IDLE_ADVANCE_TOPIC = "source-watermark-no-idle-advance-it";
+  private static final String IDLE_ADVANCE_UNASSIGNED_TOPIC =
+      "source-watermark-idle-advance-unassigned-it";
   private static final String IDLE_ADVANCE_BACKLOG_TOPIC =
       "source-watermark-idle-advance-backlog-it";
   private static final String IDLE_ADVANCE_REPLAY_TOPIC = "source-watermark-idle-advance-replay-it";
@@ -137,6 +139,37 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
                 assertThat(resultDao.getTotalCount()).isEqualTo(2);
               });
         });
+  }
+
+  /**
+   * With a parallelism of two and one partition, one source subtask is assigned no split. It holds
+   * the watermark back until the enumerator tells it that its first assignment is done, and is
+   * reported idle from then on, so the other subtask's watermark closes the window.
+   */
+  @Test
+  void givenSourceSubtaskWithoutPartition_whenIdleAdvanceEnabled_thenWatermarkClosesWindows()
+      throws Exception {
+    var resultDao = emptyResults();
+    createTopic(IDLE_ADVANCE_UNASSIGNED_TOPIC, true);
+    // The cluster starts with one slot, and the job needs one per source subtask.
+    startTaskManager();
+
+    try {
+      runJob(
+          "/it/sqlfile/kafka_source_watermark_idle_advance_unassigned.sql",
+          jobId -> {
+            produceJsonRecord(
+                IDLE_ADVANCE_UNASSIGNED_TOPIC, "{\"id\":0,\"payload\":\"idle-record-0\"}");
+
+            untilAssert(
+                () -> {
+                  assertThat(resultDao.getRowCount()).isEqualTo(1);
+                  assertThat(resultDao.getTotalCount()).isEqualTo(1);
+                });
+          });
+    } finally {
+      stopTaskManager();
+    }
   }
 
   /**
@@ -364,6 +397,20 @@ class KafkaSourceWatermarkIT extends AbstractITSupport {
     resultDao.createTable();
     resultDao.truncateTable();
     return resultDao;
+  }
+
+  /** Adds a TaskManager, and with it a slot, to the cluster. */
+  private void startTaskManager() throws Exception {
+    Container.ExecResult result = flinkContainer.execInContainer("bin/taskmanager.sh", "start");
+
+    assertThat(result.getExitCode())
+        .withFailMessage(result.getStdout() + result.getStderr())
+        .isZero();
+  }
+
+  /** Stops the TaskManager that was started last. */
+  private void stopTaskManager() throws Exception {
+    flinkContainer.execInContainer("bin/taskmanager.sh", "stop");
   }
 
   private String readFlinkLogs() throws Exception {

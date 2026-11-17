@@ -19,8 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,8 +30,11 @@ import com.datasqrl.flinkrunner.connector.kafka.KafkaReadPositions.ReadPosition;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.AfterEach;
@@ -67,6 +72,46 @@ class AssignmentRecordingSourceTest {
                 assertThat(assignments)
                     .extracting(ReadPosition::partition, ReadPosition::startingOffset)
                     .containsExactly(tuple(PARTITION, 42L)));
+  }
+
+  @Test
+  void testRecordsInitialAssignmentDoneEventWithoutPassingItOn() throws Exception {
+    // KafkaSourceReader does not know the event.
+    var recordingReader = recordingReader();
+
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isFalse();
+
+    recordingReader.handleSourceEvents(new InitialAssignmentDoneEvent());
+
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isTrue();
+    verify(reader, never()).handleSourceEvents(any());
+  }
+
+  @Test
+  void testPassesOnOtherSourceEvents() throws Exception {
+    SourceEvent event = mock(SourceEvent.class);
+
+    recordingReader().handleSourceEvents(event);
+
+    verify(reader).handleSourceEvents(event);
+    assertThat(KafkaReadPositions.isInitialAssignmentDone()).isFalse();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testWrapsCreatedAndRestoredEnumeratorToSignalInitialAssignment() throws Exception {
+    Source<String, KafkaPartitionSplit, String> source = mock(Source.class);
+    SplitEnumerator<KafkaPartitionSplit, String> enumerator = mock(SplitEnumerator.class);
+    when(source.createEnumerator(any())).thenReturn(enumerator);
+    when(source.restoreEnumerator(any(), any())).thenReturn(enumerator);
+    SplitEnumeratorContext<KafkaPartitionSplit> context = mock(SplitEnumeratorContext.class);
+    var recordingSource = new AssignmentRecordingSource<>(source);
+
+    assertThat(recordingSource.createEnumerator(context))
+        .isInstanceOf(InitialAssignmentSignalingEnumerator.class);
+    assertThat(recordingSource.restoreEnumerator(context, "checkpoint"))
+        .isInstanceOf(InitialAssignmentSignalingEnumerator.class);
+    verify(source).restoreEnumerator(any(), eq("checkpoint"));
   }
 
   @Test
