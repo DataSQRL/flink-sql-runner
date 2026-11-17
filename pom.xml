@@ -773,9 +773,10 @@
       </build>
     </profile>
     <profile>
-      <id>release</id>
+      <id>central-release</id>
       <properties>
         <docker.skip>true</docker.skip>
+        <skipTests>true</skipTests>
         <skipITs>true</skipITs>
       </properties>
       <build>
@@ -811,6 +812,21 @@
         </plugins>
       </build>
     </profile>
-  </profiles>
 
+    <profile>
+      <!-- Deploys releases to GitHub Packages, which only this profile gives a repository to -->
+      <id>github-release</id>
+      <distributionManagement>
+        <repository>
+          <id>github</id>
+          <url>https://maven.pkg.github.com/DataSQRL/flink-sql-runner</url>
+        </repository>
+      </distributionManagement>
+      <properties>
+        <docker.skip>true</docker.skip>
+        <skipTests>true</skipTests>
+        <skipITs>true</skipITs>
+      </properties>
+    </profile>
+  </profiles>
 </project>
