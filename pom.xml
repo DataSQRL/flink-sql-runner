@@ -710,72 +710,10 @@
     </profile>
 
     <profile>
-      <!-- helper profile to proper configure eclipse -->
-      <id>m2e</id>
-      <activation>
-        <property>
-          <name>m2e.version</name>
-        </property>
-      </activation>
-      <build>
-        <directory>${project.basedir}/m2e-target</directory>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-source</id>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <sources>
-                    <source>target/generated-sources/annotations</source>
-                    <source>target/generated-sources/java</source>
-                    <source>${basedir}/src/main/flink119</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-google-auto</id>
-                <goals>
-                  <goal>add-resource</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>target/classes</directory>
-                      <excludes>
-                        <exclude>**/*.class</exclude>
-                      </excludes>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-test-source</id>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <phase>generate-test-sources</phase>
-                <configuration>
-                  <sources>
-                    <source>target/generated-test-sources/test-annotations</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>release</id>
+      <id>central-release</id>
       <properties>
         <docker.skip>true</docker.skip>
+        <skipTests>true</skipTests>
         <skipITs>true</skipITs>
       </properties>
       <build>
@@ -811,6 +749,21 @@
         </plugins>
       </build>
     </profile>
-  </profiles>
 
+    <profile>
+      <!-- Deploys releases to GitHub Packages, which only this profile gives a repository to -->
+      <id>github-release</id>
+      <distributionManagement>
+        <repository>
+          <id>github</id>
+          <url>https://maven.pkg.github.com/DataSQRL/flink-sql-runner</url>
+        </repository>
+      </distributionManagement>
+      <properties>
+        <docker.skip>true</docker.skip>
+        <skipTests>true</skipTests>
+        <skipITs>true</skipITs>
+      </properties>
+    </profile>
+  </profiles>
 </project>

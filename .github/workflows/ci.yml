@@ -128,11 +128,20 @@ jobs:
         run: |
           mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
 
-      - name: Deploy to Maven Central
+      # Releases also go to GitHub Packages, so they can be resolved when Maven Central rejects them (it caps what the
+      # com.datasqrl namespace publishes per month). Only the github-release profile gives them a repository there.
+      - name: Deploy release to GitHub Packages
+        id: github-packages
         if: github.event_name == 'release'
-        run: mvn -B clean deploy -Pci,release -DskipTests
+        run: mvn -B clean deploy -Pci,github-release
 
-      - name: Deploy to GitHub Packages
+      # Also runs when only the GitHub Packages deploy failed, so one repository failing doesn't hold back the other.
+      # Re-running the job repeats both deploys, and GitHub rejects re-uploading a release's files with 409.
+      - name: Deploy to Maven Central
+        if: github.event_name == 'release' && (success() || steps.github-packages.outcome == 'failure')
+        run: mvn -B clean deploy -Pci,central-release
+
+      - name: Deploy snapshot to GitHub Packages
         if: github.ref_name == 'main'
         run: mvn -B clean deploy -Pci -DskipTests
 
@@ -209,17 +218,16 @@ jobs:
         run: |
           mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
 
+      # Attach what running the runner on a Flink cluster other than this image takes: the uber jar, and stdlib-utils,
+      # which the uber jar leaves out because Flink has to load it from /opt/flink/lib. Every other module is inside the
+      # uber jar, and library users get them, with their dependencies, from Maven.
       - name: Upload to GitHub Release
         if: github.event_name == 'release' && github.event.action == 'created'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           files: |
             flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
-            flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}.jar
-            env-utils/target/env-utils-${{ needs.cache-dependencies.outputs.project-version }}.jar
-            connectors/*/target/*-${{ needs.cache-dependencies.outputs.project-version }}.jar
-            formats/*/target/*-${{ needs.cache-dependencies.outputs.project-version }}.jar
-            stdlib/*/target/*-${{ needs.cache-dependencies.outputs.project-version }}.jar
+            stdlib/stdlib-utils/target/stdlib-utils-${{ needs.cache-dependencies.outputs.project-version }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
