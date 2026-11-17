@@ -126,11 +126,11 @@ public final class KafkaRecordTimestampWatermarkStrategy implements WatermarkStr
    * idle.
    *
    * <p>A subtask reported idle turns active again when it is assigned a partition the enumerator
-   * discovered later. That holds back the watermark of a downstream operator only if no other
-   * subtask that feeds the operator has moved it yet: Flink leaves a subtask that turns active out
-   * of the operator's watermark until the subtask's own watermark has caught up with it. So where
-   * other subtasks feed the same operator, as with a keyed join and a source parallelism above one,
-   * a backlog in that partition still arrives late.
+   * discovered later. That keeps the watermark of a downstream operator from moving further, but
+   * does not move it back: what the operator's other inputs carried it past while the subtask was
+   * idle still arrives late. And it holds only if the source's other subtasks have not moved that
+   * watermark yet. Otherwise Flink leaves a subtask that turns active out of the operator's
+   * watermark until the subtask's own watermark has caught up with it.
    */
   private static final class SubtaskIdlenessGenerator implements WatermarkGenerator<RowData> {
 

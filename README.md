@@ -332,7 +332,8 @@ Set `scan.source-watermark.idle-advance-timeout` to advance the watermark conser
 ```
 
 Idle advancement supports only the `topic` table option, not `topic-pattern`. Configuring `topic-pattern` with idle advancement will result in a failure.
-The connector checks this through Kafka's `AdminClient` and requires permission to describe the topic configuration and its offsets, and on a fresh start from the committed offsets, also the consumer group.
+It also needs the brokers to be reachable and the topic to use `LogAppendTime`.
+The connector checks both through Kafka's `AdminClient` and requires permission to describe the topic configuration and its offsets, and on a fresh start from the committed offsets, also the consumer group.
 If Kafka cannot be reached or the topic is not configured for `LogAppendTime`, idle advancement pauses rather than advancing unsafely.
 Do not combine idle advancement with `scan.watermark.idle-timeout`. The connector ignores that option when idle advancement is enabled, because once Flink marks a partition idle, it stops letting the connector advance that partition's watermark.
 
@@ -350,12 +351,15 @@ On a fresh start from the earliest or the committed offsets, the connector first
 A partition's first row moves its watermark to just below that row at once, without waiting for `scan.source-watermark.min-records` records.
 Downstream operators then see the source subtask as active, and hold their watermark below the row, before any watermark that would pass it.
 A source subtask is reported idle only while none of its partitions has produced a row and each has been read to the end of its log, as far as the latest successful log-end fetch shows.
+It is reported idle once that has lasted for the idle-advance timeout.
 It is reported active again when a partition produces its first row, or before that when a new partition is assigned.
 While it is idle, it does not ask the brokers.
-Turning active again holds back the watermark of a downstream operator only if no other source subtask that feeds the operator has moved it yet.
-Flink leaves a subtask that turns active out of the operator's watermark until the subtask's own watermark has caught up with it.
-So with a source parallelism above one, the backlog of a partition that is discovered while the job runs can still arrive late.
-A subtask is not reported idle before the source's enumerator, which assigns partitions to subtasks, has told it that its first partition discovery is done and assigned.
+While a subtask is idle, the watermark of a downstream operator follows the operator's other inputs, such as the source's other subtasks or the other table of a join, and it does not move back when the subtask turns active again.
+So records that were written to a partition before the connector discovered it can still arrive late.
+The connector looks for new partitions every `scan.topic-partition-discovery.interval`, 5 minutes by default.
+Turning active again keeps the operator's watermark from moving further, but only if the source's other subtasks have not moved it yet.
+Otherwise Flink leaves the subtask out of the operator's watermark until the subtask's own watermark has caught up with it.
+A subtask is not reported idle, and none of its partitions is marked idle, before the source's enumerator, which assigns partitions to subtasks, has told it that its first partition discovery is done and assigned.
 Until then the subtask may still be about to get a partition with a backlog: its first on a fresh start, or after a restore one that was added to the topic while the job was down.
 Reported idle meanwhile, it would let downstream operators move their watermark past that backlog.
 So until then it holds back the watermark of downstream operators, for as long as that first discovery takes.

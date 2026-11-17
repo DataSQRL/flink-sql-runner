@@ -939,8 +939,9 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   @Test
   void testSubtaskReportedIdleBeforeItsSplitWasAssignedTurnsActiveBeforeBacklogProducesRow() {
     // Until the first row nothing else tells Flink that the subtask is active, with or without
-    // FLINK-40504. Turning active holds back a downstream operator's watermark only if no other
-    // subtask that feeds the operator has moved it yet; otherwise the backlog still arrives late.
+    // FLINK-40504. Turning active keeps a downstream operator's watermark from moving further
+    // while the backlog is read, if the source's other subtasks have not moved it yet. What the
+    // watermark has passed already still arrives late.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
     final Reader reader = new Reader(source);
     reader.initialAssignmentDone();
