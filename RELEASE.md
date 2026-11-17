@@ -7,6 +7,8 @@ The `main` branch points to the next upcoming minor (or major) version.
 ## Release Steps
 
 1. If you release a patch version, make sure all the necessary commits are present on the relevant `release-x.y` branch
+   If you release a new minor or major version, first update [`SECURITY.md`](SECURITY.md) on `main`: list `x.y.x` as supported, and `< ` the oldest supported version as unsupported.
+   The [Release docs](.github/workflows/release-docs.yml) workflow fails while `SECURITY.md` does not list the latest release line as supported.
 2. Create a new signed **tag** using [SemVer](https://semver.org/) (for example `1.0.0`, or `1.0.0-alpha.1`)
    ```sh
    git tag -s 1.0.0 -m 'Release version 1.0.0'
