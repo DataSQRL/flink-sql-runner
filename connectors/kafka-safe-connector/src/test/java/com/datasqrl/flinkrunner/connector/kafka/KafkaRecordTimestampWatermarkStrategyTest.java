@@ -981,6 +981,28 @@ class KafkaRecordTimestampWatermarkStrategyTest {
   }
 
   @Test
+  void testPartitionThatProducedRowWithoutWatermarkKeepsSubtaskActive() {
+    // The first row arrives while the broker check fails, so its split emits no watermark for it,
+    // and Flink treats the splits as idle. Only the produced row then keeps the main output from
+    // reporting the subtask idle before the split's first idle watermark.
+    final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
+    final Reader reader = new Reader(source);
+    reader.initialAssignmentDone();
+    final ReaderSplit rows = reader.newSplit();
+    reader.newSplit();
+    source.broker.logAppendTime = false;
+    reader.tick(1);
+
+    rows.appendAndRead(source.wallClockMillis());
+    source.broker.logAppendTime = true;
+    reader.tick(1);
+    rows.appendAndRead(source.wallClockMillis());
+    reader.tick(10);
+
+    assertThat(reader.downstream).doesNotContain("IDLE");
+  }
+
+  @Test
   void testSubtaskTurnedActiveIsReportedIdleAgainOnceNothingIsLeftToRead() {
     // Every record of the split produces no row, so no watermark would end the subtask's wait.
     final Source source = new Source(IDLE_ADVANCE_CONFIG, ONE_HOUR_MILLIS);
