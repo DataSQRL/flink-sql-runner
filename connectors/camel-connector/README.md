@@ -396,12 +396,3 @@ per minute.
 
 With `poll.cron`, a completed poll waits for the next time the expression matches instead of
 `poll.interval`. The first poll after a start or restore runs right away, as with an interval.
-
-## Not supported yet
-
-- The `watermark.idle-timeout` table option.
-- A per-call timeout for cursor requests (the component's own timeouts apply), and the high-water
-  mark that ends a bounded cursor read on a busy system.
-- MDC fields around `map`, and rate-limited logging of mapping failures.
-- Running the Salesforce, SQS, JMS and SFTP samples against mocked systems: they compile and plan.
-- The diff PTF for snapshot reconciliation.
