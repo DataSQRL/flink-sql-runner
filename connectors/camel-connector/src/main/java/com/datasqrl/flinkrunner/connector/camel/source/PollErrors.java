@@ -50,6 +50,7 @@ public final class PollErrors implements PollingConsumerPollStrategy, ExceptionH
   private final Duration maxBackoff;
 
   private int consecutiveFailures;
+  private long failures;
   private Throwable lastFailure;
   private long nextAttemptAt;
 
@@ -120,6 +121,7 @@ public final class PollErrors implements PollingConsumerPollStrategy, ExceptionH
   }
 
   synchronized void failed(Throwable cause) {
+    failures++;
     consecutiveFailures++;
     lastFailure = cause;
     long backoff =
@@ -134,6 +136,11 @@ public final class PollErrors implements PollingConsumerPollStrategy, ExceptionH
         maxAttempts,
         backoff,
         cause);
+  }
+
+  /** Every failure so far, including those a success has since reset the attempts for. */
+  synchronized long failures() {
+    return failures;
   }
 
   synchronized int consecutiveFailures() {

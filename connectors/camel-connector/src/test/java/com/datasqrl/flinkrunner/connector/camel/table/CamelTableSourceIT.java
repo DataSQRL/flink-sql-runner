@@ -52,10 +52,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.camel.Component;
 import org.apache.camel.Exchange;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
@@ -78,6 +81,8 @@ class CamelTableSourceIT {
   private static final String MISSING_NOSUCH = "Camel component 'nosuch', needed by";
   private static final String SCHEME_PROPERTY = "camel.table.it.scheme";
   private static final String NO_RESTARTS = "none";
+  private static final Duration ENDPOINT_OUTAGE = Duration.ofSeconds(2);
+  private static final Duration JOB_STATUS_POLL = Duration.ofMillis(50);
 
   @TempDir Path dir;
   private TestHttpServer api;
@@ -128,6 +133,49 @@ class CamelTableSourceIT {
     assertThat(rows).allSatisfy(row -> assertThat(row.getField(2)).isNotNull());
     assertThat(rows).allSatisfy(row -> assertThat(row.getField(3)).isNotNull());
     awaitEmptyDirectory();
+  }
+
+  @Test
+  @Timeout(value = 60, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  void boundedAckTableFailsWhileItsEndpointFails() {
+    JsonInbox.endpoint =
+        "file:" + dir.resolve("missing") + "?autoCreate=false&directoryMustExist=true&delay=10";
+    TableEnvironment tEnv = failingTableEnv();
+    tEnv.executeSql(
+        "CREATE TABLE people (id INT, name STRING) WITH ("
+            + ackOptions()
+            + ", 'retry.max-attempts' = '5', 'retry.initial-backoff' = '200ms',"
+            + " 'retry.max-backoff' = '200ms')");
+
+    assertJobFails(tEnv, "SELECT id FROM people", "5 failed attempts in a row");
+  }
+
+  @Test
+  @Timeout(value = 60, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  void boundedAckTableFinishesOnceItsEndpointRecovers() throws Exception {
+    Path inbox = dir.resolve("inbox");
+    Path staged = Files.createDirectory(dir.resolve("staged"));
+    Files.writeString(staged.resolve("a.json"), "{\"id\": 1, \"name\": \"alice\"}");
+    JsonInbox.endpoint =
+        "file:" + inbox + "?autoCreate=false&directoryMustExist=true&delete=true&delay=10";
+    StreamTableEnvironment tEnv = streamingTableEnv();
+    tEnv.executeSql(
+        "CREATE TABLE people (id INT, name STRING) WITH ("
+            + ackOptions()
+            + ", 'retry.max-attempts' = '100', 'retry.initial-backoff' = '200ms',"
+            + " 'retry.max-backoff' = '200ms')");
+
+    TableResult result = tEnv.executeSql("SELECT id, name FROM people");
+    JobClient job = result.getJobClient().orElseThrow();
+    while (job.getJobStatus().get() != JobStatus.RUNNING) {
+      Thread.sleep(JOB_STATUS_POLL.toMillis());
+    }
+    Thread.sleep(ENDPOINT_OUTAGE.toMillis());
+    Files.move(staged, inbox);
+
+    try (CloseableIterator<Row> rows = result.collect()) {
+      assertThat(CollectionUtil.iteratorToList(rows)).containsExactly(Row.of(1, "alice"));
+    }
   }
 
   @Test

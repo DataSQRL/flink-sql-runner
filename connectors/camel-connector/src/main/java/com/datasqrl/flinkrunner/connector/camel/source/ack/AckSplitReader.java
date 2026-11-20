@@ -102,7 +102,9 @@ final class AckSplitReader<OUT, R> implements SplitReader<AckRecord<R>, AckSplit
       records.add(AckRecord.endOfPoll(pollTimestamp));
     }
 
-    emptyPolls = records.isEmpty() ? emptyPolls + 1 : 0;
+    // A failed or skipped receive isn't an empty poll: the endpoint never answered.
+    boolean answered = runtime.receiveAnswered();
+    emptyPolls = records.isEmpty() && answered ? emptyPolls + 1 : 0;
     Set<String> finished =
         settings.isBounded() && emptyPolls >= settings.stopAfterEmptyPolls()
             ? Set.of(split.splitId())

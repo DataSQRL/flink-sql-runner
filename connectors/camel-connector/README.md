@@ -274,7 +274,11 @@ and the mode. A table with a primary key fails planning too.
 
 **Bounded reads.** With `scan.bounded`, a cursor source finishes after one complete poll, a file
 source after one listing is fully processed, and an ack source after `ack.empty-polls` empty
-receives in a row. Under `execution.runtime-mode = BATCH`, cursor and file sources are bounded
+receives in a row. A receive counts as empty only when it reached the endpoint and no fetch failed
+since the previous one: a failing endpoint fails the job after `retry.max-attempts` instead of
+looking empty. With `retry.max-attempts = 0`, a component that reports a failed poll only to
+Camel's poll strategy or exception handler, such as SQS, has it logged, and the receive still looks
+empty; one whose `receive` throws, such as JMS or file, fails the job. Under `execution.runtime-mode = BATCH`, cursor and file sources are bounded
 without the option. Ack sources are rejected in BATCH mode, because without checkpoints there is no
 safe point to acknowledge: run them in streaming mode with `scan.bounded`, and the final checkpoint
 fires the acks.

@@ -81,6 +81,9 @@ public final class CamelRuntime implements AutoCloseable {
   private final ExecutorService acker =
       Executors.newSingleThreadExecutor(new ExecutorThreadFactory("camel-source-acker"));
   private final AtomicInteger unacked = new AtomicInteger();
+  // Fetcher-thread state for receiveAnswered.
+  private boolean receiveSkipped;
+  private long failuresSeen;
 
   private CamelContext context;
   private volatile ConsumerTemplate consumer;
@@ -140,6 +143,21 @@ public final class CamelRuntime implements AutoCloseable {
     return exchange;
   }
 
+  /**
+   * Whether the latest receive reached the endpoint and no fetch failed since the previous call, so
+   * an empty receive means the endpoint has nothing. Always true with retries off: Camel then only
+   * logs its failed polls. Called on the fetcher thread.
+   */
+  public boolean receiveAnswered() {
+    if (pollErrors == null) {
+      return true;
+    }
+    long failures = pollErrors.failures();
+    boolean answered = !receiveSkipped && failures == failuresSeen;
+    failuresSeen = failures;
+    return answered;
+  }
+
   /** Exchanges received and not yet acknowledged. */
   public int unacked() {
     return unacked.get();
@@ -173,7 +191,8 @@ public final class CamelRuntime implements AutoCloseable {
       return receive(endpointUri, timeoutMs);
     }
     pollErrors.checkAttempts();
-    if (!pollErrors.attemptAllowed()) {
+    receiveSkipped = !pollErrors.attemptAllowed();
+    if (receiveSkipped) {
       sleepQuietly(timeoutMs);
       return null;
     }
