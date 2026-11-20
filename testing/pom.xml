@@ -30,6 +30,7 @@
   <name>Testing</name>
 
   <modules>
+    <module>camel-source-sample</module>
     <module>system-functions-sample</module>
     <module>udf-sample</module>
   </modules>

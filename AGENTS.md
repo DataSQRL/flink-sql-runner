@@ -9,7 +9,8 @@ This is a multi-module Maven project for the Flink SQL Runner – a tool and lib
 ## Module Structure
 
 - `flink-sql-runner/` - Main CLI application and Docker image
-- `connectors/` - Custom Flink connectors (kafka-safe, postgresql)
+- `camel-source-sdk/` - Contracts and helpers a Camel source class compiles against (no Flink dependency)
+- `connectors/` - Custom Flink connectors (kafka-safe, postgresql, camel); the Camel connector is published separately and is not in the runner's uber jar or image
 - `formats/` - Custom data formats (flexible-json)
 - `types/` - Custom data types (json-type, vector-type)
 - `stdlib/` - Standard library modules with system functions (json, math, text, vector, openai)
