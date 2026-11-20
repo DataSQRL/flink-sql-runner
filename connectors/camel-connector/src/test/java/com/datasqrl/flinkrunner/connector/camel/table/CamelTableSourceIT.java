@@ -252,7 +252,11 @@ class CamelTableSourceIT {
             + cursorOptions()
             + ", 'file.order' = 'mtime')");
 
-    assertPlanningFails(tEnv, "SELECT id FROM items", ValidationException.class, "'file.order'");
+    assertPlanningFails(
+        tEnv,
+        "SELECT id FROM items",
+        ValidationException.class,
+        "Option 'file.order' does not apply to");
   }
 
   @Test

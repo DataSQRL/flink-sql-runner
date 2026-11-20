@@ -18,6 +18,7 @@ package com.datasqrl.flinkrunner.connector.camel.source;
 import com.datasqrl.flinkrunner.camel.Bind;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -65,6 +66,7 @@ public final class CamelRuntime implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(CamelRuntime.class);
 
   private static final long NO_WAIT = 0;
+  private static final Duration PENDING_ACKS_TIMEOUT = Duration.ofSeconds(30);
   private static final char COMPONENT_SEPARATOR = '.';
   private static final String JMS_ENDPOINT_CLASS = "org.apache.camel.component.jms.JmsEndpoint";
 
@@ -413,7 +415,7 @@ public final class CamelRuntime implements AutoCloseable {
   @Override
   public void close() throws Exception {
     acker.shutdown();
-    if (!acker.awaitTermination(30, TimeUnit.SECONDS)) {
+    if (!acker.awaitTermination(PENDING_ACKS_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
       LOG.warn("Timed out waiting for pending Camel acks");
       acker.shutdownNow();
     }
