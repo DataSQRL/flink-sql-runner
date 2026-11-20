@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 /** The polling options that cursor and file mode share. Shipped to the task managers. */
 @Internal
 public record PollSettings(
-    Duration pollInterval,
+    PollSchedule pollSchedule,
     Duration fetchTimeout,
     boolean bounded,
     boolean pollWatermarks,

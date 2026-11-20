@@ -104,11 +104,27 @@ public final class CamelConnectorOptions {
           .defaultValue(Duration.ofMinutes(5))
           .withDescription("Time between polls once a poll is complete.");
 
+  public static final ConfigOption<String> POLL_CRON =
+      ConfigOptions.key("poll.cron")
+          .stringType()
+          .noDefaultValue()
+          .withDescription(
+              "A Quartz cron expression, such as '0 0 6 * * ?', for when polls start, in"
+                  + " 'table.local-time-zone'. Replaces 'poll.interval'.");
+
   public static final ConfigOption<Integer> RATE_LIMIT =
       ConfigOptions.key("rate-limit")
           .intType()
           .noDefaultValue()
           .withDescription("Max Camel requests or listings per minute. No limit when not set.");
+
+  public static final ConfigOption<String> CURSOR_START =
+      ConfigOptions.key("cursor.start")
+          .stringType()
+          .noDefaultValue()
+          .withDescription(
+              "The position to start from instead of initial(), parsed by the position type's"
+                  + " static parse or valueOf method. A restored position takes precedence.");
 
   public static final ConfigOption<CursorReset> CURSOR_RESET =
       ConfigOptions.key("cursor.reset")
@@ -219,7 +235,9 @@ public final class CamelConnectorOptions {
     modes.put(RETRY_MAX_BACKOFF, ALL);
     modes.put(SCAN_BOUNDED, ALL);
     modes.put(POLL_INTERVAL, POLLING);
+    modes.put(POLL_CRON, POLLING);
     modes.put(RATE_LIMIT, POLLING);
+    modes.put(CURSOR_START, EnumSet.of(CURSOR));
     modes.put(CURSOR_RESET, EnumSet.of(CURSOR));
     modes.put(CURSOR_LOOKBACK, EnumSet.of(CURSOR));
     modes.put(ACK_MAX_PENDING, EnumSet.of(ACK));

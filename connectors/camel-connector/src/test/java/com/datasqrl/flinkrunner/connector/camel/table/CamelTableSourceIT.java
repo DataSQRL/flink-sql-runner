@@ -58,6 +58,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -215,6 +216,34 @@ class CamelTableSourceIT {
   }
 
   @Test
+  void cursorStartReplacesTheInitialPosition() throws Exception {
+    startApi();
+    StreamTableEnvironment tEnv = streamingTableEnv();
+    tEnv.executeSql(
+        "CREATE TABLE items (id BIGINT, ts BIGINT) WITH ("
+            + cursorOptions()
+            + ", 'cursor.start' = '20', 'scan.bounded' = 'true')");
+
+    assertThat(collect(tEnv, "SELECT id FROM items"))
+        .extracting(row -> row.getField(0))
+        .contains(2L, 3L)
+        .doesNotContain(1L);
+  }
+
+  @Test
+  void rejectsACursorStartThatDoesNotParse() throws Exception {
+    startApi();
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql(
+        "CREATE TABLE items (id BIGINT, ts BIGINT) WITH ("
+            + cursorOptions()
+            + ", 'cursor.start' = 'soon')");
+
+    assertPlanningFails(
+        tEnv, "SELECT id FROM items", ValidationException.class, "not a valid java.lang.Long");
+  }
+
+  @Test
   void rejectsAnOptionOfAnotherMode() throws Exception {
     startApi();
     TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
@@ -278,6 +307,48 @@ class CamelTableSourceIT {
 
     assertThat(collect(tEnv, "SELECT file_name, row_num FROM lines"))
         .containsExactlyInAnyOrder(Row.of("a.csv", 1L), Row.of("a.csv", 2L), Row.of("b.csv", 1L));
+  }
+
+  @Test
+  @Timeout(60)
+  void pollCronSchedulesPolls() throws Exception {
+    Files.writeString(dir.resolve("a.csv"), "x\n");
+    StreamTableEnvironment tEnv = streamingTableEnv();
+    // With the default 5 minute interval, the second poll would come too late for the test.
+    tEnv.executeSql(
+        "CREATE TABLE lines (id STRING) WITH ("
+            + fileOptions(CsvFiles.class)
+            + ", 'poll.cron' = '* * * * * ?')");
+
+    try (CloseableIterator<Row> results = tEnv.executeSql("SELECT id FROM lines").collect()) {
+      assertThat(results.next()).isEqualTo(Row.of("x"));
+      Path tmp = Files.writeString(dir.resolveSibling(dir.getFileName() + "-b.csv"), "z\n");
+      Files.move(tmp, dir.resolve("b.csv"));
+      assertThat(results.next()).isEqualTo(Row.of("z"));
+    }
+  }
+
+  @Test
+  void rejectsPollCronTogetherWithPollInterval() {
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql(
+        "CREATE TABLE lines (id STRING) WITH ("
+            + fileOptions(CsvFiles.class)
+            + ", 'poll.cron' = '* * * * * ?', 'poll.interval' = '1 min')");
+
+    assertPlanningFails(tEnv, "SELECT id FROM lines", ValidationException.class, "not both");
+  }
+
+  @Test
+  void rejectsAnInvalidPollCron() {
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql(
+        "CREATE TABLE lines (id STRING) WITH ("
+            + fileOptions(CsvFiles.class)
+            + ", 'poll.cron' = 'hourly')");
+
+    assertPlanningFails(
+        tEnv, "SELECT id FROM lines", ValidationException.class, "not a Quartz cron expression");
   }
 
   @Test

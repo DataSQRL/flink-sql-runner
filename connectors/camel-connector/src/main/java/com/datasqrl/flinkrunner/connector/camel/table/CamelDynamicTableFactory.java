@@ -16,18 +16,25 @@
 package com.datasqrl.flinkrunner.connector.camel.table;
 
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.COMPONENT_PREFIX;
+import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.CURSOR_START;
+import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.POLL_CRON;
+import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.POLL_INTERVAL;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.SCAN_BOUNDED;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.SOURCE_CLASS;
 
+import com.datasqrl.flinkrunner.connector.camel.source.polling.PollSchedule;
 import com.google.auto.service.AutoService;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.Factory;
@@ -103,13 +110,48 @@ public final class CamelDynamicTableFactory implements DynamicTableSourceFactory
               + "' for a bounded read.");
     }
 
+    Object cursorStart =
+        options
+            .getOptional(CURSOR_START)
+            .map(
+                text ->
+                    CursorStart.parse(
+                        text, CursorStart.positionClass(source.instance().getClass())))
+            .orElse(null);
+
     return new CamelDynamicTableSource(
         source,
         recordType,
         context.getPhysicalRowDataType(),
         options,
         componentOptions(tableOptions),
-        options.get(SCAN_BOUNDED) || batch);
+        options.get(SCAN_BOUNDED) || batch,
+        pollSchedule(options, context.getConfiguration()),
+        cursorStart);
+  }
+
+  /** {@code poll.cron} in the session's time zone when set, otherwise {@code poll.interval}. */
+  private static PollSchedule pollSchedule(ReadableConfig options, ReadableConfig session) {
+    Optional<String> cron = options.getOptional(POLL_CRON);
+    if (cron.isPresent() && options.getOptional(POLL_INTERVAL).isPresent()) {
+      throw new ValidationException(
+          "Set either '" + POLL_INTERVAL.key() + "' or '" + POLL_CRON.key() + "', not both.");
+    }
+    try {
+      return cron.isPresent()
+          ? PollSchedule.cron(cron.get(), localTimeZone(session))
+          : PollSchedule.every(options.get(POLL_INTERVAL));
+    } catch (IllegalArgumentException e) {
+      throw new ValidationException("Invalid poll schedule: " + e.getMessage(), e);
+    }
+  }
+
+  /** The session's {@code table.local-time-zone}, resolved the way Flink resolves it. */
+  private static ZoneId localTimeZone(ReadableConfig session) {
+    String zone = session.get(TableConfigOptions.LOCAL_TIME_ZONE);
+    return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+        ? ZoneId.systemDefault()
+        : ZoneId.of(zone);
   }
 
   /** The {@code camel.component.*} options, without the prefix. */

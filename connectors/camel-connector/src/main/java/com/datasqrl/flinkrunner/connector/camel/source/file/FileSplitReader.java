@@ -163,7 +163,7 @@ final class FileSplitReader<OUT, IN, R> implements SplitReader<FileRecord<R>, Fi
         if (listing.isEmpty() && !known.isEmpty()) {
           LOG.warn("The listing of {} is empty, keeping the last snapshot", settings.location());
         }
-        return pollDone(settings.poll().pollInterval().toMillis());
+        return pollDone(nextPollAt());
       }
       unitT = clock.next();
       unitRows = 0;
@@ -230,7 +230,7 @@ final class FileSplitReader<OUT, IN, R> implements SplitReader<FileRecord<R>, Fi
             unitKeys.size(),
             unitT,
             missing);
-        return pollDone(retryDelayMs());
+        return pollDone(nextRetryAt());
       }
       checkRowRatio(unitRows);
       records.add(FileRecord.unitEnd(unitT, Set.copyOf(unitKeys), unitRows, now));
@@ -238,7 +238,7 @@ final class FileSplitReader<OUT, IN, R> implements SplitReader<FileRecord<R>, Fi
       unitKeys.forEach(key -> known.put(key, now));
       lastUnitRows = unitRows;
       unitT = PollClock.NONE;
-      return pollDone(settings.poll().pollInterval().toMillis());
+      return pollDone(nextPollAt());
     }
 
     if (resumeKey != null) {
@@ -260,25 +260,31 @@ final class FileSplitReader<OUT, IN, R> implements SplitReader<FileRecord<R>, Fi
       known.computeIfPresent(key, (k, lastListed) -> now);
     }
     known.values().removeIf(lastListed -> lastListed < now - settings.seenRetention().toMillis());
-    return pollDone(settings.poll().pollInterval().toMillis());
+    return pollDone(nextPollAt());
   }
 
-  /** Ends the poll. Returns whether the split is finished. */
-  private boolean pollDone(long nextPollInMs) {
+  /**
+   * Ends the poll, with the next one at {@code nextPollAt}. Returns whether the split is finished.
+   */
+  private boolean pollDone(long nextPollAt) {
     phase = Phase.IDLE;
     boolean unitOpen = unitT != PollClock.NONE;
     if (settings.poll().bounded() && !unitOpen) {
       return true;
     }
-    nextPollAt = System.currentTimeMillis() + nextPollInMs;
+    this.nextPollAt = nextPollAt;
     return false;
   }
 
-  private long retryDelayMs() {
-    // A bounded run ignores the poll interval, but must not spin on a file that isn't ready.
+  private long nextPollAt() {
+    return settings.poll().pollSchedule().nextPollAt(System.currentTimeMillis());
+  }
+
+  private long nextRetryAt() {
+    // A bounded run ignores the poll schedule, but must not spin on a file that isn't ready.
     return settings.poll().bounded()
-        ? settings.poll().fetchTimeout().toMillis()
-        : settings.poll().pollInterval().toMillis();
+        ? System.currentTimeMillis() + settings.poll().fetchTimeout().toMillis()
+        : nextPollAt();
   }
 
   private void openFile(FileLister.ListedFile next) throws IOException {

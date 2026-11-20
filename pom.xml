@@ -113,6 +113,7 @@
     <!-- The commons-csv version Camel ${camel.version} is built with (commons-csv-version in camel-parent). -->
     <commons-csv.version>1.14.1</commons-csv.version>
     <commons-math3.version>3.6.1</commons-math3.version>
+    <cron-utils.version>9.2.1</cron-utils.version>
     <feign.version>13.5</feign.version>
     <hadoop.version>3.3.4</hadoop.version>
     <iceberg.version>1.12.0</iceberg.version>

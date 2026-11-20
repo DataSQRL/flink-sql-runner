@@ -188,7 +188,7 @@ final class CursorSplitReader<OUT, POS, IN, R>
     pending = null;
     unitT = PollClock.NONE;
     unitStarted = false;
-    nextPollAt = System.currentTimeMillis() + settings.poll().pollInterval().toMillis();
+    nextPollAt = settings.poll().pollSchedule().nextPollAt(System.currentTimeMillis());
     return settings.poll().bounded();
   }
 

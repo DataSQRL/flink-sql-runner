@@ -25,7 +25,6 @@ import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptio
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.FILE_READY;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.FILE_SEEN_RETENTION;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.FILE_SNAPSHOT_UNIT;
-import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.POLL_INTERVAL;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.RATE_LIMIT;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.RETRY_INITIAL_BACKOFF;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.RETRY_MAX_ATTEMPTS;
@@ -37,6 +36,7 @@ import com.datasqrl.flinkrunner.camel.FileSource;
 import com.datasqrl.flinkrunner.connector.camel.source.ack.CamelAckSource;
 import com.datasqrl.flinkrunner.connector.camel.source.cursor.CamelCursorSource;
 import com.datasqrl.flinkrunner.connector.camel.source.file.CamelFileSource;
+import com.datasqrl.flinkrunner.connector.camel.source.polling.PollSchedule;
 import com.datasqrl.flinkrunner.connector.camel.source.polling.PollingSourceBuilder;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,6 +72,8 @@ final class CamelDynamicTableSource
   private final ReadableConfig options;
   private final Map<String, String> componentOptions;
   private final boolean bounded;
+  private final PollSchedule pollSchedule;
+  private final Object cursorStart;
 
   private List<String> metadataKeys = List.of();
   private DataType producedDataType;
@@ -83,12 +85,16 @@ final class CamelDynamicTableSource
       DataType physicalDataType,
       ReadableConfig options,
       Map<String, String> componentOptions,
-      boolean bounded) {
+      boolean bounded,
+      PollSchedule pollSchedule,
+      Object cursorStart) {
     this.source = source;
     this.recordType = recordType;
     this.options = options;
     this.componentOptions = componentOptions;
     this.bounded = bounded;
+    this.pollSchedule = pollSchedule;
+    this.cursorStart = cursorStart;
     this.producedDataType = physicalDataType;
   }
 
@@ -134,6 +140,7 @@ final class CamelDynamicTableSource
                       (CursorSource<Object, Object, Object>) instance, converter, type))
               .fullRefresh(options.get(CURSOR_RESET) == CamelConnectorOptions.CursorReset.PER_POLL)
               .lookback(options.get(CURSOR_LOOKBACK))
+              .startPosition(cursorStart)
               .build();
       case FILE -> {
         CamelFileSource.Builder<Object, Object, RowData> builder =
@@ -152,7 +159,7 @@ final class CamelDynamicTableSource
     builder
         .componentOptions(componentOptions)
         .fetchTimeout(options.get(FETCH_TIMEOUT))
-        .pollInterval(options.get(POLL_INTERVAL))
+        .pollSchedule(pollSchedule)
         .bounded(bounded)
         .pollWatermarks(sourceWatermark)
         .retry(
@@ -213,7 +220,14 @@ final class CamelDynamicTableSource
   public DynamicTableSource copy() {
     CamelDynamicTableSource copy =
         new CamelDynamicTableSource(
-            source, recordType, producedDataType, options, componentOptions, bounded);
+            source,
+            recordType,
+            producedDataType,
+            options,
+            componentOptions,
+            bounded,
+            pollSchedule,
+            cursorStart);
     copy.metadataKeys = metadataKeys;
     copy.sourceWatermark = sourceWatermark;
     return copy;

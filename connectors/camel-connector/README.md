@@ -242,7 +242,9 @@ Source classes log through the SLF4J API, which Flink provides.
 | `retry.max-backoff` | Duration | 30 min | all | Upper bound of the delay between retries |
 | `scan.bounded` | Boolean | false | all | Bounded read, see below |
 | `poll.interval` | Duration | 5 min | cursor, file | Time between polls once a poll is complete |
+| `poll.cron` | Quartz cron expression | none | cursor, file | When polls start, e.g. `0 0 6 * * ?` for 06:00 daily, in `table.local-time-zone`; set it or `poll.interval`, not both |
 | `rate-limit` | Integer, per minute | none | cursor, file | Max Camel requests or listings per minute |
+| `cursor.start` | String | `initial()` | cursor | The position to start from, parsed by the position type, see below |
 | `cursor.reset` | `never`, `per-poll` | `never` | cursor | `per-poll` pages from `initial()` on every poll: a full refresh |
 | `cursor.lookback` | Duration | 0 | cursor | Starts every request this far before the position |
 | `ack.max-pending` | Integer | 10000 | ack | Max messages held awaiting a checkpoint |
@@ -338,7 +340,7 @@ Other Java types Flink can convert to the column's type work too. A `null` compo
 
 - Requests go through Camel's `ProducerTemplate`. A poll follows `next(response)` page by page; if
   the last page moved the position, it requests again straight away, otherwise the poll is complete
-  and the next one starts after `poll.interval`.
+  and the next one starts after `poll.interval`, or at the next `poll.cron` match.
 - The emitter moves the checkpointed position to each emitted record's position, so a restore
   re-requests from there. Records must arrive in position order: within one response and its
   pages, a record behind the previous one (for a `Comparable` position) fails the job.
@@ -348,6 +350,11 @@ Other Java types Flink can convert to the column's type work too. A `null` compo
   and `CursorSource.rewind` subtracts the window: the default handles time types such as
   `Instant`, and a composite cursor overrides it. Doesn't combine with `cursor.reset = per-poll`.
 - `cursor.reset = per-poll` pages through everything from `initial()` on every poll, as a snapshot.
+- `cursor.start` replaces `initial()`: a fresh start and every `per-poll` refresh begin there, while
+  a restore continues from the checkpointed position. The text is parsed by the position type's
+  public static `parse` or `valueOf` method, which `Instant`, `LocalDate`, `LocalDateTime`, `Long`
+  and `Integer` have; a `String` position is taken as is, and a composite position needs such a
+  method of its own. A value it can't parse fails planning.
 - The position is written to state with its Flink serializer, together with the serializer's
   snapshot, so a compatible change to the position type survives a savepoint.
 - With `retry.max-attempts = 0`, a failed request fails the job straight away.
@@ -383,9 +390,12 @@ Every record of one unit (a cursor poll, or a file or listing) carries the unit'
 an unchanged poll never closes a snapshot. `rate-limit` caps Camel calls (requests and listings)
 per minute.
 
+With `poll.cron`, a completed poll waits for the next time the expression matches instead of
+`poll.interval`. The first poll after a start or restore runs right away, as with an interval.
+
 ## Not supported yet
 
-- The `poll.cron`, `watermark.idle-timeout` and `cursor.start` table options.
+- The `watermark.idle-timeout` table option.
 - A per-call timeout for cursor requests (the component's own timeouts apply), and the high-water
   mark that ends a bounded cursor read on a busy system.
 - MDC fields around `map`, and rate-limited logging of mapping failures.

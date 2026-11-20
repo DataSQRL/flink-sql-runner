@@ -44,6 +44,22 @@ class CamelConnectorOptionsTest {
   }
 
   @Test
+  void rejectsCursorStartForFileSources() {
+    assertThatThrownBy(
+            () -> CamelConnectorOptions.validateFor(SourceMode.FILE, Set.of("cursor.start"), "a.B"))
+        .isInstanceOf(ValidationException.class)
+        .hasMessageContaining("'cursor.start'");
+  }
+
+  @Test
+  void rejectsPollCronForAckSources() {
+    assertThatThrownBy(
+            () -> CamelConnectorOptions.validateFor(SourceMode.ACK, Set.of("poll.cron"), "a.B"))
+        .isInstanceOf(ValidationException.class)
+        .hasMessageContaining("'poll.cron'");
+  }
+
+  @Test
   void acceptsSharedAndComponentOptions() {
     assertThatCode(
             () ->

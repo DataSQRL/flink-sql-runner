@@ -17,11 +17,12 @@ package com.datasqrl.flinkrunner.connector.camel.source.polling;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 
 /** Options that the cursor and file mode builders share. */
 public abstract class PollingSourceBuilder<B extends PollingSourceBuilder<B>> {
 
-  private Duration pollInterval = Duration.ofMinutes(5);
+  private PollSchedule pollSchedule = PollSchedule.every(Duration.ofMinutes(5));
   private Duration fetchTimeout = Duration.ofSeconds(1);
   private boolean bounded;
   private boolean pollWatermarks;
@@ -40,7 +41,15 @@ public abstract class PollingSourceBuilder<B extends PollingSourceBuilder<B>> {
 
   /** Time between polls once a poll is complete. Defaults to 5 minutes. */
   public B pollInterval(Duration pollInterval) {
-    this.pollInterval = pollInterval;
+    return pollSchedule(PollSchedule.every(pollInterval));
+  }
+
+  /**
+   * When the next poll starts once a poll is complete, such as {@link PollSchedule#cron}. The first
+   * poll starts right away. Defaults to every 5 minutes.
+   */
+  public B pollSchedule(PollSchedule pollSchedule) {
+    this.pollSchedule = Objects.requireNonNull(pollSchedule, "pollSchedule");
     return self();
   }
 
@@ -105,7 +114,6 @@ public abstract class PollingSourceBuilder<B extends PollingSourceBuilder<B>> {
   }
 
   protected PollSettings pollSettings() {
-    requirePositive(pollInterval, "pollInterval");
     requirePositive(fetchTimeout, "fetchTimeout");
     if (rateLimitPerMinute < 0) {
       throw new IllegalArgumentException("rateLimit must not be negative");
@@ -114,7 +122,7 @@ public abstract class PollingSourceBuilder<B extends PollingSourceBuilder<B>> {
       throw new IllegalArgumentException("retry maxAttempts must not be negative");
     }
     return new PollSettings(
-        pollInterval,
+        pollSchedule,
         fetchTimeout,
         bounded,
         pollWatermarks,

@@ -74,6 +74,12 @@
       <artifactId>camel-file</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.cronutils</groupId>
+      <artifactId>cron-utils</artifactId>
+      <version>${cron-utils.version}</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.apache.flink</groupId>
