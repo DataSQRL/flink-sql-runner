@@ -25,6 +25,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.camel.Endpoint;
+import org.apache.camel.support.DefaultEndpoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -60,6 +62,12 @@ import org.apache.flink.metrics.Counter;
 @Internal
 public final class CamelAckSource<R>
     implements Source<R, AckSplit, List<AckSplit>>, ResultTypeQueryable<R> {
+
+  /**
+   * Exchanges Camel's polling consumer may hold that were taken from the source system but not yet
+   * received. Zero would make its queue unbounded.
+   */
+  private static final int FETCH_AHEAD = 1;
 
   private final AckSettings<?, R> settings;
   private final TypeInformation<R> producedType;
@@ -110,7 +118,7 @@ public final class CamelAckSource<R>
             settings.componentOptions(),
             settings.endpointUri(),
             pollErrors,
-            endpoint -> {});
+            CamelAckSource::limitFetchAhead);
     PendingAcks pendingAcks = new PendingAcks();
     Counter dropped = readerContext.metricGroup().counter("numRecordsDropped");
     Counter failed = readerContext.metricGroup().counter("numRecordsFailed");
@@ -243,6 +251,20 @@ public final class CamelAckSource<R>
               retryInitialBackoff,
               retryMaxBackoff),
           producedType);
+    }
+  }
+
+  /**
+   * Camel's polling consumer queues what the endpoint's consumer fetched ahead of {@code receive},
+   * up to 1000 exchanges by default. The source system counts those as delivered, but {@code
+   * maxPending} only sees received exchanges, so the queue is cut to {@link #FETCH_AHEAD}, and its
+   * consumer waits for room instead of failing exchanges. A batch the component's own poll already
+   * fetched, such as SQS's {@code maxMessagesPerPoll}, still waits in the consumer's hands.
+   */
+  private static void limitFetchAhead(Endpoint endpoint) {
+    if (endpoint instanceof DefaultEndpoint fetching) {
+      fetching.setPollingConsumerQueueSize(FETCH_AHEAD);
+      fetching.setPollingConsumerBlockWhenFull(true);
     }
   }
 }

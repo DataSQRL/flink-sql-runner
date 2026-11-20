@@ -332,6 +332,10 @@ Other Java types Flink can convert to the column's type work too. A `null` compo
   mapping; camel-jms's other consumer options don't apply, and topics are rejected.
 - `ack.max-pending` pauses receiving while that many exchanges wait for a checkpoint. The
   checkpoint interval must stay below any visibility or lease timeout of the source system.
+- Camel takes at most one message from the source system ahead of a receive: the source sets the
+  endpoint's `pollingConsumerQueueSize` to 1, overriding the URI. A batch the component's own poll
+  has already fetched waits on top of that, such as up to `maxMessagesPerPoll` SQS messages, so
+  keep such batches small next to `ack.max-pending`.
 - Every record carries the timestamp of the poll that received it.
 - With `retry.max-attempts` above 0, Camel's fetch errors back off exponentially and fail the job
   after that many failures in a row. With 0, Camel logs a failed poll and polls again.

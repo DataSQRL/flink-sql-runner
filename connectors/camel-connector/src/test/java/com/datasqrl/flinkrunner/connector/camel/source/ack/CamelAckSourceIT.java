@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.camel.Component;
 import org.apache.camel.Exchange;
 import org.apache.camel.component.file.GenericFile;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -57,6 +58,8 @@ import org.junit.jupiter.api.io.TempDir;
 class CamelAckSourceIT {
 
   private static final AtomicBoolean FAILED_ONCE = new AtomicBoolean();
+  private static final int MAX_PENDING = 5;
+  private static final Duration FETCH_AHEAD_GRACE = Duration.ofMillis(500);
 
   @TempDir Path inbox;
 
@@ -193,6 +196,51 @@ class CamelAckSourceIT {
       root = root.getCause();
     }
     assertTrue(root.getMessage().contains("nope"), root.toString());
+  }
+
+  @Test
+  void maxPendingBoundsWhatCamelFetchesAhead() throws Exception {
+    PushingComponent.PUSHED.set(0);
+    CamelAckSource<String> source =
+        CamelAckSource.builder(new Pushed())
+            .receiveTimeout(Duration.ofMillis(200))
+            .maxPending(MAX_PENDING)
+            .build();
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    env.setParallelism(1);
+
+    // Without checkpoints nothing is acknowledged, so the source stops receiving at MAX_PENDING.
+    try (CloseableIterator<String> results =
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "camel").executeAndCollect()) {
+      for (int i = 0; i < MAX_PENDING; i++) {
+        results.next();
+      }
+      Thread.sleep(FETCH_AHEAD_GRACE.toMillis());
+
+      // Besides the received exchanges, one waits in Camel's queue and one in the component's
+      // hands.
+      int pushed = PushingComponent.PUSHED.get();
+      assertTrue(pushed <= MAX_PENDING + 2, "the component pushed " + pushed + " exchanges");
+    }
+  }
+
+  /** Receives from a {@link PushingComponent} it binds. */
+  public static final class Pushed implements AckSource<String> {
+
+    @Bind("pushing")
+    public Component pushing() {
+      return new PushingComponent();
+    }
+
+    @Override
+    public String endpoint() {
+      return "pushing:numbers";
+    }
+
+    @Override
+    public String map(Exchange exchange) {
+      return exchange.getMessage().getBody(String.class);
+    }
   }
 
   /** Reads an inbox whose endpoint sorts files with a comparator the source binds. */
