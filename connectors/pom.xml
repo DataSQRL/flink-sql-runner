@@ -30,6 +30,7 @@
   <name>Connectors</name>
 
   <modules>
+    <module>camel-connector</module>
     <module>datagen-connectors</module>
     <module>kafka-safe-connector</module>
     <module>postgresql-connector</module>

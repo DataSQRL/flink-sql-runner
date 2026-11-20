@@ -311,6 +311,20 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- Only orders the build: CamelSourceIT mounts the module's target/camel-udfs into the container. -->
+    <dependency>
+      <groupId>com.datasqrl.flinkrunner</groupId>
+      <artifactId>camel-source-sample</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-avro</artifactId>

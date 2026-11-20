@@ -110,12 +110,19 @@ public class AbstractITSupport {
             .withEnv("POSTGRES_USERNAME", "postgres")
             .withEnv("POSTGRES_PASSWORD", "postgres")
             .withEnv("REDPANDA_PORT", String.valueOf(REDPANDA_PORT))
+            .withEnv("CAMEL_DROP_DIR", "/it/camel-drop")
             .withFileSystemBind("target/test-classes/plans", "/it/planfile", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/sql", "/it/sqlfile", BindMode.READ_ONLY)
             .withFileSystemBind(
                 "target/test-classes/savepoint-test", "/it/savepoint-test", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/config", "/it/config", BindMode.READ_ONLY)
             .withFileSystemBind("target/test-classes/udfs", "/it/udfs", BindMode.READ_ONLY)
+            .withFileSystemBind(
+                "../testing/camel-source-sample/target/camel-udfs",
+                "/it/camel-udfs",
+                BindMode.READ_ONLY)
+            .withFileSystemBind(
+                "target/test-classes/camel-drop", "/it/camel-drop", BindMode.READ_ONLY)
             .withCommand("bash", "-c", "bin/start-cluster.sh && tail -f /dev/null")
             .dependsOn(postgresContainer, redpandaContainer);
     flinkContainer.start();

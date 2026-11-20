@@ -412,6 +412,33 @@ Native Vector type support is also extended to the [JDBC connector for PostgreSQ
 
 The native vector type is supported by [these system functions](stdlib-docs/system-functions.yml).
 
+### Camel Sources
+
+The `camel` connector reads long-tail systems such as SaaS APIs, queues, SFTP drops and published files through Apache Camel, with each source written as one Java class against `camel-source-sdk`.
+The class named in `source.class` picks the mode (cursor, ack or file) by the contract it implements, and its record's components become the table's columns.
+The connector ships separately from the runner's image: put it, the Camel components and the source classes on the UDF path.
+
+```sql
+CREATE TABLE accounts (
+  id STRING,
+  name STRING,
+  industry STRING,
+  annualRevenue DECIMAL(18, 2),
+  modifiedAt TIMESTAMP_LTZ(3),
+  deleted BOOLEAN,
+  ingested_at TIMESTAMP_LTZ(3) METADATA,
+  WATERMARK FOR ingested_at AS SOURCE_WATERMARK()
+) WITH (
+  'connector' = 'camel',
+  'source.class' = 'sample.camel.Accounts',
+  'poll.interval' = '5 min',
+  'camel.component.salesforce.clientId' = '{{env:SF_CLIENT_ID}}',
+  'camel.component.salesforce.clientSecret' = '{{env:SF_CLIENT_SECRET}}'
+);
+```
+
+See the [module README](connectors/camel-connector/README.md) for writing sources, options, metadata columns and types.
+
 ### Function Libraries
 
 <img src="stdlib-docs/img/sqrl_functions_logo.png" alt="Flink SQL Runner Logo" width="300" align="right" />
