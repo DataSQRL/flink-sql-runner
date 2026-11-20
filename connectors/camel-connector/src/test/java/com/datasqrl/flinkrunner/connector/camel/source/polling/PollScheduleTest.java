@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
@@ -36,9 +35,10 @@ class PollScheduleTest {
 
   @Test
   void cronPollsAtTheNextMatchingTimeInItsZone() {
-    PollSchedule daily = PollSchedule.cron("0 0 6 * * ?", ZoneId.of("America/Vancouver"));
+    // A fixed offset: a named zone's rules change with local law and the JDK's tzdata.
+    PollSchedule daily = PollSchedule.cron("0 0 6 * * ?", ZoneOffset.ofHours(-8));
 
-    // 10:15 UTC is 02:15 in Vancouver, so the next 06:00 there is 14:00 UTC.
+    // 10:15 UTC is 02:15 at -08:00, so the next 06:00 there is 14:00 UTC.
     assertThat(daily.nextPollAt(NOW))
         .isEqualTo(Instant.parse("2026-11-20T14:00:00Z").toEpochMilli());
   }

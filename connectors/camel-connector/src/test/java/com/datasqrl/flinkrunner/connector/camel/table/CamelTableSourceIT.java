@@ -78,6 +78,9 @@ import org.junit.jupiter.api.io.TempDir;
 class CamelTableSourceIT {
 
   private static final String FAST_FETCH = "'fetch.timeout' = '200ms'";
+  // A timer fires on its own thread once the source has started, which on a busy machine can take
+  // longer than the default three empty polls.
+  private static final String WAIT_FOR_TIMER = "'ack.empty-polls' = '25'";
   private static final String MISSING_NOSUCH = "Camel component 'nosuch', needed by";
   private static final String SCHEME_PROPERTY = "camel.table.it.scheme";
   private static final String NO_RESTARTS = "none";
@@ -250,6 +253,8 @@ class CamelTableSourceIT {
             + "',"
             + "  'camel.component.timer.includeMetadata' = 'true',"
             + "  'scan.bounded' = 'true',"
+            + WAIT_FOR_TIMER
+            + ", "
             + FAST_FETCH
             + ")");
 

@@ -60,6 +60,10 @@ class CamelAckSourceIT {
   private static final AtomicBoolean FAILED_ONCE = new AtomicBoolean();
   private static final int MAX_PENDING = 5;
   private static final Duration FETCH_AHEAD_GRACE = Duration.ofMillis(500);
+  private static final int EMPTY_POLLS = 3;
+  // A timer fires on its own thread once the source has started, which on a busy machine can take
+  // longer than a few empty polls.
+  private static final int TIMER_EMPTY_POLLS = 25;
 
   @TempDir Path inbox;
 
@@ -163,12 +167,16 @@ class CamelAckSourceIT {
   void bindMethodsAreRegisteredBeforeTheEndpointIsCreated() throws Exception {
     writeFiles("a", "b", "c");
 
+    // Camel's file polling consumer takes one file per poll and, by default, stops listing at the
+    // first file, before the sorter sees the others.
     List<String> records =
         runInOrder(
             configured(
                 CamelAckSource.builder(
                     new ReverseSortedInbox(
-                        "file:" + inbox + "?delete=true&delay=10&sorter=#reverse"))));
+                        "file:"
+                            + inbox
+                            + "?delete=true&delay=10&sorter=#reverse&eagerMaxMessagesPerPoll=false"))));
 
     assertEquals(List.of("record-c", "record-b", "record-a"), records);
   }
@@ -178,7 +186,8 @@ class CamelAckSourceIT {
     CamelAckSource<String> source =
         configured(
             CamelAckSource.builder(new TimerCounter())
-                .componentOptions(Map.of("timer.includeMetadata", "true")));
+                .componentOptions(Map.of("timer.includeMetadata", "true")),
+            TIMER_EMPTY_POLLS);
 
     assertEquals(List.of("1"), runInOrder(source));
   }
@@ -282,7 +291,12 @@ class CamelAckSourceIT {
   }
 
   private static CamelAckSource<String> configured(CamelAckSource.Builder<String, String> builder) {
-    return builder.receiveTimeout(Duration.ofMillis(200)).stopAfterEmptyPolls(3).build();
+    return configured(builder, EMPTY_POLLS);
+  }
+
+  private static CamelAckSource<String> configured(
+      CamelAckSource.Builder<String, String> builder, int emptyPolls) {
+    return builder.receiveTimeout(Duration.ofMillis(200)).stopAfterEmptyPolls(emptyPolls).build();
   }
 
   private String inboxUri() {
