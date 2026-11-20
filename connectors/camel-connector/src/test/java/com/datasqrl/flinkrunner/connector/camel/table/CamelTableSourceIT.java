@@ -21,17 +21,22 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.datasqrl.flinkrunner.camel.AckSource;
+import com.datasqrl.flinkrunner.camel.Bind;
 import com.datasqrl.flinkrunner.camel.Csv;
 import com.datasqrl.flinkrunner.camel.CursorSource;
 import com.datasqrl.flinkrunner.camel.FileSource;
 import com.datasqrl.flinkrunner.camel.Json;
 import com.datasqrl.flinkrunner.camel.Request;
+import com.datasqrl.flinkrunner.connector.camel.source.FakeCamelJar;
 import com.datasqrl.flinkrunner.connector.camel.source.TestHttpServer;
+import com.datasqrl.flinkrunner.connector.camel.source.ack.PushingComponent;
 import com.datasqrl.flinkrunner.connector.camel.table.RecordTypeTest.Everything;
 import com.datasqrl.flinkrunner.connector.camel.table.RecordTypeTest.Inner;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -45,7 +50,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.camel.Component;
 import org.apache.camel.Exchange;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -68,6 +75,9 @@ import org.junit.jupiter.api.io.TempDir;
 class CamelTableSourceIT {
 
   private static final String FAST_FETCH = "'fetch.timeout' = '200ms'";
+  private static final String MISSING_NOSUCH = "Camel component 'nosuch', needed by";
+  private static final String SCHEME_PROPERTY = "camel.table.it.scheme";
+  private static final String NO_RESTARTS = "none";
 
   @TempDir Path dir;
   private TestHttpServer api;
@@ -257,6 +267,96 @@ class CamelTableSourceIT {
         "SELECT id FROM items",
         ValidationException.class,
         "Option 'file.order' does not apply to");
+  }
+
+  // --- the job's classpath
+
+  @Test
+  void rejectsAnEndpointWhoseComponentIsMissing() {
+    JsonInbox.endpoint = "nosuch:queue";
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql("CREATE TABLE people (id INT, name STRING) WITH (" + ackOptions() + ")");
+
+    assertPlanningFails(tEnv, "SELECT id FROM people", ValidationException.class, MISSING_NOSUCH);
+  }
+
+  @Test
+  void rejectsAFileLocationWhoseComponentIsMissing() {
+    CsvFiles.location = "nosuch:" + dir;
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql("CREATE TABLE lines (id STRING) WITH (" + fileOptions(CsvFiles.class) + ")");
+
+    assertPlanningFails(tEnv, "SELECT id FROM lines", ValidationException.class, MISSING_NOSUCH);
+  }
+
+  @Test
+  void rejectsComponentOptionsOfAMissingComponent() {
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql(
+        "CREATE TABLE items (id BIGINT, ts BIGINT) WITH ("
+            + cursorOptions()
+            + ", 'camel.component.nosuch.region' = 'us-west-2')");
+
+    assertPlanningFails(tEnv, "SELECT id FROM items", ValidationException.class, MISSING_NOSUCH);
+  }
+
+  @Test
+  void acceptsAComponentTheSourceBinds() {
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.executeSql(
+        "CREATE TABLE numbers (n STRING) WITH ('connector' = 'camel', 'source.class' = '"
+            + BoundComponent.class.getName()
+            + "')");
+
+    assertThat(tEnv.explainSql("SELECT n FROM numbers")).contains("numbers");
+  }
+
+  @Test
+  void rejectsCamelJarsOfAnotherVersion() throws Exception {
+    Path jar = FakeCamelJar.write(dir, "camel-fake-1.0.0.jar", "Camel :: Fake", "1.0.0");
+    try (URLClassLoader classpath =
+        new URLClassLoader(new URL[] {jar.toUri().toURL()}, getClass().getClassLoader())) {
+      TableEnvironment tEnv =
+          TableEnvironment.create(
+              EnvironmentSettings.newInstance()
+                  .inStreamingMode()
+                  .withClassLoader(classpath)
+                  .build());
+      tEnv.executeSql("CREATE TABLE lines (id STRING) WITH (" + fileOptions(CsvFiles.class) + ")");
+
+      assertPlanningFails(
+          tEnv, "SELECT id FROM lines", ValidationException.class, "camel-fake-1.0.0.jar (1.0.0)");
+    }
+  }
+
+  @Test
+  @Timeout(value = 60, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  void cursorRequestToAMissingComponentFailsWithoutRetries() {
+    PagedApi.url = "nosuch:items";
+    TableEnvironment tEnv = failingTableEnv();
+    tEnv.executeSql(
+        "CREATE TABLE items (id BIGINT, ts BIGINT) WITH ('connector' = 'camel', 'source.class' = '"
+            + PagedApi.class.getName()
+            + "', 'scan.bounded' = 'true', "
+            + FAST_FETCH
+            + ")");
+
+    assertJobFails(tEnv, "SELECT id FROM items", MISSING_NOSUCH);
+  }
+
+  @Test
+  @Timeout(value = 60, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  void endpointWhosePlaceholderNamesAMissingComponentFailsWithoutRetries() {
+    System.setProperty(SCHEME_PROPERTY, "nosuch");
+    try {
+      JsonInbox.endpoint = "{{sys:" + SCHEME_PROPERTY + "}}:queue";
+      TableEnvironment tEnv = failingTableEnv();
+      tEnv.executeSql("CREATE TABLE people (id INT, name STRING) WITH (" + ackOptions() + ")");
+
+      assertJobFails(tEnv, "SELECT id FROM people", MISSING_NOSUCH);
+    } finally {
+      System.clearProperty(SCHEME_PROPERTY);
+    }
   }
 
   @Test
@@ -496,6 +596,26 @@ class CamelTableSourceIT {
     }
   }
 
+  public record Numbered(String n) {}
+
+  /** Reads from a component it binds itself, which no descriptor on the classpath names. */
+  public static final class BoundComponent implements AckSource<Numbered> {
+    @Bind("pushing")
+    public Component pushing() {
+      return new PushingComponent();
+    }
+
+    @Override
+    public String endpoint() {
+      return "pushing:numbers";
+    }
+
+    @Override
+    public Numbered map(Exchange exchange) {
+      return new Numbered(exchange.getMessage().getBody(String.class));
+    }
+  }
+
   public record Line(String id) {}
 
   /** CSV files in the test directory, one record per line. */
@@ -626,6 +746,22 @@ class CamelTableSourceIT {
       }
     }
     return null;
+  }
+
+  /** A streaming environment whose job fails on its first error, without restarting. */
+  private static TableEnvironment failingTableEnv() {
+    TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    tEnv.getConfig().set(RestartStrategyOptions.RESTART_STRATEGY, NO_RESTARTS);
+    return tEnv;
+  }
+
+  private static void assertJobFails(TableEnvironment tEnv, String query, String message) {
+    assertThatThrownBy(() -> collect(tEnv, query))
+        .satisfies(
+            e ->
+                assertThat(ExceptionUtils.findThrowableWithMessage(e, message))
+                    .as(ExceptionUtils.stringifyException(e))
+                    .isPresent());
   }
 
   private static StreamTableEnvironment streamingTableEnv() {

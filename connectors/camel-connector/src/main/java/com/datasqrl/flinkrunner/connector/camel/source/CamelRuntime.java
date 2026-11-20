@@ -16,6 +16,7 @@
 package com.datasqrl.flinkrunner.connector.camel.source;
 
 import com.datasqrl.flinkrunner.camel.Bind;
+import com.datasqrl.flinkrunner.connector.camel.source.CamelClasspath.MissingComponentException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -68,6 +69,7 @@ public final class CamelRuntime implements AutoCloseable {
   private static final long NO_WAIT = 0;
   private static final Duration PENDING_ACKS_TIMEOUT = Duration.ofSeconds(30);
   private static final char COMPONENT_SEPARATOR = '.';
+  private static final String COMPONENT_OPTIONS_PREFIX = "camel.component.";
   private static final String JMS_ENDPOINT_CLASS = "org.apache.camel.component.jms.JmsEndpoint";
 
   private final ClassLoader userClassLoader;
@@ -181,6 +183,8 @@ public final class CamelRuntime implements AutoCloseable {
         pollErrors.succeeded();
       }
       return exchange;
+    } catch (MissingComponentException e) {
+      throw e;
     } catch (RuntimeException e) {
       pollErrors.receiveFailed(e);
       pollErrors.checkAttempts();
@@ -213,7 +217,9 @@ public final class CamelRuntime implements AutoCloseable {
     }
     Exception failure;
     try {
-      Exchange response = producer().send(uri, ExchangePattern.InOut, request);
+      ProducerTemplate template = producer();
+      requireComponent(context, uri);
+      Exchange response = template.send(uri, ExchangePattern.InOut, request);
       failure = response.getException();
       if (failure == null) {
         if (pollErrors != null) {
@@ -221,6 +227,8 @@ public final class CamelRuntime implements AutoCloseable {
         }
         return response;
       }
+    } catch (MissingComponentException e) {
+      throw e;
     } catch (RuntimeException e) {
       failure = e;
     }
@@ -293,6 +301,7 @@ public final class CamelRuntime implements AutoCloseable {
     configureComponents(camel);
     camel.start();
     if (endpointUri != null) {
+      requireComponent(camel, endpointUri);
       Endpoint endpoint = camel.getEndpoint(endpointUri);
       try {
         endpointSetup.configure(endpoint);
@@ -353,11 +362,8 @@ public final class CamelRuntime implements AutoCloseable {
         (name, options) -> {
           Component component = camel.getComponent(name);
           if (component == null) {
-            throw new IllegalArgumentException(
-                "No Camel component '"
-                    + name
-                    + "' on the classpath for options "
-                    + options.keySet());
+            throw new MissingComponentException(
+                name, "table options '" + COMPONENT_OPTIONS_PREFIX + name + ".*'");
           }
           PropertyBindingSupport.build()
               .withCamelContext(camel)
@@ -367,6 +373,18 @@ public final class CamelRuntime implements AutoCloseable {
               .withRemoveParameters(false)
               .bind();
         });
+  }
+
+  /** Fails for good when no component serves the URI's scheme, rather than as a failed fetch. */
+  private static void requireComponent(CamelContext camel, String uri) {
+    String resolved = camel.resolvePropertyPlaceholders(uri);
+    CamelClasspath.scheme(resolved)
+        .filter(scheme -> camel.getComponent(scheme) == null)
+        .ifPresent(
+            scheme -> {
+              throw new MissingComponentException(
+                  scheme, "endpoint '" + URISupport.sanitizeUri(resolved) + "'");
+            });
   }
 
   /**

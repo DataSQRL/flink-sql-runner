@@ -31,6 +31,19 @@ Flink and SLF4J are provided by the runner; leave them out. The runner loads eve
 directory with `ADD JAR`, so the factory, the Camel components and the source classes are found
 through the job's classloader.
 
+Every Camel jar must be the Camel version the connector is built against (`camel.version` in the
+root pom), because Camel needs its components at its core's exact version. Import
+`org.apache.camel:camel-bom` at that version in the build that assembles the directory. The
+connector checks the classpath when the job is planned:
+
+- Planning fails when a Camel jar has another version, naming each such jar.
+- Planning fails when a component is missing: one a `camel.component.<name>.*` option configures,
+  or the one an ack source's endpoint or a file source's location names. A component the source
+  binds with `@Bind` under that name counts as present.
+- A cursor source's requests are only built at runtime, so a request to a missing component fails
+  the job there, without retries. So does an endpoint whose component comes from a property
+  placeholder.
+
 [`testing/camel-source-sample/pom.xml`](../../testing/camel-source-sample/pom.xml) shows the Maven
 setup: the sources depend on `camel-source-sdk` (compile) and `camel-connector` (runtime), and the
 `package` phase copies the runtime dependencies and the module's jar into `target/camel-udfs`.

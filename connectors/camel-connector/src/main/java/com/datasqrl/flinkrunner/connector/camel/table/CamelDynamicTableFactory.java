@@ -22,13 +22,21 @@ import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptio
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.SCAN_BOUNDED;
 import static com.datasqrl.flinkrunner.connector.camel.table.CamelConnectorOptions.SOURCE_CLASS;
 
+import com.datasqrl.flinkrunner.camel.AckSource;
+import com.datasqrl.flinkrunner.camel.Bind;
+import com.datasqrl.flinkrunner.camel.FileSource;
+import com.datasqrl.flinkrunner.connector.camel.source.CamelClasspath;
 import com.datasqrl.flinkrunner.connector.camel.source.polling.PollSchedule;
 import com.google.auto.service.AutoService;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -63,6 +71,8 @@ public final class CamelDynamicTableFactory implements DynamicTableSourceFactory
 
   public static final String IDENTIFIER = "camel";
 
+  private static final char COMPONENT_SEPARATOR = '.';
+
   @Override
   public String factoryIdentifier() {
     return IDENTIFIER;
@@ -86,8 +96,13 @@ public final class CamelDynamicTableFactory implements DynamicTableSourceFactory
     Map<String, String> tableOptions = context.getCatalogTable().getOptions();
     String className = options.get(SOURCE_CLASS);
 
-    UserSource source = UserSource.load(className, context.getClassLoader());
+    ClassLoader classLoader = context.getClassLoader();
+    // Before the source class loads: a Camel jar of another version can fail its linking.
+    requireConnectorsCamelVersion(classLoader);
+    UserSource source = UserSource.load(className, classLoader);
     CamelConnectorOptions.validateFor(source.mode(), tableOptions.keySet(), className);
+    Map<String, String> componentOptions = componentOptions(tableOptions);
+    requireComponents(source, className, componentOptions.keySet(), classLoader);
     if (context.getCatalogTable().getResolvedSchema().getPrimaryKey().isPresent()) {
       throw new ValidationException(
           "Camel source tables are append-only and declare no primary key. Declare keys"
@@ -124,10 +139,76 @@ public final class CamelDynamicTableFactory implements DynamicTableSourceFactory
         recordType,
         context.getPhysicalRowDataType(),
         options,
-        componentOptions(tableOptions),
+        componentOptions,
         options.get(SCAN_BOUNDED) || batch,
         pollSchedule(options, context.getConfiguration()),
         cursorStart);
+  }
+
+  private static void requireConnectorsCamelVersion(ClassLoader classLoader) {
+    List<String> others = CamelClasspath.otherCamelVersions(classLoader);
+    if (!others.isEmpty()) {
+      throw new ValidationException(
+          "The job's classpath has Camel jars of another version than "
+              + CamelClasspath.CAMEL_VERSION
+              + ", the one the connector is built against: "
+              + String.join(", ", others)
+              + ". Camel needs all its jars at one version: take every Camel component at "
+              + CamelClasspath.CAMEL_VERSION
+              + ", e.g. by importing org.apache.camel:camel-bom:"
+              + CamelClasspath.CAMEL_VERSION
+              + ".");
+    }
+  }
+
+  /**
+   * The components the {@code camel.component.*} options configure, and the one the source's
+   * endpoint or location names, must be on the classpath or bound by the source. Cursor requests
+   * are only built on the fetcher thread, so the runtime checks those.
+   */
+  private static void requireComponents(
+      UserSource source,
+      String className,
+      Set<String> componentOptionKeys,
+      ClassLoader classLoader) {
+    Set<String> bound = boundNames(source.instance());
+    for (String key : componentOptionKeys) {
+      int separator = key.indexOf(COMPONENT_SEPARATOR);
+      if (separator > 0) {
+        String name = key.substring(0, separator);
+        requireComponent(
+            name, "table options '" + COMPONENT_PREFIX + name + ".*'", bound, classLoader);
+      }
+    }
+    endpoint(source)
+        .flatMap(CamelClasspath::scheme)
+        .ifPresent(
+            scheme ->
+                requireComponent(scheme, "Camel source '" + className + "'", bound, classLoader));
+  }
+
+  private static void requireComponent(
+      String name, String user, Set<String> bound, ClassLoader classLoader) {
+    if (!bound.contains(name) && !CamelClasspath.hasComponent(name, classLoader)) {
+      throw new ValidationException(CamelClasspath.missingComponent(name, user));
+    }
+  }
+
+  /** The names the source's {@link Bind} methods register, components among them. */
+  private static Set<String> boundNames(Object source) {
+    return Arrays.stream(source.getClass().getMethods())
+        .map(method -> method.getAnnotation(Bind.class))
+        .filter(Objects::nonNull)
+        .map(Bind::value)
+        .collect(Collectors.toSet());
+  }
+
+  private static Optional<String> endpoint(UserSource source) {
+    return switch (source.mode()) {
+      case ACK -> Optional.ofNullable(((AckSource<?>) source.instance()).endpoint());
+      case FILE -> Optional.ofNullable(((FileSource<?, ?>) source.instance()).location());
+      case CURSOR -> Optional.empty();
+    };
   }
 
   /** {@code poll.cron} in the session's time zone when set, otherwise {@code poll.interval}. */

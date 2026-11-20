@@ -90,6 +90,31 @@
       <version>${flink.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- The components of the samples no test runs, so their tables still plan. -->
+    <dependency>
+      <groupId>org.apache.camel</groupId>
+      <artifactId>camel-salesforce</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.camel</groupId>
+      <artifactId>camel-aws2-sqs</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.camel</groupId>
+      <artifactId>camel-jms</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.camel</groupId>
+      <artifactId>camel-ftp</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
