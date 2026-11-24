@@ -69,6 +69,23 @@ class CliRunnerIT extends AbstractITSupport {
   }
 
   @Test
+  void givenSqlScriptWithEnvVars_whenExecuting_thenLogsStatementsAsWritten() throws Exception {
+    var jobId = flinkRun("--sqlfile", "/it/sqlfile/flink.sql");
+    assertJobIsRunning(jobId);
+
+    untilAssert(
+        () -> {
+          var logRes =
+              flinkContainer.execInContainer(
+                  "bash", "-c", "grep -Rh \"'password' = \" /opt/flink/log || true");
+
+          assertThat(logRes.getStdout())
+              .contains("'password' = '${POSTGRES_PASSWORD}'")
+              .doesNotContain("'password' = 'postgres'");
+        });
+  }
+
+  @Test
   void givenKafkaPlanScript_whenExecuting_thenSuccess() throws Exception {
     String jobId = flinkRun("--planfile", "/it/planfile/kafka_plan.json");
     assertJobIsRunning(jobId);

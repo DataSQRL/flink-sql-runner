@@ -240,6 +240,11 @@
             <artifactId>slf4j-reload4j</artifactId>
           </exclusion>
           <exclusion>
+            <!-- Comes in through ZooKeeper -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
           </exclusion>
@@ -549,9 +554,11 @@
                   <excludes>
                     <!-- Ban SLF4J 2.x bridge to ensure only SLF4J 1.x is used -->
                     <exclude>org.apache.logging.log4j:log4j-slf4j2-impl</exclude>
+                    <!-- Ban other SLF4J bindings, which can win over log4j-slf4j-impl -->
                     <exclude>org.slf4j:slf4j-reload4j</exclude>
+                    <exclude>org.slf4j:slf4j-log4j12</exclude>
                   </excludes>
-                  <message>SLF4J 2.x is not allowed. Use log4j-slf4j-impl instead of log4j-slf4j2-impl</message>
+                  <message>SLF4J 2.x and SLF4J bindings other than log4j-slf4j-impl are not allowed. Use log4j-slf4j-impl instead of log4j-slf4j2-impl, slf4j-reload4j or slf4j-log4j12</message>
                 </bannedDependencies>
               </rules>
             </configuration>

@@ -23,6 +23,7 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -32,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -111,11 +113,18 @@ class SqlExecutor {
   /**
    * Executes a single SQL script.
    *
-   * @param script The SQL script content.
-   * @return
+   * <p>The script is split into statements before environment variables are resolved, and every
+   * statement is resolved before the first one runs.
+   *
+   * @param script the SQL script content, with environment variable references unresolved
+   * @param resolver resolves the environment variable references in one statement
+   * @return the result of the last statement
    */
-  TableResult executeScript(String script) {
-    var statements = SqlUtils.parseStatements(script);
+  TableResult executeScript(String script, UnaryOperator<String> resolver) {
+    var statements =
+        SqlUtils.parseStatements(script).stream()
+            .map(statement -> new Statement(statement, resolver.apply(statement)))
+            .toList();
     TableResult tableResult = null;
 
     var it = statements.iterator();
@@ -146,30 +155,31 @@ class SqlExecutor {
     }
   }
 
-  private TableResult executeStatement(String statement, boolean intermediate) {
+  private TableResult executeStatement(Statement stmt, boolean intermediate) {
     TableResult tableResult = null;
     try {
-      var setMatcher = SET_PATTERN.matcher(statement.trim());
-      var statementSetMatcher = STATEMENT_SET_PATTERN.matcher(statement.trim());
+      var setMatcher = SET_PATTERN.matcher(stmt.resolved().trim());
+      var statementSetMatcher = STATEMENT_SET_PATTERN.matcher(stmt.resolved().trim());
 
       if (setMatcher.matches()) {
         // Handle SET statements
         var key = setMatcher.group(1);
         var value = setMatcher.group(2);
         tEnv.getConfig().getConfiguration().setString(key, value);
-        log.info("Set configuration: {} = {}", key, value);
+        log.info("Set configuration: {} = {}", key, redactSensitiveSetValue(key, stmt.raw()));
 
       } else {
-        log.info("Executing statement:\n{}", statement);
-        tableResult = tEnv.executeSql(statement);
+        log.info("Executing statement:\n{}", stmt.raw());
+        tableResult = tEnv.executeSql(stmt.resolved());
         if (statementSetMatcher.find() && intermediate) {
           log.debug("Make sure to wait intermediate statement set to finish...");
           tableResult.await();
         }
       }
     } catch (Exception e) {
-      throw new RuntimeException("Error while executing stmt: " + statement, e);
+      throw new RuntimeException("Error while executing statement: " + stmt.raw(), e);
     }
+
     return tableResult;
   }
 
@@ -255,4 +265,22 @@ class SqlExecutor {
 
     return Optional.ofNullable(res);
   }
+
+  /**
+   * Returns the value of a SET statement as written in the script, or {@link
+   * GlobalConfiguration#HIDDEN_CONTENT} if the key is sensitive or the value can't be read from the
+   * statement as written.
+   */
+  private static String redactSensitiveSetValue(String key, String rawSetStatement) {
+    if (GlobalConfiguration.isSensitive(key)) {
+      return GlobalConfiguration.HIDDEN_CONTENT;
+    }
+
+    var rawMatcher = SET_PATTERN.matcher(rawSetStatement.trim());
+
+    return rawMatcher.matches() ? rawMatcher.group(2) : GlobalConfiguration.HIDDEN_CONTENT;
+  }
+
+  /** A statement as written in the script, and with its environment variables resolved. */
+  private record Statement(String raw, String resolved) {}
 }

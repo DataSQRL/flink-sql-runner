@@ -65,10 +65,9 @@ abstract class BaseRunner {
     if (StringUtils.isNotBlank(sqlFile)) {
       // Single SQL file mode
       var script = readTextFile(sqlFile);
-      script = resolver.resolve(script);
 
       sqlExecutor.setupSystemFunctions();
-      return sqlExecutor.executeScript(script);
+      return sqlExecutor.executeScript(script, resolver::resolve);
     }
 
     // Compiled plan JSON file

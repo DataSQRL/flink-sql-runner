@@ -17,6 +17,7 @@ package com.datasqrl.flinkrunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -28,12 +29,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 
 class CliRunnerTest {
 
@@ -81,7 +84,7 @@ class CliRunnerTest {
     SqlExecutor mockExecutor = mock(SqlExecutor.class);
     Supplier<SqlExecutor> supplier = () -> mockExecutor;
 
-    when(mockResolver.resolve(sql)).thenReturn(sql);
+    when(mockResolver.resolve("statement")).thenReturn("resolved statement");
 
     CliRunner cliRunner =
         new CliRunner(
@@ -91,9 +94,11 @@ class CliRunnerTest {
     cliRunner.run(supplier);
 
     // Assert
+    ArgumentCaptor<UnaryOperator<String>> resolverCaptor = ArgumentCaptor.captor();
     verify(mockExecutor).setupSystemFunctions();
-    verify(mockExecutor).executeScript(sql);
+    verify(mockExecutor).executeScript(eq(sql), resolverCaptor.capture());
     verifyNoMoreInteractions(mockExecutor);
+    assertThat(resolverCaptor.getValue().apply("statement")).isEqualTo("resolved statement");
   }
 
   @Test
