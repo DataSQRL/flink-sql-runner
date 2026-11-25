@@ -12,6 +12,8 @@ on:
       - main
       - release-*
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -32,6 +34,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: ./.github/actions/setup-jdk
@@ -43,9 +47,11 @@ jobs:
 
       - name: Get project version
         id: version
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
-          if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
-            echo "project_version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_EVENT_NAME" == "release" && "$EVENT_ACTION" == "created" ]]; then
+            echo "project_version=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           else
             echo "project_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
           fi
@@ -63,6 +69,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: ./.github/actions/setup-jdk
@@ -82,6 +90,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: ./.github/actions/setup-jdk
@@ -104,6 +114,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: ./.github/actions/setup-jdk
@@ -125,8 +137,10 @@ jobs:
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
+        env:
+          VERSION: ${{ needs.cache-dependencies.outputs.project-version }}
         run: |
-          mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
+          mvn -B versions:set -DnewVersion="$VERSION"
 
       # Releases also go to GitHub Packages, so they can be resolved when Maven Central rejects them (it caps what the
       # com.datasqrl namespace publishes per month). Only the github-release profile gives them a repository there.
@@ -168,6 +182,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup JDK
         uses: ./.github/actions/setup-jdk
@@ -191,21 +207,28 @@ jobs:
 
       - name: Update version
         if: github.event_name == 'release' && github.event.action == 'created'
+        env:
+          VERSION: ${{ needs.cache-dependencies.outputs.project-version }}
         run: |
-          mvn -B versions:set -DnewVersion=${{ needs.cache-dependencies.outputs.project-version }}
+          mvn -B versions:set -DnewVersion="$VERSION"
 
       - name: Build uber jar
         run: mvn -B clean install -DskipTests
 
       - name: Define Docker image tag
         id: vars
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.number }}
+          VERSION: ${{ needs.cache-dependencies.outputs.project-version }}
+          FLINK_VERSION_LABEL: ${{ needs.cache-dependencies.outputs.flink-version-label }}
         run: |
-          if [[ "${{ github.event_name }}" == "release" && "${{ github.event.action }}" == "created" ]]; then
-            echo "image_tag=datasqrl/flink-sql-runner:${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${{ needs.cache-dependencies.outputs.project-version }}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_EVENT_NAME" == "release" && "$EVENT_ACTION" == "created" ]]; then
+            echo "image_tag=datasqrl/flink-sql-runner:${VERSION}-${FLINK_VERSION_LABEL}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:${VERSION}" >> $GITHUB_OUTPUT
           else
-            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
+            echo "image_tag=ghcr.io/datasqrl/flink-sql-runner:pr-${PR_NUMBER}" >> $GITHUB_OUTPUT
           fi
 
       - name: Log in to container registry
@@ -226,8 +249,11 @@ jobs:
 
       - name: Rename jar file
         if: github.event_name == 'release' && github.event.action == 'created'
+        env:
+          VERSION: ${{ needs.cache-dependencies.outputs.project-version }}
+          FLINK_VERSION_LABEL: ${{ needs.cache-dependencies.outputs.flink-version-label }}
         run: |
-          mv flink-sql-runner/target/flink-sql-runner.uber.jar flink-sql-runner/target/flink-sql-runner-${{ needs.cache-dependencies.outputs.project-version }}-${{ needs.cache-dependencies.outputs.flink-version-label }}.jar
+          mv flink-sql-runner/target/flink-sql-runner.uber.jar "flink-sql-runner/target/flink-sql-runner-${VERSION}-${FLINK_VERSION_LABEL}.jar"
 
       # Attach what running the runner on a Flink cluster other than this image takes: the uber jar, and stdlib-utils,
       # which the uber jar leaves out because Flink has to load it from /opt/flink/lib. Every other module is inside the
@@ -249,10 +275,11 @@ jobs:
     if: always()
     steps:
       - name: Check test results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           echo "Checking results of upstream jobs..."
           FAILED_JOBS=""
-          NEEDS_JSON='${{ toJSON(needs) }}'
 
           for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
             result=$(echo "$NEEDS_JSON" | jq -r ".[\"$job\"].result")

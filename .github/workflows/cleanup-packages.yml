@@ -82,8 +82,9 @@ jobs:
       - name: Discover and cleanup Container packages
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGES_BOT_PAT }}
+          CUTOFF_DATE: ${{ steps.cutoff-date.outputs.cutoff_date }}
         run: |
-          cutoff_date="${{ steps.cutoff-date.outputs.cutoff_date }}"
+          cutoff_date="$CUTOFF_DATE"
           echo "Using cutoff date: $cutoff_date"
           echo "Discovering Container packages..."
 
