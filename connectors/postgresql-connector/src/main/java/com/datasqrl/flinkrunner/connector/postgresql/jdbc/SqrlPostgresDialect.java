@@ -136,7 +136,8 @@ public class SqrlPostgresDialect extends AbstractDialect {
 
   @Override
   public String quoteIdentifier(String identifier) {
-    return "\"" + identifier + "\"";
+    // Double any embedded quotes so they cannot close the quoted identifier early
+    return "\"" + identifier.replace("\"", "\"\"") + "\"";
   }
 
   @Override

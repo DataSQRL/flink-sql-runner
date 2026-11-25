@@ -83,4 +83,30 @@ class SqrlPostgresDialectTest {
 
     assertThat(sql).endsWith(" WHERE EXCLUDED.\"value\" >= \"events\".\"value\"");
   }
+
+  @Test
+  void quoteIdentifierDoublesEmbeddedQuotes() {
+    var dialect = new SqrlPostgresDialect(OnConflictAction.UPDATE, null);
+
+    assertThat(dialect.quoteIdentifier("id")).isEqualTo("\"id\"");
+    assertThat(dialect.quoteIdentifier("my\"events")).isEqualTo("\"my\"\"events\"");
+    assertThat(dialect.quoteIdentifier("\"")).isEqualTo("\"\"\"\"");
+  }
+
+  @Test
+  void upsertEscapesEmbeddedQuotesInIdentifiers() {
+    var dialect = new SqrlPostgresDialect(OnConflictAction.TIMESTAMP, "event\"time");
+
+    var sql =
+        dialect
+            .getUpsertStatement(
+                "my\"events", new String[] {"i\"d", "event\"time"}, new String[] {"i\"d"})
+            .orElseThrow();
+
+    assertThat(sql)
+        .startsWith("INSERT INTO \"my\"\"events\"(\"i\"\"d\", \"event\"\"time\")")
+        .contains("ON CONFLICT (\"i\"\"d\") DO UPDATE SET ")
+        .contains("\"event\"\"time\"=EXCLUDED.\"event\"\"time\"")
+        .endsWith(" WHERE EXCLUDED.\"event\"\"time\" >= \"my\"\"events\".\"event\"\"time\"");
+  }
 }
