@@ -18,15 +18,22 @@ runs:
   steps:
     - name: Generate settings.xml
       shell: bash
+      # The inputs reach the script only as environment variables, so the shell expands them once and never runs them
+      env:
+        GITHUB_PACKAGES_USERNAME: ${{ inputs.github-actor }}
+        GITHUB_PACKAGES_TOKEN: ${{ inputs.github-token }}
+        ADDITIONAL_SERVERS: ${{ inputs.additional-servers }}
       run: |
         mkdir -p ~/.m2
-        echo "<settings>
-              <servers>
-                <server>
-                  <id>github</id>
-                  <username>${{ inputs.github-actor }}</username>
-                  <password>${{ inputs.github-token }}</password>
-                </server>
-                ${{ inputs.additional-servers }}
-              </servers>
-            </settings>" > ~/.m2/settings.xml
+        cat > ~/.m2/settings.xml <<EOF
+        <settings>
+          <servers>
+            <server>
+              <id>github</id>
+              <username>${GITHUB_PACKAGES_USERNAME}</username>
+              <password>${GITHUB_PACKAGES_TOKEN}</password>
+            </server>
+            ${ADDITIONAL_SERVERS}
+          </servers>
+        </settings>
+        EOF
