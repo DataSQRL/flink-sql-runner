@@ -62,6 +62,7 @@
     <module>env-utils</module>
     <module>formats</module>
     <module>stdlib</module>
+    <module>camel-source-sdk</module>
     <module>connectors</module>
     <module>testing</module>
     <module>flink-sql-runner</module>
@@ -98,15 +99,21 @@
     <kafka.conn.version>5.0.0-2.2</kafka.conn.version>
 
     <!-- Dependency versions -->
+    <!-- The ActiveMQ version Camel ${camel.version} is built with (activemq6-version in camel-parent). -->
+    <activemq.version>6.3.2</activemq.version>
     <assertj.version>3.27.7</assertj.version>
     <auto.service.version>1.1.1</auto.service.version>
     <awaitility.version>4.3.0</awaitility.version>
     <!-- AWS SDK must be kept in sync with the version defined in "iceberg-aws-bundle" -->
     <awssdk.version>2.54.17</awssdk.version>
     <aws-msk-iam-auth.version>2.3.9</aws-msk-iam-auth.version>
+    <camel.version>4.23.0</camel.version>
     <classgraph.version>5.0.1</classgraph.version>
     <commons-exec.version>1.6.0</commons-exec.version>
+    <!-- The commons-csv version Camel ${camel.version} is built with (commons-csv-version in camel-parent). -->
+    <commons-csv.version>1.14.1</commons-csv.version>
     <commons-math3.version>3.6.1</commons-math3.version>
+    <cron-utils.version>9.2.1</cron-utils.version>
     <feign.version>13.5</feign.version>
     <hadoop.version>3.3.4</hadoop.version>
     <iceberg.version>1.12.0</iceberg.version>
@@ -123,6 +130,7 @@
     <picocli.version>4.7.7</picocli.version>
     <postgres.version>42.7.14</postgres.version>
     <slf4j.version>1.7.36</slf4j.version>
+    <sshd.version>2.20.0</sshd.version>
     <testcontainers.version>2.0.5</testcontainers.version>
 
     <!-- Plugin versions -->
@@ -172,6 +180,14 @@
         <groupId>software.amazon.awssdk</groupId>
         <artifactId>bom</artifactId>
         <version>${awssdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.camel</groupId>
+        <artifactId>camel-bom</artifactId>
+        <version>${camel.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -808,6 +824,7 @@
 
               <excludeArtifacts>
                 <!-- artifacts that only exists to support integration tests and as samples-->
+                <excludeArtifact>camel-source-sample</excludeArtifact>
                 <excludeArtifact>helpers</excludeArtifact>
                 <excludeArtifact>system-functions-sample</excludeArtifact>
                 <excludeArtifact>udf-sample</excludeArtifact>
