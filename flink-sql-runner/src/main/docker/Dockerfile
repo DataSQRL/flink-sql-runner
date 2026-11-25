@@ -17,6 +17,9 @@
 FROM flink:${flink-base-image}
 
 ARG ASYNC_PROFILER_VERSION=4.4
+# SHA-256 of the release tarballs, update them together with ASYNC_PROFILER_VERSION.
+ARG ASYNC_PROFILER_SHA256_X64=1233f26fc95753e75ce32733bbcaf8f0bedc2c098b0e798af87935b08a63b24e
+ARG ASYNC_PROFILER_SHA256_ARM64=86ff97b4436accdb6d7bb65c1cf6e38a756f2037a921994d8fa1dcb97d1dc53c
 ARG TARGETARCH
 
 USER root
@@ -33,13 +36,12 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 # Download and setup async-profiler
 RUN set -eu; \
     case "${TARGETARCH:-$(uname -m)}" in \
-      x86_64) ASYNC_PROFILER_ARCH="x64" ;; \
-      amd64) ASYNC_PROFILER_ARCH="x64" ;; \
-      aarch64) ASYNC_PROFILER_ARCH="arm64" ;; \
-      arm64) ASYNC_PROFILER_ARCH="arm64" ;; \
+      x86_64|amd64) ASYNC_PROFILER_ARCH="x64"; ASYNC_PROFILER_SHA256="${ASYNC_PROFILER_SHA256_X64}" ;; \
+      aarch64|arm64) ASYNC_PROFILER_ARCH="arm64"; ASYNC_PROFILER_SHA256="${ASYNC_PROFILER_SHA256_ARM64}" ;; \
       *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
     && curl -fsSL "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}.tar.gz" -o /tmp/async-profiler.tar.gz \
+    && echo "${ASYNC_PROFILER_SHA256}  /tmp/async-profiler.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/async-profiler.tar.gz -C /opt \
     && mv "/opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-${ASYNC_PROFILER_ARCH}" /opt/async-profiler \
     && ln -s /opt/async-profiler/bin/asprof /usr/local/bin/asprof \
